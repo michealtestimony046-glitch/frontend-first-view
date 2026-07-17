@@ -10,6 +10,7 @@ import {
   Copy,
   Download,
   Globe,
+  Loader2,
   Network,
   Terminal,
   XCircle,
@@ -110,33 +111,35 @@ function RunDetailPage() {
           />
         </div>
 
-        {/* Tabs */}
-        <div className="mt-8 flex flex-wrap items-center gap-1 border-b border-border">
-          {(
-            [
-              { id: "overview", label: "Overview", icon: CheckCircle2 },
-              { id: "screenshots", label: "Screenshots", icon: Camera },
-              { id: "console", label: "Console", icon: Terminal },
-              { id: "network", label: "Network", icon: Network },
-              { id: "scenarios", label: "Scenarios", icon: Bug },
-            ] as const
-          ).map((t) => {
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`relative -mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm transition-colors ${
-                  active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <t.icon className="h-3.5 w-3.5" />
-                {t.label}
-              </button>
-            );
-          })}
+        {/* Tabs — horizontally scrollable on mobile */}
+        <div className="mt-8 -mx-4 overflow-x-auto border-b border-border md:mx-0">
+          <div className="flex min-w-max items-center gap-1 px-4 md:min-w-0 md:px-0">
+            {(
+              [
+                { id: "overview", label: "Overview", icon: CheckCircle2 },
+                { id: "screenshots", label: "Screenshots", icon: Camera },
+                { id: "console", label: "Console", icon: Terminal },
+                { id: "network", label: "Network", icon: Network },
+                { id: "scenarios", label: "Scenarios", icon: Bug },
+              ] as const
+            ).map((t) => {
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`relative -mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors ${
+                    active
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <t.icon className="h-3.5 w-3.5" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="mt-6">
@@ -308,40 +311,55 @@ function ScreenshotsTab({
 
 function ConsoleTab() {
   const r = runDetail;
+  if (!r.console.length) {
+    return (
+      <EmptyState
+        icon={Terminal}
+        title="No console activity captured"
+        body="This run finished without any log, warning, or error events."
+      />
+    );
+  }
   return (
     <div className="surface-card overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border bg-surface-2/40 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-        <span>Time</span>
-        <span className="ml-4 flex-1">Message</span>
-        <span>Source</span>
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <div className="grid grid-cols-[70px_60px_1fr_180px] gap-3 border-b border-border bg-surface-2/40 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span>Time</span>
+          <span>Level</span>
+          <span>Message</span>
+          <span>Source</span>
+        </div>
+        <ul className="max-h-[560px] divide-y divide-border overflow-auto font-mono text-[12px]">
+          {r.console.map((c, i) => (
+            <li
+              key={i}
+              className="grid grid-cols-[70px_60px_1fr_180px] items-start gap-3 px-4 py-2 hover:bg-accent/30"
+            >
+              <span className="text-muted-foreground">{formatMs(c.t)}</span>
+              <LevelBadge level={c.level} />
+              <span className={levelText(c.level)}>{c.message}</span>
+              <span className="truncate text-muted-foreground">{c.source}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="max-h-[560px] divide-y divide-border overflow-auto font-mono text-[12px]">
+      {/* Mobile cards */}
+      <ul className="max-h-[70vh] divide-y divide-border overflow-auto font-mono text-[12px] md:hidden">
         {r.console.map((c, i) => (
-          <li key={i} className="grid grid-cols-[70px_60px_1fr_180px] items-start gap-3 px-4 py-2 hover:bg-accent/30">
-            <span className="text-muted-foreground">{formatMs(c.t)}</span>
-            <span
-              className={`inline-flex w-14 justify-center rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                c.level === "error"
-                  ? "bg-destructive/15 text-destructive"
-                  : c.level === "warn"
-                    ? "bg-warning/15 text-warning"
-                    : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {c.level}
-            </span>
-            <span
-              className={
-                c.level === "error"
-                  ? "text-destructive"
-                  : c.level === "warn"
-                    ? "text-warning"
-                    : "text-foreground/90"
-              }
-            >
-              {c.message}
-            </span>
-            <span className="truncate text-muted-foreground">{c.source}</span>
+          <li key={i} className="space-y-1 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <LevelBadge level={c.level} />
+              <span className="text-[10px] text-muted-foreground">
+                {formatMs(c.t)}
+              </span>
+            </div>
+            <p className={`break-words ${levelText(c.level)}`}>{c.message}</p>
+            {c.source && (
+              <p className="truncate text-[10px] text-muted-foreground">
+                {c.source}
+              </p>
+            )}
           </li>
         ))}
       </ul>
@@ -351,38 +369,65 @@ function ConsoleTab() {
 
 function NetworkTab() {
   const r = runDetail;
+  if (!r.network.length) {
+    return (
+      <EmptyState
+        icon={Network}
+        title="No network calls recorded"
+        body="No requests were made during this run."
+      />
+    );
+  }
   return (
     <div className="surface-card overflow-hidden">
-      <div className="grid grid-cols-[70px_60px_1fr_80px_80px_80px] border-b border-border bg-surface-2/40 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-        <span>Time</span>
-        <span>Method</span>
-        <span>URL</span>
-        <span>Status</span>
-        <span>Latency</span>
-        <span className="text-right">Size</span>
-      </div>
-      <ul className="max-h-[560px] divide-y divide-border overflow-auto font-mono text-[12px]">
-        {r.network.map((n, i) => (
-          <li
-            key={i}
-            className="grid grid-cols-[70px_60px_1fr_80px_80px_80px] items-center gap-2 px-4 py-2 hover:bg-accent/30"
-          >
-            <span className="text-muted-foreground">{formatMs(n.t)}</span>
-            <span className="text-foreground/80">{n.method}</span>
-            <span className="truncate text-foreground">{n.url}</span>
-            <span
-              className={
-                n.status >= 500
-                  ? "text-destructive"
-                  : n.status >= 400
-                    ? "text-warning"
-                    : "text-success"
-              }
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <div className="grid grid-cols-[70px_60px_1fr_80px_80px_80px] border-b border-border bg-surface-2/40 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span>Time</span>
+          <span>Method</span>
+          <span>URL</span>
+          <span>Status</span>
+          <span>Latency</span>
+          <span className="text-right">Size</span>
+        </div>
+        <ul className="max-h-[560px] divide-y divide-border overflow-auto font-mono text-[12px]">
+          {r.network.map((n, i) => (
+            <li
+              key={i}
+              className="grid grid-cols-[70px_60px_1fr_80px_80px_80px] items-center gap-2 px-4 py-2 hover:bg-accent/30"
             >
-              {n.status}
-            </span>
-            <span className="text-muted-foreground">{n.ms}ms</span>
-            <span className="text-right text-muted-foreground">{n.size}</span>
+              <span className="text-muted-foreground">{formatMs(n.t)}</span>
+              <span className="text-foreground/80">{n.method}</span>
+              <span className="truncate text-foreground">{n.url}</span>
+              <span className={statusColor(n.status)}>{n.status}</span>
+              <span className="text-muted-foreground">{n.ms}ms</span>
+              <span className="text-right text-muted-foreground">{n.size}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {/* Mobile cards */}
+      <ul className="max-h-[70vh] divide-y divide-border overflow-auto font-mono text-[12px] md:hidden">
+        {r.network.map((n, i) => (
+          <li key={i} className="space-y-1.5 px-4 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                  {n.method}
+                </span>
+                <span className={`shrink-0 ${statusColor(n.status)}`}>
+                  {n.status}
+                </span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {formatMs(n.t)}
+              </span>
+            </div>
+            <p className="break-all text-foreground">{n.url}</p>
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>{n.ms}ms</span>
+              <span>{n.size}</span>
+            </div>
           </li>
         ))}
       </ul>
@@ -392,29 +437,101 @@ function NetworkTab() {
 
 function ScenariosTab() {
   const r = runDetail;
+  if (!r.scenariosList.length) {
+    return (
+      <EmptyState
+        icon={Bug}
+        title="No scenarios ran"
+        body="This run didn't include any scenario definitions."
+      />
+    );
+  }
   return (
     <div className="surface-card overflow-hidden">
       <ul className="divide-y divide-border">
         {r.scenariosList.map((s) => (
           <li
             key={s.id}
-            className="flex items-center gap-4 px-5 py-3 hover:bg-accent/30"
+            className="flex items-center gap-4 px-4 py-3 hover:bg-accent/30 md:px-5"
           >
             {s.status === "passed" ? (
-              <CheckCircle2 className="h-4 w-4 text-success" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
             ) : (
-              <XCircle className="h-4 w-4 text-destructive" />
+              <XCircle className="h-4 w-4 shrink-0 text-destructive" />
             )}
-            <div className="flex-1">
-              <p className="text-sm text-foreground">{s.name}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm text-foreground">{s.name}</p>
               <p className="font-mono text-[11px] text-muted-foreground">
                 {s.steps} steps · {s.durationSec}s
               </p>
             </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function LevelBadge({ level }: { level: "log" | "warn" | "error" }) {
+  return (
+    <span
+      className={`inline-flex w-14 shrink-0 justify-center rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+        level === "error"
+          ? "bg-destructive/15 text-destructive"
+          : level === "warn"
+            ? "bg-warning/15 text-warning"
+            : "bg-muted text-muted-foreground"
+      }`}
+    >
+      {level}
+    </span>
+  );
+}
+
+function levelText(level: "log" | "warn" | "error") {
+  return level === "error"
+    ? "text-destructive"
+    : level === "warn"
+      ? "text-warning"
+      : "text-foreground/90";
+}
+
+function statusColor(status: number) {
+  return status >= 500
+    ? "text-destructive"
+    : status >= 400
+      ? "text-warning"
+      : "text-success";
+}
+
+export function EmptyState({
+  icon: Icon,
+  title,
+  body,
+}: {
+  icon: typeof Terminal;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="surface-card flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+      <div className="rounded-full border border-border bg-surface p-3">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <h3 className="font-display text-base font-semibold">{title}</h3>
+      <p className="max-w-sm text-sm text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
+export function LoadingState({ label = "Loading run…" }: { label?: string }) {
+  return (
+    <div className="surface-card flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+        {label}
+      </p>
     </div>
   );
 }
