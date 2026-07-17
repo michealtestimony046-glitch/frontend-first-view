@@ -14,7 +14,7 @@ import {
   Terminal,
   XCircle,
 } from "lucide-react";
-import { AppShell } from "@/components/app-shell";
+
 import { StatusPill } from "./app.index";
 import { BrowserFrame } from "@/components/browser-frame";
 import { runDetail, type Severity } from "@/lib/mock-data";
@@ -39,7 +39,7 @@ function RunDetailPage() {
   const [selected, setSelected] = useState(0);
 
   return (
-    <AppShell>
+    <div>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
         {/* Breadcrumb */}
         <Link
@@ -149,7 +149,8 @@ function RunDetailPage() {
           {tab === "scenarios" && <ScenariosTab />}
         </div>
       </div>
-    </AppShell>
+    </div>
+    </div>
   );
 }
 
