@@ -150,7 +150,6 @@ function RunDetailPage() {
         </div>
       </div>
     </div>
-    </div>
   );
 }
 
