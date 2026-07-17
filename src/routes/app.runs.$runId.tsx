@@ -15,7 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { StatusPill } from "./app";
+import { StatusPill } from "./app.index";
 import { BrowserFrame } from "@/components/browser-frame";
 import { runDetail, type Severity } from "@/lib/mock-data";
 
