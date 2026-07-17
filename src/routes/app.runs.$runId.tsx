@@ -9,7 +9,7 @@ import {
   Clock,
   Copy,
   Download,
-  FileQuestion,
+  Globe,
   Globe,
   Loader2,
   Network,
