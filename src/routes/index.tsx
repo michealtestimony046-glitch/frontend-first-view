@@ -78,10 +78,10 @@ function Landing() {
               <br />
               <span className="text-primary">runs itself.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-xl text-base text-muted-foreground md:text-lg">
-              Point Matrix QA at a URL. Autonomous browser workers sign up, sign in,
-              click through your app, and return evidence-grade reports of the bugs
-              your developers actually care about.
+            <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground md:text-lg">
+              Autonomous browser workers explore your web app, uncover real bugs,
+              capture evidence, and generate reports your developers can act on —
+              from a single URL.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
@@ -92,16 +92,33 @@ function Landing() {
                 Run your first test
               </Link>
               <a
-                href="#product"
+                href="#how"
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
               >
                 <Github className="h-4 w-4" />
-                Watch a live demo
+                See how it works
               </a>
             </div>
             <p className="mt-5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
               no card · no install · one URL is enough
             </p>
+
+            {/* Value strip */}
+            <div className="mx-auto mt-10 grid max-w-3xl gap-3 sm:grid-cols-3">
+              {[
+                "Catch production-breaking bugs before your users do",
+                "Cut manual QA time from hours to minutes",
+                "Ship with evidence-backed confidence",
+              ].map((v) => (
+                <div
+                  key={v}
+                  className="rounded-lg border border-border bg-surface/50 px-3 py-2.5 text-left text-xs text-foreground/80 sm:text-sm"
+                >
+                  <CheckCircle2 className="mb-1.5 h-3.5 w-3.5 text-primary" />
+                  {v}
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Hero preview */}
