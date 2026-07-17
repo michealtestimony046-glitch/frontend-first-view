@@ -10,7 +10,6 @@ import {
   Copy,
   Download,
   Globe,
-  Globe,
   Loader2,
   Network,
   Terminal,
