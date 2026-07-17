@@ -223,6 +223,84 @@ function Landing() {
         </div>
       </section>
 
+      {/* How it works */}
+      <section id="how" className="border-t border-border bg-background">
+        <div className="mx-auto max-w-7xl px-6 py-24">
+          <div className="max-w-2xl">
+            <span className="font-mono text-xs uppercase tracking-widest text-primary">
+              How it works
+            </span>
+            <h2 className="mt-3 font-display text-3xl font-semibold md:text-4xl">
+              Three steps. One evidence-backed report.
+            </h2>
+          </div>
+          <ol className="mt-12 grid gap-4 md:grid-cols-3">
+            {[
+              {
+                n: "01",
+                icon: ArrowRight,
+                title: "Enter your app's URL",
+                body: "No install, no config. Point Matrix QA at any staging or production URL.",
+              },
+              {
+                n: "02",
+                icon: Cpu,
+                title: "Matrix QA explores it",
+                body: "Autonomous browser workers sign up, sign in, and click through every real flow.",
+              },
+              {
+                n: "03",
+                icon: FileSearch,
+                title: "Review the bug report",
+                body: "Every finding ships with screenshots, console logs, and network traces attached.",
+              },
+            ].map((s) => (
+              <li
+                key={s.n}
+                className="relative rounded-xl border border-border bg-surface/50 p-5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                    step {s.n}
+                  </span>
+                  <s.icon className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="mt-4 font-display text-base font-semibold">
+                  {s.title}
+                </h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
+              </li>
+            ))}
+          </ol>
+
+          {/* Trust signals */}
+          <div className="mt-14 rounded-xl border border-border bg-surface/40 p-5 md:p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+                Built for developers who don't trust magic
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                "Built on Playwright",
+                "AI-assisted analysis",
+                "Deterministic evidence collection",
+                "No browser extensions required",
+              ].map((t) => (
+                <div
+                  key={t}
+                  className="flex items-center gap-2 rounded-md border border-border/70 bg-background/40 px-3 py-2 text-sm text-foreground/85"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  {t}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Roadmap */}
       <section id="roadmap" className="border-t border-border">
         <div className="mx-auto max-w-7xl px-6 py-24">
@@ -232,7 +310,7 @@ function Landing() {
                 Roadmap
               </span>
               <h2 className="mt-3 font-display text-3xl font-semibold md:text-4xl">
-                We're shipping the matrix, one layer at a time.
+                What's live today — and what's coming next.
               </h2>
             </div>
             <span className="rounded-full border border-border bg-surface/60 px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -240,52 +318,98 @@ function Landing() {
             </span>
           </div>
 
-          <ol className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                tag: "v1 · now",
-                title: "Core engine proof",
-                body: "Sequential worker, evidence capture, dashboard report.",
-                accent: true,
-              },
-              {
-                tag: "v2 · next",
-                title: "Application mapping",
-                body: "Project scanner, journey graph, safety policy engine.",
-              },
-              {
-                tag: "v3",
-                title: "Matrix simulation",
-                body: "Roles × viewports × environments in parallel.",
-              },
-              {
-                tag: "v4+",
-                title: "Repair packages",
-                body: "AI-authored fix bundles routed straight to your coding agent.",
-              },
-            ].map((s) => (
-              <li
-                key={s.tag}
-                className={`relative rounded-xl border p-5 ${
-                  s.accent
-                    ? "border-primary/40 bg-primary/5"
-                    : "border-border bg-surface/50"
-                }`}
-              >
-                <span
-                  className={`font-mono text-[11px] uppercase tracking-wider ${
-                    s.accent ? "text-primary" : "text-muted-foreground"
-                  }`}
+          {/* Available now */}
+          <div className="mt-10">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inset-0 animate-ping rounded-full bg-primary/60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+              </span>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
+                Available now · v1
+              </span>
+            </div>
+            <ol className="mt-4 grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  icon: Cpu,
+                  title: "Browser Worker",
+                  body: "Sequential automation across login, signup, navigation, and forms.",
+                },
+                {
+                  icon: Camera,
+                  title: "Evidence Capture",
+                  body: "Screenshots, console logs, and network traces synced to every action.",
+                },
+                {
+                  icon: FileSearch,
+                  title: "Dashboard Reports",
+                  body: "Findings ranked by severity, tied to reproducible evidence.",
+                },
+              ].map((s) => (
+                <li
+                  key={s.title}
+                  className="relative rounded-xl border border-primary/40 bg-primary/5 p-5"
                 >
-                  {s.tag}
-                </span>
-                <h3 className="mt-2 font-display text-base font-semibold">
-                  {s.title}
-                </h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
-              </li>
-            ))}
-          </ol>
+                  <div className="flex items-center justify-between">
+                    <s.icon className="h-4 w-4 text-primary" />
+                    <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+                      Live
+                    </span>
+                  </div>
+                  <h3 className="mt-4 font-display text-base font-semibold">
+                    {s.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {/* Coming next */}
+          <div className="mt-12">
+            <div className="flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+                Coming next
+              </span>
+            </div>
+            <ol className="mt-4 grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  tag: "v2",
+                  title: "Application Mapping",
+                  body: "Project scanner, journey graph, and safety policy engine.",
+                },
+                {
+                  tag: "v3",
+                  title: "Matrix Simulation",
+                  body: "Roles × viewports × environments explored in parallel.",
+                },
+                {
+                  tag: "v4+",
+                  title: "Repair Packages",
+                  body: "AI-authored fix bundles routed to your coding agent.",
+                },
+              ].map((s) => (
+                <li
+                  key={s.tag}
+                  className="relative rounded-xl border border-border bg-surface/40 p-5"
+                >
+                  <div className="flex items-center justify-between">
+                    <Rocket className="h-4 w-4 text-muted-foreground" />
+                    <span className="rounded-full border border-border bg-background/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {s.tag}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 font-display text-base font-semibold">
+                    {s.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
       </section>
 
