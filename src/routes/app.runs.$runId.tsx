@@ -112,33 +112,35 @@ function RunDetailPage() {
           />
         </div>
 
-        {/* Tabs */}
-        <div className="mt-8 flex flex-wrap items-center gap-1 border-b border-border">
-          {(
-            [
-              { id: "overview", label: "Overview", icon: CheckCircle2 },
-              { id: "screenshots", label: "Screenshots", icon: Camera },
-              { id: "console", label: "Console", icon: Terminal },
-              { id: "network", label: "Network", icon: Network },
-              { id: "scenarios", label: "Scenarios", icon: Bug },
-            ] as const
-          ).map((t) => {
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`relative -mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm transition-colors ${
-                  active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <t.icon className="h-3.5 w-3.5" />
-                {t.label}
-              </button>
-            );
-          })}
+        {/* Tabs — horizontally scrollable on mobile */}
+        <div className="mt-8 -mx-4 overflow-x-auto border-b border-border md:mx-0">
+          <div className="flex min-w-max items-center gap-1 px-4 md:min-w-0 md:px-0">
+            {(
+              [
+                { id: "overview", label: "Overview", icon: CheckCircle2 },
+                { id: "screenshots", label: "Screenshots", icon: Camera },
+                { id: "console", label: "Console", icon: Terminal },
+                { id: "network", label: "Network", icon: Network },
+                { id: "scenarios", label: "Scenarios", icon: Bug },
+              ] as const
+            ).map((t) => {
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`relative -mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors ${
+                    active
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <t.icon className="h-3.5 w-3.5" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="mt-6">
