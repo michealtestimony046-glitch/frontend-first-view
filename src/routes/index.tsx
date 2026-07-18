@@ -74,10 +74,11 @@ function Landing() {
               v1 · Autonomous QA Worker
             </span>
             <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-gradient sm:text-5xl md:text-7xl">
-              Proof your app works —
+              Proof your app works.
               <br />
-              <span className="text-primary">every deploy.</span>
+              <span className="text-primary">Every deploy.</span>
             </h1>
+
             <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground md:text-lg">
               Matrix QA walks your critical user journeys — login, signup,
               navigation, forms — and streams screenshots, console logs, network
