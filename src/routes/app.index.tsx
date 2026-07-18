@@ -142,11 +142,11 @@ function AppDashboard() {
 
           {/* Desktop table */}
           <div className="hidden md:block">
-            <div className="grid grid-cols-[90px_minmax(0,1fr)_100px_110px_100px_100px_24px] items-center gap-3 border-b border-border bg-surface-2/40 px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              <span>Run ID</span>
+            <div className="grid grid-cols-[60px_minmax(0,1fr)_92px_84px_74px_16px] items-center gap-3 border-b border-border bg-surface-2/40 px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground xl:grid-cols-[60px_minmax(0,1fr)_92px_100px_84px_74px_16px]">
+              <span>Run</span>
               <span>Project</span>
               <span>Status</span>
-              <span>Browser</span>
+              <span className="hidden xl:block">Browser</span>
               <span>Started</span>
               <span>Duration</span>
               <span />
@@ -157,7 +157,7 @@ function AppDashboard() {
                   <Link
                     to="/app/runs/$runId"
                     params={{ runId: r.id }}
-                    className="group grid grid-cols-[90px_minmax(0,1fr)_100px_110px_100px_100px_24px] items-center gap-3 border-b border-border px-5 py-3.5 transition-colors last:border-b-0 hover:bg-accent/30"
+                    className="group grid grid-cols-[60px_minmax(0,1fr)_92px_84px_74px_16px] items-center gap-3 border-b border-border px-5 py-3.5 transition-colors last:border-b-0 hover:bg-accent/30 xl:grid-cols-[60px_minmax(0,1fr)_92px_100px_84px_74px_16px]"
                   >
                     <span className="font-mono text-xs text-muted-foreground">
                       #{102 - i}
@@ -166,13 +166,14 @@ function AppDashboard() {
                       {project.name}
                     </span>
                     <StatusPill status={r.status} />
-                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="hidden items-center gap-1.5 text-xs text-muted-foreground xl:flex">
                       <Chrome className="h-3.5 w-3.5" /> Chromium
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="truncate text-xs text-muted-foreground">
                       {r.startedAt}
                     </span>
                     <span className="font-mono text-xs text-foreground">
+
                       {formatDuration(r.durationSec)}
                     </span>
                     <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
