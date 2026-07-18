@@ -71,55 +71,76 @@ function Landing() {
                 <span className="absolute inset-0 animate-ping rounded-full bg-primary/60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
               </span>
-              v1 · Core engine now in preview
+              v1 · Autonomous QA Worker
             </span>
-            <h1 className="mt-6 font-display text-5xl font-semibold leading-[1.05] tracking-tight text-gradient md:text-7xl">
-              The QA layer that
+            <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-gradient sm:text-5xl md:text-7xl">
+              Proof your app works —
               <br />
-              <span className="text-primary">runs itself.</span>
+              <span className="text-primary">every deploy.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground md:text-lg">
-              Autonomous browser workers explore your web app, uncover real bugs,
-              capture evidence, and generate reports your developers can act on —
-              from a single URL.
+              Matrix QA walks your critical user journeys — login, signup,
+              navigation, forms — and streams screenshots, console logs, network
+              activity, and timestamps into an evidence-grade report.
+              Deterministic. Multi-tenant. Built for developers.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
-                to="/app"
+                to="/auth"
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow transition-transform hover:-translate-y-px"
               >
                 <Play className="h-4 w-4" />
-                Run your first test
+                Run your first scan
               </Link>
-              <a
-                href="#how"
+              <Link
+                to="/app/runs/$runId"
+                params={{ runId: "run_9f2c" }}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
               >
-                <Github className="h-4 w-4" />
-                See how it works
-              </a>
+                <FileSearch className="h-4 w-4" />
+                See a sample report
+              </Link>
             </div>
             <p className="mt-5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
               no card · no install · one URL is enough
             </p>
 
-            {/* Value strip */}
-            <div className="mx-auto mt-10 grid max-w-3xl gap-3 sm:grid-cols-3">
+            {/* Value strip — 4 v1 pillars */}
+            <div className="mx-auto mt-10 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                "Catch production-breaking bugs before your users do",
-                "Cut manual QA time from hours to minutes",
-                "Ship with evidence-backed confidence",
+                {
+                  t: "Core journeys, automated",
+                  b: "Login, signup, navigation, forms — walked sequentially.",
+                },
+                {
+                  t: "Raw diagnostic evidence",
+                  b: "Screenshots, console, network, timestamps — streamed live.",
+                },
+                {
+                  t: "Deterministic quality filter",
+                  b: "Only hard errors: uncaught JS, non-2xx/3xx, failed selectors.",
+                },
+                {
+                  t: "Multi-tenant by design",
+                  b: "Every run isolated behind strict workspace UUID guards.",
+                },
               ].map((v) => (
                 <div
-                  key={v}
-                  className="rounded-lg border border-border bg-surface/50 px-3 py-2.5 text-left text-xs text-foreground/80 sm:text-sm"
+                  key={v.t}
+                  className="rounded-lg border border-border bg-surface/50 p-3 text-left"
                 >
-                  <CheckCircle2 className="mb-1.5 h-3.5 w-3.5 text-primary" />
-                  {v}
+                  <CheckCircle2 className="mb-2 h-4 w-4 text-primary" />
+                  <div className="text-sm font-semibold text-foreground">
+                    {v.t}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {v.b}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
+
 
           {/* Hero preview */}
           <div className="relative mx-auto mt-16 max-w-5xl">
