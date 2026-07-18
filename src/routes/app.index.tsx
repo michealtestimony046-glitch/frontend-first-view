@@ -2,22 +2,46 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Activity,
-  ArrowUpRight,
+  AlertTriangle,
+  
+  Bell,
   Bug,
   CheckCircle2,
-  Clock,
-  Filter,
+  ChevronRight,
+  Download,
   Globe,
+  HelpCircle,
   Play,
+  RotateCw,
   XCircle,
+  Eye,
+  BarChart3,
+  Chrome,
 } from "lucide-react";
-import { project, runs, type RunStatus } from "@/lib/mock-data";
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  project,
+  runs,
+  type RunStatus,
+  getDashboardStats,
+  getFailureTrend,
+  getTopIssues,
+  getLatestSummary,
+  type TopIssue,
+} from "@/lib/mock-data";
 
 export const Route = createFileRoute("/app/")({
   head: () => ({
     meta: [
-      { title: "Runs · Matrix QA" },
-      { name: "description", content: "Run history and live workers." },
+      { title: "Overview · Matrix QA" },
+      { name: "description", content: "Test run overview and evidence." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -26,240 +50,634 @@ export const Route = createFileRoute("/app/")({
 
 function AppDashboard() {
   const [url, setUrl] = useState(project.url);
+  const [showRunModal, setShowRunModal] = useState(false);
+  const stats = getDashboardStats();
+  const trend = getFailureTrend();
+  const issues = getTopIssues();
+  const latest = getLatestSummary();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 md:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
       {/* Page header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-            <span>Workspace</span>
-            <span className="text-border">/</span>
-            <span className="text-foreground">{project.name}</span>
-          </div>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
-            Runs
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
+            Overview
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sequential browser worker · evidence captured to every artifact.
+            Welcome back, Michael. Here's what's happening with your projects.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-2.5 py-1.5 text-xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-warning" />
-            {project.environment}
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-2.5 py-1.5 text-xs text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" /> last run {project.lastRunAt}
-          </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setShowRunModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow transition-opacity hover:opacity-90"
+          >
+            <Play className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">New Test Run</span>
+            <span className="sm:hidden">New Run</span>
+          </button>
+          <button
+            aria-label="Notifications"
+            className="hidden rounded-md border border-border bg-surface/60 p-2 text-muted-foreground hover:text-foreground sm:inline-flex"
+          >
+            <Bell className="h-4 w-4" />
+          </button>
+          <button
+            aria-label="Help"
+            className="hidden rounded-md border border-border bg-surface/60 p-2 text-muted-foreground hover:text-foreground sm:inline-flex"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
-      {/* Metric strip */}
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric icon={Activity} label="Total runs (7d)" value="24" delta="+8" />
-        <Metric
-          icon={Bug}
-          label="Open bugs"
-          value="3"
-          delta="critical"
-          tone="danger"
+      {/* Stat cards */}
+      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label="Total Test Runs"
+          value={stats.total}
+          icon={BarChart3}
+          tone="neutral"
+          hint={`↑ ${stats.deltaTotalPct}% vs last 7 days`}
         />
-        <Metric
+        <StatCard
+          label="Passed"
+          value={stats.passed}
           icon={CheckCircle2}
-          label="Scenarios passing"
-          value="83%"
-          delta="+4%"
           tone="success"
+          hint={`${Math.round((stats.passed / stats.total) * 100)}% of total`}
         />
-        <Metric icon={Clock} label="Avg duration" value="2m 58s" delta="-12s" />
+        <StatCard
+          label="Failed"
+          value={stats.failed}
+          icon={XCircle}
+          tone="danger"
+          hint={`${Math.round((stats.failed / stats.total) * 100)}% of total`}
+        />
+        <StatCard
+          label="Warnings"
+          value={stats.warnings}
+          icon={AlertTriangle}
+          tone="warning"
+          hint={`${Math.round((stats.warnings / stats.total) * 100)}% of total`}
+        />
       </div>
 
-      {/* Trigger card */}
-      <div className="surface-card mt-6 overflow-hidden">
-        <div className="border-b border-border p-5">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-primary">
-              <Play className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="font-display text-base font-semibold">
-                Trigger a new run
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Sequential login, signup, navigation, and form scenarios.
-              </p>
-            </div>
-          </div>
-        </div>
-        <form
-          onSubmit={(e) => e.preventDefault()}
-          className="grid gap-3 p-5 md:grid-cols-[1fr_auto]"
-        >
-          <div className="relative">
-            <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://your-app.com"
-              className="w-full rounded-md border border-border bg-surface-2/60 py-2.5 pl-9 pr-3 font-mono text-sm placeholder:text-muted-foreground focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-          <button className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow">
-            <Play className="h-4 w-4" />
-            Run now
-          </button>
-        </form>
-        <div className="flex flex-wrap items-center gap-2 border-t border-border bg-surface-2/40 px-5 py-3 font-mono text-[11px] text-muted-foreground">
-          <span className="uppercase tracking-wider">scenarios</span>
-          {["login", "signup", "navigation", "forms"].map((s) => (
-            <span
-              key={s}
-              className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] text-foreground/80"
+      {/* Recent runs + Failure trend */}
+      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        {/* Recent test runs */}
+        <section className="surface-card overflow-hidden">
+          <header className="flex items-center justify-between border-b border-border px-5 py-4">
+            <h2 className="font-display text-base font-semibold">
+              Recent Test Runs
+            </h2>
+            <Link
+              to="/app"
+              className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:opacity-80"
             >
-              {s}
-            </span>
-          ))}
-          <span className="ml-auto text-muted-foreground">
-            est. ~ 3 min · desktop viewport · chromium 128
-          </span>
-        </div>
-      </div>
+              View all <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </header>
 
-      {/* Runs table */}
-      <section className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">Recent runs</h2>
-          <button className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
-            <Filter className="h-3.5 w-3.5" /> Filter
-          </button>
-        </div>
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <div className="grid grid-cols-[60px_minmax(0,1fr)_92px_84px_74px_16px] items-center gap-3 border-b border-border bg-surface-2/40 px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground xl:grid-cols-[60px_minmax(0,1fr)_92px_100px_84px_74px_16px]">
+              <span>Run</span>
+              <span>Project</span>
+              <span>Status</span>
+              <span className="hidden xl:block">Browser</span>
+              <span>Started</span>
+              <span>Duration</span>
+              <span />
+            </div>
+            <ul>
+              {runs.map((r, i) => (
+                <li key={r.id}>
+                  <Link
+                    to="/app/runs/$runId"
+                    params={{ runId: r.id }}
+                    className="group grid grid-cols-[60px_minmax(0,1fr)_92px_84px_74px_16px] items-center gap-3 border-b border-border px-5 py-3.5 transition-colors last:border-b-0 hover:bg-accent/30 xl:grid-cols-[60px_minmax(0,1fr)_92px_100px_84px_74px_16px]"
+                  >
+                    <span className="font-mono text-xs text-muted-foreground">
+                      #{102 - i}
+                    </span>
+                    <span className="truncate text-sm text-foreground">
+                      {project.name}
+                    </span>
+                    <StatusPill status={r.status} />
+                    <span className="hidden items-center gap-1.5 text-xs text-muted-foreground xl:flex">
+                      <Chrome className="h-3.5 w-3.5" /> Chromium
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {r.startedAt}
+                    </span>
+                    <span className="font-mono text-xs text-foreground">
 
-        <div className="surface-card overflow-hidden">
-          <div className="hidden grid-cols-[110px_1fr_120px_100px_100px_100px_40px] items-center gap-4 border-b border-border bg-surface-2/40 px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground md:grid">
-            <span>Status</span>
-            <span>Target URL</span>
-            <span>Started</span>
-            <span>Duration</span>
-            <span>Scenarios</span>
-            <span>Bugs</span>
-            <span />
+                      {formatDuration(r.durationSec)}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul>
-            {runs.map((r) => (
+
+          {/* Mobile cards */}
+          <ul className="divide-y divide-border md:hidden">
+            {runs.map((r, i) => (
               <li key={r.id}>
                 <Link
                   to="/app/runs/$runId"
                   params={{ runId: r.id }}
-                  className="group grid grid-cols-[110px_1fr_100px_40px] items-center gap-4 border-b border-border px-5 py-4 last:border-b-0 transition-colors hover:bg-accent/40 md:grid-cols-[110px_1fr_120px_100px_100px_100px_40px]"
+                  className="flex items-center justify-between gap-3 px-4 py-3"
                 >
-                  <StatusPill status={r.status} />
-                  <div className="min-w-0">
-                    <div className="truncate font-mono text-sm text-foreground">
-                      {r.targetUrl}
-                    </div>
-                    <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
-                      {r.id} · triggered {r.triggeredBy}
-                    </div>
-                  </div>
-                  <div className="hidden text-sm text-muted-foreground md:block">
-                    {r.startedAt}
-                  </div>
-                  <div className="hidden font-mono text-sm text-foreground md:block">
-                    {formatDuration(r.durationSec)}
-                  </div>
-                  <div className="hidden text-sm md:block">
-                    <span className="text-success">{r.passed}</span>
-                    <span className="text-muted-foreground"> / {r.scenarios}</span>
-                  </div>
-                  <div className="hidden md:block">
-                    {r.bugs > 0 ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-destructive/15 px-2 py-0.5 font-mono text-xs text-destructive">
-                        <Bug className="h-3 w-3" /> {r.bugs}
-                      </span>
-                    ) : (
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-muted-foreground">
-                        —
+                        #{102 - i}
                       </span>
-                    )}
+                      <span className="truncate text-sm text-foreground">
+                        {project.name}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <span>{r.startedAt}</span>
+                      <span>·</span>
+                      <span className="font-mono">
+                        {formatDuration(r.durationSec)}
+                      </span>
+                    </div>
                   </div>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  <StatusPill status={r.status} />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>
               </li>
             ))}
           </ul>
+        </section>
+
+        {/* Failure trend */}
+        <section className="surface-card flex flex-col overflow-hidden">
+          <header className="flex items-center justify-between border-b border-border px-5 py-4">
+            <div>
+              <h2 className="font-display text-base font-semibold">
+                Failure Trend
+              </h2>
+              <p className="text-[11px] text-muted-foreground">Last 7 days</p>
+            </div>
+          </header>
+          <div className="h-[200px] px-2 pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trend} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="failGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.68 0.22 22)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="oklch(0.68 0.22 22)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="day"
+                  stroke="oklch(0.68 0.02 250)"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="oklch(0.68 0.02 250)"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  width={24}
+                />
+                <Tooltip
+                  cursor={{ stroke: "oklch(1 0 0 / 0.1)" }}
+                  contentStyle={{
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: "var(--muted-foreground)" }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="failures"
+                  stroke="oklch(0.68 0.22 22)"
+                  strokeWidth={2}
+                  fill="url(#failGrad)"
+                  dot={{ r: 3, fill: "oklch(0.68 0.22 22)" }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-auto flex items-end justify-between border-t border-border px-5 py-4">
+            <div>
+              <div className="text-[11px] text-muted-foreground">
+                Total Failures
+              </div>
+              <div className="font-display text-2xl font-semibold">
+                {trend.reduce((a, p) => a + p.failures, 0)}
+              </div>
+            </div>
+            <span className="font-mono text-[11px] text-success">
+              ↑ 33% vs last 7 days
+            </span>
+          </div>
+        </section>
+      </div>
+
+      {/* Top issues + Run summary */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <section className="surface-card overflow-hidden">
+          <header className="flex items-center justify-between border-b border-border px-5 py-4">
+            <div>
+              <h2 className="font-display text-base font-semibold">
+                Top Issues
+              </h2>
+              <p className="text-[11px] text-muted-foreground">Last 7 days</p>
+            </div>
+            <Link
+              to="/app"
+              className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:opacity-80"
+            >
+              View all Issues <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </header>
+
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <div className="grid grid-cols-[minmax(0,1fr)_110px_100px_140px] items-center gap-3 border-b border-border bg-surface-2/40 px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span>Issue</span>
+              <span>Severity</span>
+              <span>Occurrences</span>
+              <span>First Seen</span>
+            </div>
+            <ul>
+              {issues.map((i) => (
+                <li
+                  key={i.id}
+                  className="grid grid-cols-[minmax(0,1fr)_110px_100px_140px] items-center gap-3 border-b border-border px-5 py-3 last:border-b-0"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <SeverityDot severity={i.severity} />
+                    <span className="truncate text-sm text-foreground">
+                      {i.title}
+                    </span>
+                  </div>
+                  <SeverityPill severity={i.severity} />
+                  <span className="text-sm text-foreground">
+                    {i.occurrences}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {i.firstSeen}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Mobile cards */}
+          <ul className="divide-y divide-border md:hidden">
+            {issues.map((i) => (
+              <li key={i.id} className="px-4 py-3">
+                <div className="flex items-start gap-2">
+                  <SeverityDot severity={i.severity} className="mt-1" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-foreground">{i.title}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                      <SeverityPill severity={i.severity} />
+                      <span>{i.occurrences} occurrences</span>
+                      <span>·</span>
+                      <span>{i.firstSeen}</span>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* Legend */}
+          <div className="flex flex-wrap items-center gap-4 border-t border-border bg-surface-2/40 px-5 py-2.5 text-[11px] text-muted-foreground">
+            <LegendDot severity="critical" label="Critical" />
+            <LegendDot severity="functional" label="Functional" />
+            <LegendDot severity="warning" label="Warning" />
+            <LegendDot severity="info" label="Info" />
+          </div>
+        </section>
+
+        {/* Run summary */}
+        <section className="surface-card overflow-hidden">
+          <header className="flex items-center justify-between border-b border-border px-5 py-4">
+            <h2 className="font-display text-base font-semibold">
+              Run #{latest.runId.slice(-4).toUpperCase()} Summary
+            </h2>
+            <Link
+              to="/app/runs/$runId"
+              params={{ runId: latest.runId }}
+              className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:opacity-80"
+            >
+              View Details <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </header>
+          <div className="space-y-4 p-5">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Status
+                </div>
+                <div className="mt-1.5">
+                  <StatusPill status={latest.status} />
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Started
+                </div>
+                <div className="mt-1.5 text-sm text-foreground">
+                  {latest.startedAt}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <MiniStat label="Browser" value="Chromium" icon={Chrome} />
+              <MiniStat label="Duration" value={latest.duration} />
+              <MiniStat label="Steps" value={String(latest.steps)} />
+              <MiniStat label="Issues" value={String(latest.issues)} />
+            </div>
+
+            <div>
+              <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                Quick Actions
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Link
+                  to="/app/runs/$runId"
+                  params={{ runId: latest.runId }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow"
+                >
+                  <Eye className="h-4 w-4" />
+                  View Full Report
+                </Link>
+                <button className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent">
+                  <Download className="h-4 w-4" />
+                  Download
+                </button>
+              </div>
+              <button className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent">
+                <RotateCw className="h-4 w-4" />
+                Rerun Test
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* New Run modal */}
+      {showRunModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/70 p-4 backdrop-blur-sm sm:items-center">
+          <div className="surface-card w-full max-w-lg overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-primary">
+                  <Play className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="font-display text-base font-semibold">
+                    New Test Run
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Sequential login, signup, navigation, forms.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRunModal(false)}
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="Close"
+              >
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setShowRunModal(false);
+              }}
+              className="space-y-3 p-5"
+            >
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Target URL
+                </span>
+                <div className="relative">
+                  <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://your-app.com"
+                    className="w-full rounded-md border border-border bg-surface-2/60 py-2.5 pl-9 pr-3 font-mono text-sm focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              </label>
+              <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
+                {["login", "signup", "navigation", "forms"].map((s) => (
+                  <span
+                    key={s}
+                    className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] text-foreground/80"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRunModal(false)}
+                  className="rounded-md border border-border bg-surface/60 px-3 py-2 text-sm hover:bg-accent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow"
+                >
+                  <Play className="h-3.5 w-3.5" /> Start run
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </section>
+      )}
     </div>
   );
 }
 
-function Metric({
-  icon: Icon,
+function StatCard({
   label,
   value,
-  delta,
+  icon: Icon,
   tone,
+  hint,
 }: {
-  icon: typeof Activity;
   label: string;
-  value: string;
-  delta: string;
-  tone?: "success" | "danger";
+  value: number | string;
+  icon: typeof Activity;
+  tone: "neutral" | "success" | "danger" | "warning";
+  hint?: string;
 }) {
+  const toneMap = {
+    neutral: "bg-info/15 text-info",
+    success: "bg-success/15 text-success",
+    danger: "bg-destructive/15 text-destructive",
+    warning: "bg-warning/15 text-warning",
+  } as const;
   return (
     <div className="surface-card p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2">
         <span className="text-xs text-muted-foreground">{label}</span>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="mt-3 flex items-baseline gap-2">
-        <span className="font-display text-2xl font-semibold tracking-tight">
-          {value}
+        <span className={`flex h-8 w-8 items-center justify-center rounded-md ${toneMap[tone]}`}>
+          <Icon className="h-4 w-4" />
         </span>
-        <span
-          className={`font-mono text-[11px] ${
-            tone === "danger"
-              ? "text-destructive"
-              : tone === "success"
-                ? "text-success"
-                : "text-muted-foreground"
+      </div>
+      <div className="mt-2 font-display text-3xl font-semibold tracking-tight">
+        {value}
+      </div>
+      {hint && (
+        <div
+          className={`mt-1 font-mono text-[11px] ${
+            tone === "success"
+              ? "text-success"
+              : tone === "danger"
+                ? "text-destructive"
+                : tone === "warning"
+                  ? "text-warning"
+                  : "text-muted-foreground"
           }`}
         >
-          {delta}
-        </span>
+          {hint}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon?: typeof Activity;
+}) {
+  return (
+    <div className="rounded-md border border-border bg-surface-2/40 p-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
+        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+        {value}
       </div>
     </div>
+  );
+}
+
+const severityMap: Record<
+  TopIssue["severity"],
+  { dot: string; pill: string; label: string }
+> = {
+  critical: {
+    dot: "bg-destructive",
+    pill: "bg-destructive/15 text-destructive border-destructive/30",
+    label: "Critical",
+  },
+  functional: {
+    dot: "bg-info",
+    pill: "bg-info/15 text-info border-info/30",
+    label: "Functional",
+  },
+  warning: {
+    dot: "bg-warning",
+    pill: "bg-warning/15 text-warning border-warning/30",
+    label: "Warning",
+  },
+  info: {
+    dot: "bg-muted-foreground",
+    pill: "bg-muted text-muted-foreground border-border",
+    label: "Info",
+  },
+};
+
+function SeverityDot({
+  severity,
+  className = "",
+}: {
+  severity: TopIssue["severity"];
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-block h-2 w-2 shrink-0 rounded-full ${severityMap[severity].dot} ${className}`}
+    />
+  );
+}
+
+function SeverityPill({ severity }: { severity: TopIssue["severity"] }) {
+  const s = severityMap[severity];
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${s.pill}`}
+    >
+      {s.label}
+    </span>
+  );
+}
+
+function LegendDot({
+  severity,
+  label,
+}: {
+  severity: TopIssue["severity"];
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`h-2 w-2 rounded-full ${severityMap[severity].dot}`} />
+      {label}
+    </span>
   );
 }
 
 export function StatusPill({ status }: { status: RunStatus }) {
   const map = {
     passed: {
-      cls: "bg-success/15 text-success border-success/20",
+      cls: "bg-success/15 text-success border-success/30",
       icon: CheckCircle2,
       label: "Passed",
     },
     failed: {
-      cls: "bg-destructive/15 text-destructive border-destructive/20",
+      cls: "bg-destructive/15 text-destructive border-destructive/30",
       icon: XCircle,
       label: "Failed",
     },
     running: {
-      cls: "bg-primary/15 text-primary border-primary/30",
+      cls: "bg-primary/15 text-primary border-primary/40",
       icon: Activity,
       label: "Running",
     },
     queued: {
       cls: "bg-muted text-muted-foreground border-border",
-      icon: Clock,
+      icon: Bug,
       label: "Queued",
     },
   } as const;
   const { cls, icon: Icon, label } = map[status];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[11px] ${cls}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}
     >
       <Icon className="h-3 w-3" /> {label}
     </span>
@@ -271,3 +689,6 @@ function formatDuration(s: number) {
   const r = s % 60;
   return `${m}m ${r.toString().padStart(2, "0")}s`;
 }
+
+
+

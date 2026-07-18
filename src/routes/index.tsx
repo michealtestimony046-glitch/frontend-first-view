@@ -7,7 +7,7 @@ import {
   Clock,
   Cpu,
   FileSearch,
-  Github,
+  
   Play,
   Rocket,
   ShieldCheck,
@@ -71,55 +71,77 @@ function Landing() {
                 <span className="absolute inset-0 animate-ping rounded-full bg-primary/60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
               </span>
-              v1 · Core engine now in preview
+              v1 · Autonomous QA Worker
             </span>
-            <h1 className="mt-6 font-display text-5xl font-semibold leading-[1.05] tracking-tight text-gradient md:text-7xl">
-              The QA layer that
+            <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-gradient sm:text-5xl md:text-7xl">
+              Proof your app works.
               <br />
-              <span className="text-primary">runs itself.</span>
+              <span className="text-primary">Every deploy.</span>
             </h1>
+
             <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground md:text-lg">
-              Autonomous browser workers explore your web app, uncover real bugs,
-              capture evidence, and generate reports your developers can act on —
-              from a single URL.
+              Matrix QA walks your critical user journeys — login, signup,
+              navigation, forms — and streams screenshots, console logs, network
+              activity, and timestamps into an evidence-grade report.
+              Deterministic. Multi-tenant. Built for developers.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
-                to="/app"
+                to="/auth"
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow transition-transform hover:-translate-y-px"
               >
                 <Play className="h-4 w-4" />
-                Run your first test
+                Run your first scan
               </Link>
-              <a
-                href="#how"
+              <Link
+                to="/app/runs/$runId"
+                params={{ runId: "run_9f2c" }}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
               >
-                <Github className="h-4 w-4" />
-                See how it works
-              </a>
+                <FileSearch className="h-4 w-4" />
+                See a sample report
+              </Link>
             </div>
             <p className="mt-5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
               no card · no install · one URL is enough
             </p>
 
-            {/* Value strip */}
-            <div className="mx-auto mt-10 grid max-w-3xl gap-3 sm:grid-cols-3">
+            {/* Value strip — 4 v1 pillars */}
+            <div className="mx-auto mt-10 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                "Catch production-breaking bugs before your users do",
-                "Cut manual QA time from hours to minutes",
-                "Ship with evidence-backed confidence",
+                {
+                  t: "Core journeys, automated",
+                  b: "Login, signup, navigation, forms — walked sequentially.",
+                },
+                {
+                  t: "Raw diagnostic evidence",
+                  b: "Screenshots, console, network, timestamps — streamed live.",
+                },
+                {
+                  t: "Deterministic quality filter",
+                  b: "Only hard errors: uncaught JS, non-2xx/3xx, failed selectors.",
+                },
+                {
+                  t: "Multi-tenant by design",
+                  b: "Every run isolated behind strict workspace UUID guards.",
+                },
               ].map((v) => (
                 <div
-                  key={v}
-                  className="rounded-lg border border-border bg-surface/50 px-3 py-2.5 text-left text-xs text-foreground/80 sm:text-sm"
+                  key={v.t}
+                  className="rounded-lg border border-border bg-surface/50 p-3 text-left"
                 >
-                  <CheckCircle2 className="mb-1.5 h-3.5 w-3.5 text-primary" />
-                  {v}
+                  <CheckCircle2 className="mb-2 h-4 w-4 text-primary" />
+                  <div className="text-sm font-semibold text-foreground">
+                    {v.t}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {v.b}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
+
 
           {/* Hero preview */}
           <div className="relative mx-auto mt-16 max-w-5xl">
@@ -240,19 +262,19 @@ function Landing() {
                 n: "01",
                 icon: ArrowRight,
                 title: "Enter your app's URL",
-                body: "No install, no config. Point Matrix QA at any staging or production URL.",
+                body: "Point Matrix QA at any staging or production URL. No install, no config.",
               },
               {
                 n: "02",
                 icon: Cpu,
-                title: "Matrix QA explores it",
-                body: "Autonomous browser workers sign up, sign in, and click through every real flow.",
+                title: "The worker walks your journeys",
+                body: "Login, signup, navigation, and forms — walked sequentially in a real browser.",
               },
               {
                 n: "03",
                 icon: FileSearch,
-                title: "Review the bug report",
-                body: "Every finding ships with screenshots, console logs, and network traces attached.",
+                title: "Review an evidence-backed report",
+                body: "Every hard failure ships with screenshots, console logs, and network traces attached.",
               },
             ].map((s) => (
               <li
@@ -273,31 +295,65 @@ function Landing() {
             ))}
           </ol>
 
-          {/* Trust signals */}
-          <div className="mt-14 rounded-xl border border-border bg-surface/40 p-5 md:p-6">
+          {/* What v1 catches */}
+          <div className="mt-14">
             <div className="mb-4 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-                Built for developers who don't trust magic
+              <Bug className="h-4 w-4 text-primary" />
+              <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
+                What v1 catches
               </span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-3">
               {[
-                "Built on Playwright",
-                "AI-assisted analysis",
-                "Deterministic evidence collection",
-                "No browser extensions required",
-              ].map((t) => (
+                {
+                  title: "Uncaught JS exceptions",
+                  body: "Runtime errors that crash the page — captured with stack trace + source ref.",
+                  code: "TypeError: Cannot read properties of undefined (reading 'total')",
+                },
+                {
+                  title: "Non-2xx / 3xx responses",
+                  body: "Server failures on any request the worker triggers, with timing and payload size.",
+                  code: "POST /api/checkout/quote  →  500  612ms",
+                },
+                {
+                  title: "Failed selectors",
+                  body: "Critical-path elements that vanish, move, or never render.",
+                  code: "waiting for [data-cta='signup']  →  timeout 5000ms",
+                },
+              ].map((f) => (
                 <div
-                  key={t}
-                  className="flex items-center gap-2 rounded-md border border-border/70 bg-background/40 px-3 py-2 text-sm text-foreground/85"
+                  key={f.title}
+                  className="rounded-xl border border-border bg-surface/50 p-5"
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  {t}
+                  <h3 className="font-display text-base font-semibold">
+                    {f.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm text-muted-foreground">
+                    {f.body}
+                  </p>
+                  <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-background/60 p-2.5 font-mono text-[11px] leading-relaxed text-destructive">
+                    {f.code}
+                  </pre>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* Trust one-liner */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 rounded-xl border border-border bg-surface/40 px-5 py-4 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            {[
+              "Built with Playwright",
+              "Deterministic evidence",
+              "Workspace-isolated",
+              "No browser extensions",
+            ].map((t) => (
+              <span key={t} className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                {t}
+              </span>
+            ))}
+          </div>
+
         </div>
       </section>
 
