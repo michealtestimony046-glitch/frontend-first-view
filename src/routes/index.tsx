@@ -7,7 +7,7 @@ import {
   Clock,
   Cpu,
   FileSearch,
-  Github,
+  
   Play,
   Rocket,
   ShieldCheck,
