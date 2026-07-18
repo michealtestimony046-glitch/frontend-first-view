@@ -261,19 +261,19 @@ function Landing() {
                 n: "01",
                 icon: ArrowRight,
                 title: "Enter your app's URL",
-                body: "No install, no config. Point Matrix QA at any staging or production URL.",
+                body: "Point Matrix QA at any staging or production URL. No install, no config.",
               },
               {
                 n: "02",
                 icon: Cpu,
-                title: "Matrix QA explores it",
-                body: "Autonomous browser workers sign up, sign in, and click through every real flow.",
+                title: "The worker walks your journeys",
+                body: "Login, signup, navigation, and forms — walked sequentially in a real browser.",
               },
               {
                 n: "03",
                 icon: FileSearch,
-                title: "Review the bug report",
-                body: "Every finding ships with screenshots, console logs, and network traces attached.",
+                title: "Review an evidence-backed report",
+                body: "Every hard failure ships with screenshots, console logs, and network traces attached.",
               },
             ].map((s) => (
               <li
@@ -294,31 +294,65 @@ function Landing() {
             ))}
           </ol>
 
-          {/* Trust signals */}
-          <div className="mt-14 rounded-xl border border-border bg-surface/40 p-5 md:p-6">
+          {/* What v1 catches */}
+          <div className="mt-14">
             <div className="mb-4 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-                Built for developers who don't trust magic
+              <Bug className="h-4 w-4 text-primary" />
+              <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
+                What v1 catches
               </span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-3">
               {[
-                "Built on Playwright",
-                "AI-assisted analysis",
-                "Deterministic evidence collection",
-                "No browser extensions required",
-              ].map((t) => (
+                {
+                  title: "Uncaught JS exceptions",
+                  body: "Runtime errors that crash the page — captured with stack trace + source ref.",
+                  code: "TypeError: Cannot read properties of undefined (reading 'total')",
+                },
+                {
+                  title: "Non-2xx / 3xx responses",
+                  body: "Server failures on any request the worker triggers, with timing and payload size.",
+                  code: "POST /api/checkout/quote  →  500  612ms",
+                },
+                {
+                  title: "Failed selectors",
+                  body: "Critical-path elements that vanish, move, or never render.",
+                  code: "waiting for [data-cta='signup']  →  timeout 5000ms",
+                },
+              ].map((f) => (
                 <div
-                  key={t}
-                  className="flex items-center gap-2 rounded-md border border-border/70 bg-background/40 px-3 py-2 text-sm text-foreground/85"
+                  key={f.title}
+                  className="rounded-xl border border-border bg-surface/50 p-5"
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  {t}
+                  <h3 className="font-display text-base font-semibold">
+                    {f.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm text-muted-foreground">
+                    {f.body}
+                  </p>
+                  <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-background/60 p-2.5 font-mono text-[11px] leading-relaxed text-destructive">
+                    {f.code}
+                  </pre>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* Trust one-liner */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 rounded-xl border border-border bg-surface/40 px-5 py-4 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            {[
+              "Built with Playwright",
+              "Deterministic evidence",
+              "Workspace-isolated",
+              "No browser extensions",
+            ].map((t) => (
+              <span key={t} className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                {t}
+              </span>
+            ))}
+          </div>
+
         </div>
       </section>
 
