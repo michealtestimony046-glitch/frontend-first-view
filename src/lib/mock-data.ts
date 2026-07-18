@@ -227,3 +227,102 @@ export const runDetail: RunDetail = {
     { id: "s12", name: "Signout flow", status: "failed", steps: 3, durationSec: 5 },
   ],
 };
+
+// ---- Dashboard fixtures ---------------------------------------------------
+
+export type DashboardStats = {
+  total: number;
+  passed: number;
+  failed: number;
+  warnings: number;
+  deltaTotalPct: number;
+};
+
+export type FailurePoint = { day: string; failures: number };
+
+export type TopIssue = {
+  id: string;
+  title: string;
+  severity: "critical" | "functional" | "warning" | "info";
+  occurrences: number;
+  firstSeen: string;
+};
+
+export type LatestSummary = {
+  runId: string;
+  status: RunStatus;
+  startedAt: string;
+  browser: string;
+  duration: string;
+  steps: number;
+  issues: number;
+};
+
+export function getDashboardStats(): DashboardStats {
+  return { total: 12, passed: 7, failed: 3, warnings: 2, deltaTotalPct: 20 };
+}
+
+export function getFailureTrend(): FailurePoint[] {
+  return [
+    { day: "May 12", failures: 4 },
+    { day: "May 13", failures: 6 },
+    { day: "May 14", failures: 3 },
+    { day: "May 15", failures: 2 },
+    { day: "May 16", failures: 5 },
+    { day: "May 17", failures: 6 },
+    { day: "May 18", failures: 3 },
+  ];
+}
+
+export function getTopIssues(): TopIssue[] {
+  return [
+    {
+      id: "iss_01",
+      title: "Login button not responding",
+      severity: "critical",
+      occurrences: 5,
+      firstSeen: "May 12, 10:24 AM",
+    },
+    {
+      id: "iss_02",
+      title: "500 Internal Server Error on /api/checkout",
+      severity: "critical",
+      occurrences: 3,
+      firstSeen: "May 13, 09:15 AM",
+    },
+    {
+      id: "iss_03",
+      title: "Selector failed: [data-cta='signup']",
+      severity: "functional",
+      occurrences: 4,
+      firstSeen: "May 14, 11:42 AM",
+    },
+    {
+      id: "iss_04",
+      title: "Console warning: Deprecated API usage",
+      severity: "warning",
+      occurrences: 6,
+      firstSeen: "May 15, 02:31 PM",
+    },
+    {
+      id: "iss_05",
+      title: "Font not loaded from CDN",
+      severity: "info",
+      occurrences: 2,
+      firstSeen: "May 16, 04:22 PM",
+    },
+  ];
+}
+
+export function getLatestSummary(): LatestSummary {
+  return {
+    runId: "run_9f2c",
+    status: "failed",
+    startedAt: "May 18, 2026 10:24 AM",
+    browser: "Chromium 128",
+    duration: "3m 24s",
+    steps: 12,
+    issues: 2,
+  };
+}
+
