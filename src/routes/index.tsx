@@ -39,9 +39,9 @@ function Landing() {
             <a href="#roadmap" className="text-sm text-muted-foreground hover:text-foreground">
               Roadmap
             </a>
-            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground">
               Pricing
-            </a>
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <Link
