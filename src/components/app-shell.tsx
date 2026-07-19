@@ -52,8 +52,10 @@ export function AppShell({
   const { pathname } = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const isActive = (item: NavItem, index: number) =>
-    index === 0 && pathname === "/app";
+  const isActive = (item: NavItem, index: number) => {
+    if (item.to === "/app/settings/billing") return pathname.startsWith("/app/settings/billing");
+    return index === 0 && pathname === "/app";
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
