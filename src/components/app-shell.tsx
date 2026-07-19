@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   MoreHorizontal,
+  CreditCard,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Logo, MatrixMark } from "./logo";
@@ -30,6 +31,7 @@ const nav: NavItem[] = [
   { label: "Issues", to: "/app", icon: Bug },
   { label: "Audit Log", to: "/app", icon: ScrollText },
   { label: "Reports", to: "/app", icon: FileText },
+  { label: "Billing", to: "/app/settings/billing", icon: CreditCard },
   { label: "Settings", to: "/app", icon: Settings },
 ];
 
