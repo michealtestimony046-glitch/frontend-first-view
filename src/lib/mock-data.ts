@@ -326,3 +326,79 @@ export function getLatestSummary(): LatestSummary {
   };
 }
 
+// ---- Billing / Preview fixtures ------------------------------------------
+
+export const PREVIEW_CAP = 250;
+const USAGE_KEY = "matrix_qa_mock_usage";
+
+export type BillingUsage = {
+  used: number;
+  cap: number;
+  cycleLabel: string;
+  atCap: boolean;
+  pct: number;
+};
+
+/**
+ * Mock usage counter. Reads an optional override from localStorage
+ * (`matrix_qa_mock_usage`) so the frontend team can test the 250-run
+ * lock-out state without a backend. Default: 87.
+ */
+export function getBillingUsage(): BillingUsage {
+  let used = 87;
+  if (typeof window !== "undefined") {
+    const raw = window.localStorage.getItem(USAGE_KEY);
+    const parsed = raw ? Number(raw) : NaN;
+    if (Number.isFinite(parsed)) used = Math.max(0, Math.min(PREVIEW_CAP, parsed));
+  }
+  return {
+    used,
+    cap: PREVIEW_CAP,
+    cycleLabel: "Preview pool",
+    atCap: used >= PREVIEW_CAP,
+    pct: Math.round((used / PREVIEW_CAP) * 100),
+  };
+}
+
+export function setMockUsage(next: number) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(USAGE_KEY, String(Math.max(0, Math.min(PREVIEW_CAP, next))));
+}
+
+export const PREVIEW_INCLUSIONS: string[] = [
+  "Browser Worker",
+  "Sequential Browser Automation",
+  "Login Testing",
+  "Signup Testing",
+  "Navigation Testing",
+  "Form Testing",
+  "Screenshot Evidence",
+  "Console Logs",
+  "Network Logs",
+  "Execution Timeline",
+  "Bug Reports",
+  "One Workspace",
+  "One Project",
+  "Community Support",
+];
+
+export type RoadmapItem = {
+  version: string;
+  title: string;
+  current?: boolean;
+};
+
+export const ROADMAP: RoadmapItem[] = [
+  { version: "V1", title: "Core Engine", current: true },
+  { version: "V2", title: "Application Mapping" },
+  { version: "V3", title: "Matrix Simulation" },
+  { version: "V4", title: "Repair Packages" },
+  { version: "V5", title: "SaaS Platform" },
+  { version: "V6", title: "CLI" },
+  { version: "V7", title: "GitHub" },
+  { version: "V8", title: "AI Integrations" },
+  { version: "V9", title: "Intelligent Quality" },
+  { version: "V10", title: "Enterprise" },
+];
+
+
