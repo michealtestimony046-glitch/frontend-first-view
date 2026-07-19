@@ -34,6 +34,7 @@ import {
   getFailureTrend,
   getTopIssues,
   getLatestSummary,
+  getBillingUsage,
   type TopIssue,
 } from "@/lib/mock-data";
 
