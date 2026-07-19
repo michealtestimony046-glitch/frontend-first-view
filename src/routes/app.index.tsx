@@ -34,6 +34,7 @@ import {
   getFailureTrend,
   getTopIssues,
   getLatestSummary,
+  getBillingUsage,
   type TopIssue,
 } from "@/lib/mock-data";
 
@@ -55,6 +56,7 @@ function AppDashboard() {
   const trend = getFailureTrend();
   const issues = getTopIssues();
   const latest = getLatestSummary();
+  const usage = getBillingUsage();
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
@@ -491,6 +493,25 @@ function AppDashboard() {
                   </span>
                 ))}
               </div>
+              {usage.atCap ? (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                  <div className="font-semibold">Preview pool exhausted</div>
+                  <div className="mt-0.5 text-destructive/80">
+                    You've used {usage.used} / {usage.cap} runs. Request more allocation to keep scanning.
+                  </div>
+                  <Link
+                    to="/app/settings/billing"
+                    onClick={() => setShowRunModal(false)}
+                    className="mt-2 inline-flex items-center gap-1 font-medium text-destructive underline"
+                  >
+                    Go to Billing →
+                  </Link>
+                </div>
+              ) : (
+                <div className="text-[11px] text-muted-foreground">
+                  {usage.used} / {usage.cap} runs used in this Preview pool.
+                </div>
+              )}
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -501,7 +522,8 @@ function AppDashboard() {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow"
+                  disabled={usage.atCap}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
                 >
                   <Play className="h-3.5 w-3.5" /> Start run
                 </button>

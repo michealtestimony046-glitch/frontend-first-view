@@ -1,89 +1,119 @@
-# Matrix QA v1 — Landing hook + Dashboard refinement + Logo
+My Adds on make the FAQ 8 base on what you understand 
 
-Two work streams, one design system. Keep the current dark developer palette (near-black bg, phosphor-mint primary, Space Grotesk / Inter / JetBrains Mono). Adopt the wireframe's **structure** (sidebar workspace shell, stat cards row, recent runs table, failure trend, top issues, run summary, mobile bottom nav) — not its light theme.
+Yes, this is strictly a frontend addition. Your frontend developer does not need a backend engineer, a custom server, or a database to execute this.
 
----
+Right now, your spec tells the frontend to swallow the user's input and do nothing. That is a dead end.
 
-## 1. Logo — Matrix QA hex symbol
+Here is exactly what you change in the frontend scope for the /app/settings/billing route:
 
-Replace the "M" tile in `src/components/logo.tsx` with a refined inline SVG of the uploaded hexagon-plus-3x3-grid mark.
+ * **The Action:** Instead of the form doing nothing, instruct the frontend developer to add a basic fetch() or HTTP post request to the "Submit request" button.
 
-- Rebuild as a crisp inline SVG (not an `<img>` of the raster upload) so it scales, inherits currentColor for the outer hex stroke, and stays sharp at 20/24/28px.
-- Trim padding: the raster has ~15% dead space — the SVG viewBox will be tight to the hex.
-- Use the app's phosphor-mint `--primary` for the hex stroke + center node, muted foreground for the outer grid dots, and background-tinted fill inside the hex so it reads on both dark surfaces and inside the sidebar's darker panel.
-- Two size variants: 28px (nav / sidebar header) and 40px (hero, auth panel).
-- Wordmark stays `Matrix` + `QA` accent, tightened kerning to sit flush with the new mark.
+ * **The Destination:** They will point that request directly to a [Make.com](http://Make.com) or n8n webhook URL.
 
-Used in: top nav (landing), auth page, sidebar header (dashboard), favicon (regenerate `/favicon.ico` from the same SVG).
+ * **The Result:** The frontend fires the JSON payload (email + workload details) to that webhook. Your low-code automation catches it and drops the data directly into Nath's lead collection workflow for immediate follow-up.
 
----
+It takes a competent frontend developer less than ten minutes to wire a form to an external webhook. It costs zero backend engineering hours, and it immediately secures your early sales pipeline.
 
-## 2. Landing page — sharpen the hook to v1's real promise
+Now, look at the reality of building a frontend entirely detached from the backend right now. If the dashboard is relying completely on hardcoded mock data to display "87 runs used," how exactly is your frontend team testing the UI lock-out states for when a user actually hits the 250-run limit and needs to be blocked from initiating a new scan?
 
-Rewrite hero + supporting sections in `src/routes/index.tsx` so the first screen states what v1 actually delivers, not a generic tagline.
+&nbsp;
 
-**Hero (new copy):**
-- Eyebrow: `v1 · Autonomous QA Worker`
-- Headline: `Proof your app works — every deploy.`
-- Sub: `Matrix QA walks your critical user journeys — login, signup, navigation, forms — and streams screenshots, console logs, network activity, and timestamps into an evidence-grade report. Deterministic. Multi-tenant. Built for developers.`
-- Primary CTA: `Run your first scan` → `/auth`. Secondary: `See a sample report` → `/app/runs/run_9f2c`.
-- Right side: keep the live terminal simulation but retitle it "Evidence stream" and show the four real evidence types (screenshot captured · console error · network 500 · selector failed) instead of generic log lines.
+# Matrix QA v1 — Pricing page + Billing settings
 
-**Value strip (replace current one) — four pillars from the v1 brief:**
-1. Automates core journeys — login, signup, navigation, forms
-2. Streams raw diagnostic evidence — screenshots, console, network, timestamps
-3. Deterministic filter — only hard failures (uncaught JS, non-2xx/3xx, failed selectors)
-4. Multi-tenant by design — workspace UUID guards from day one
-
-**How it works** — keep the 3-step section but retitle steps to match v1 language (Enter URL → Worker walks journeys → Evidence-backed report).
-
-**What v1 catches** (new section, replaces the vague "trust signals" block) — three tiles listing the exact failure classes v1 isolates, with a mono code snippet example each:
-- Uncaught JS runtime exceptions
-- Non-2xx / 3xx HTTP responses
-- Failed selectors on critical paths
-
-**Trust row** — condense to a single one-line strip: `Built with Playwright · Deterministic evidence · Workspace-isolated · No browser extensions`.
-
-**Roadmap** — keep the v1-dominant "Available Now / Coming Next" split already in place; tighten copy so v1 items map 1:1 to the four pillars above.
+Two new routes, both frontend-only mock, styled with the existing dark/phosphor-mint system. No payment gateway, no checkout. Copy stays honest to v1: one Preview plan, everything else is a dated roadmap card.
 
 ---
 
-## 3. Dashboard — restructure to match the wireframe
+## 1. New route: `/pricing` (`src/routes/pricing.tsx`)
 
-Rebuild `src/components/app-shell.tsx` and `src/routes/app.index.tsx` to mirror the wireframe layout, keeping our dark palette.
+Public marketing page, uses the same top nav + footer as the landing page. Route `head()` gets its own title/description/og.
 
-**Sidebar (`app-shell.tsx`):**
-- Fixed 240px left rail on `md+`, collapses to hamburger drawer on mobile.
-- Sections: logo header · Workspace switcher (`My Workspace ▾`) · nav (Overview, Projects, Test Runs, Issues, Audit Log, Reports, Settings) · user card pinned to bottom (avatar + name + role).
-- Active item: subtle mint-tinted surface with left accent bar, not a full fill.
+**Section A — Preview hero**
 
-**Overview page (`app.index.tsx`) — sections top to bottom:**
-1. Page header: `Overview` + welcome line + `+ New Test Run` primary button (opens the URL-entry modal — reuse the existing form) + bell + help icons.
-2. **Stat cards row (4):** Total Test Runs · Passed · Failed · Warnings. Each shows count, % of total or vs-last-7-days delta, and a small icon in a tinted square. On mobile: 2×2 grid.
-3. **Recent Test Runs table** (left, ~60%) + **Failure Trend chart** (right, ~40%). Table columns: Run ID, Project, Status pill, Browser, Started At, Duration, chevron → detail. Chart: 7-day line with filled area, Total Failures footer + delta. Use Recharts (already in a Vite React stack; add if missing). On mobile: stack, table collapses to the card list you already built.
-4. **Top Issues (Last 7 days)** (left) + **Run #NNN Summary** (right). Top Issues: severity dot, title, severity pill, occurrences, first seen. Summary card: status pill, started, browser/duration/steps/issues mini-grid, Quick Actions (View Full Report, Download Report, Rerun Test).
-5. Legend row under Top Issues: Critical · Functional · Warning · Info dots.
+- Eyebrow: `v1 · Public Preview`
+- Headline: `Matrix QA is free during Preview.`
+- Sub: `We're validating the Core Engine with early developers. No credit card. No checkout. Just run scans and help us harden the worker.`
+- Chip row: `Browser Worker · Evidence Capture · Bug Reports · Dashboard`
+- Primary CTA: `Request early access` → `/auth`. Secondary: `See a sample report` → `/app/runs/run_9f2c`.
 
-**Mobile behavior:**
-- Sidebar → drawer behind hamburger in a sticky top bar showing logo + page title + bell.
-- Bottom tab bar (fixed): Overview · Projects · Test Runs · Issues · More. Active tab uses mint accent.
-- Stat cards 2×2, tables → stacked cards, Run Summary gets a full-width `View Full Report` button.
+**Section B — Available today (single featured card)**
+One large card, mint-glow border, not a 4-up grid.
 
-**Data:** extend `src/lib/mock-data.ts` with `getDashboardStats()`, `getFailureTrend()` (7 points), `getTopIssues()`, and a `getLatestRunSummary()` — all deterministic mock. No backend work.
+- Label: `Preview` + small `Current` pill
+- Price: `$0` / `while in v1`
+- Line: `Perfect for evaluating the Matrix QA Core Engine.`
+- Two-column checklist of the 14 v1 inclusions from the brief (Browser Worker, Sequential Automation, Login/Signup/Navigation/Form testing, Screenshot Evidence, Console Logs, Network Logs, Execution Timeline, Bug Reports, 1 Workspace, 1 Project, Community Support).
+- CTA button: `Join Preview` → `/auth`.
+- Fine print: `During Preview, usage limits may change as we improve the platform.`
 
-**Run report page (`app.runs.$runId.tsx`):** keep as-is; only swap the header/back-nav to sit correctly under the new sidebar shell and match the new spacing scale.
+**Section C — Coming next (roadmap cards, not pricing cards)**
+Header: `Coming next` + sub `Prices and features shown are directional. Availability tracks the roadmap below.`
+Four cards in a responsive grid (1 / 2 / 4 cols). Each card is visually **de-emphasized** vs the Preview card: muted border, no glow, `Launching in Vx` badge top-right, disabled-styled button.
+
+- **Starter** — `$49/mo` · Launching in **V2** · solo devs & indie builders · Multiple Projects, Project Scanner, Journey Graph, Test Planner, Better Dashboard, Better Evidence, Worker Stability · button `Coming in V2` (disabled).
+- **Pro** — `$129/mo` · Launching in **V3** · teams building production software · Everything in Starter + Matrix Simulation, Parallel Workers, Browser×Device×Role, More Credits, Faster Execution · button `Coming in V3` (disabled).
+- **Business** — price shown as `—` · Launching in **V5** · startups & agencies · Organizations, Multiple Workspaces, Team Members, Permissions, Shared Credits, Higher Concurrency · button `Coming in V5` (disabled).
+- **Enterprise** — price `Custom` · Launching in **V10** · larger eng orgs · Private Workers, Dedicated Infra, SSO, Audit Logs, Enterprise Security, SLA · button `Contact sales (coming in V10)` (disabled).
+
+**Section D — Full roadmap strip**
+Horizontal timeline (stacks vertically on mobile). Ten pills V1–V10 with a check on V1 (`Core Engine · Current`, mint) and arrow icons on V2–V10 (muted). Labels: Application Mapping, Matrix Simulation, Repair Packages, SaaS Platform, CLI, GitHub, AI Integrations, Intelligent Quality, Enterprise.
+
+**Section E — FAQ (short, 4 items)**
+
+- Is Preview really free? (yes, no card)
+- What happens when v2 ships? (Preview stays available as a limited free tier)
+- Are there usage limits? (soft 250-run pool per workspace, may change)
+- How do I get more allocation? (link to billing page's request form)
+
+**Nav wiring**
+Add `Pricing` link to the landing top nav (`src/routes/index.tsx`) between existing items. No footer changes needed beyond adding the pricing link if a footer nav list exists.
 
 ---
 
-## Technical notes
+## 2. New route: `/app/settings/billing` (`src/routes/app.settings.billing.tsx`)
 
-- No backend, no route changes, no new packages beyond `recharts` (if not present) for the failure trend.
-- All new colors go through existing tokens in `src/styles.css`; if the sidebar needs a slightly deeper panel than `--surface`, add one `--sidebar` token rather than hardcoding.
-- Keep the scanline / grid utilities on the landing hero only — the dashboard stays calm and information-dense per the wireframe.
-- Verify at 375px, 768px, 1280px after build.
+Lives inside the authenticated `/app` shell so it inherits the sidebar and mobile bottom nav. Per the brief: static, functional, no gateway.
+
+**Layout inside `AppShell` (title="Billing"):**
+
+1. **Page header** — `Billing` + sub `Matrix QA is in Preview. Billing is disabled while we validate the Core Engine.`
+2. **Current plan card** (mint-tinted, glow border)
+  - Label row: `Matrix QA Preview` · price `$0 / mo` · status pill `Active · Free Access` (mint dot).
+  - Small copy: `Included while Matrix QA is in v1 Public Preview.`
+3. **Usage card**
+  - Label: `Test runs this cycle`
+  - Big number: `<used> / 250`  (mock `used = 87` from mock-data helper `getBillingUsage()`)
+  - Progress bar (existing token colors, mint fill, muted track). Turns amber ≥80%, red ≥95%.
+  - Sub line: `Pool resets when v2 introduces per-plan quotas. Limits may change during Preview.`
+  - Primary button: `Request more allocation` → opens a simple in-page modal with a textarea (`Tell us about your workload`) + email field + `Submit request` button that just closes the modal and shows a success toast. No network call. Secondary link: `Or reach us in the community` (href `#`, `target="_blank"` placeholder).
+4. **What's included** — condensed 2-col checklist mirroring the Preview card on `/pricing` (fewer items, no duplicate of the whole list).
+5. **Coming next** — small strip: `Paid plans launch with v2 (Starter · $49) and v3 (Pro · $129).` + link `See roadmap → /pricing#roadmap`.
+6. **Invoices / Payment method** — an empty-state card with muted icon: `No billing history` · `You'll see invoices here once paid plans launch.` No "Add payment method" CTA.
+
+**Sidebar nav**
+Add a `Billing` entry under Settings in `src/components/app-shell.tsx` (or repoint the existing Settings item to `/app/settings/billing` for v1 since Settings has no page yet). Prefer: keep `Settings` pointing at `/app` for now and add a dedicated `Billing` nav item so the route is reachable from the sidebar and mobile drawer.
+
+---
+
+## 3. Mock data
+
+Extend `src/lib/mock-data.ts` with:
+
+- `getBillingUsage()` → `{ used: 87, cap: 250, cycleLabel: "Preview pool" }`
+- `PREVIEW_INCLUSIONS: string[]` — the 14-item list, reused by `/pricing` and `/app/settings/billing`.
+- `ROADMAP: { version: "V1".."V10", title: string, current?: boolean }[]` — reused by pricing roadmap strip and (optionally) landing.
+
+---
+
+## 4. Copy tone
+
+Follow the user's "Preview, not Trial" framing throughout — Linear/Vercel/Supabase voice. No "free trial", no "upgrade now", no fake urgency. Roadmap cards say `Launching in Vx`, never `Buy` or `Subscribe`.
+
+---
 
 ## Out of scope
 
-- Any real auth, database, or worker execution (still frontend-only v1 mock).
-- Redesigning the run report internals (already iterated last turn).
-- v2+ features (application mapping, matrix simulation, repair packages).
+- Any real Stripe / Paddle / checkout — explicitly not wired.
+- Editing the existing landing hero/roadmap sections beyond adding the `Pricing` nav link.
+- Settings pages other than Billing.
+- Backend, auth gating, or real usage counters.

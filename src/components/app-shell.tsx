@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   MoreHorizontal,
+  CreditCard,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Logo, MatrixMark } from "./logo";
@@ -30,6 +31,7 @@ const nav: NavItem[] = [
   { label: "Issues", to: "/app", icon: Bug },
   { label: "Audit Log", to: "/app", icon: ScrollText },
   { label: "Reports", to: "/app", icon: FileText },
+  { label: "Billing", to: "/app/settings/billing", icon: CreditCard },
   { label: "Settings", to: "/app", icon: Settings },
 ];
 
@@ -50,8 +52,10 @@ export function AppShell({
   const { pathname } = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const isActive = (item: NavItem, index: number) =>
-    index === 0 && pathname === "/app";
+  const isActive = (item: NavItem, index: number) => {
+    if (item.to === "/app/settings/billing") return pathname.startsWith("/app/settings/billing");
+    return index === 0 && pathname === "/app";
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
