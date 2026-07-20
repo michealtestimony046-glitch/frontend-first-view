@@ -13,7 +13,6 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import { AppShell } from "@/components/app-shell";
 import {
   PREVIEW_INCLUSIONS,
   getBillingUsage,
@@ -29,20 +28,12 @@ export const Route = createFileRoute("/app/settings/billing")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: BillingPage,
+  component: BillingBody,
 });
 
 const WEBHOOK_URL = import.meta.env.VITE_ALLOCATION_WEBHOOK_URL as
   | string
   | undefined;
-
-function BillingPage() {
-  return (
-    <AppShell title="Billing">
-      <BillingBody />
-    </AppShell>
-  );
-}
 
 function BillingBody() {
   const [tick, setTick] = useState(0);

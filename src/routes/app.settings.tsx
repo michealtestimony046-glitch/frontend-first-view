@@ -49,9 +49,11 @@ const tabs: { key: Tab; label: string; icon: typeof User; href: string; scope: s
 function SettingsLayout() {
   const { pathname } = useLocation();
   const matches = useMatches();
+  const search = Route.useSearch();
   const isBilling =
     pathname.startsWith("/app/settings/billing") ||
     matches.some((m) => m.routeId === "/app/settings/billing");
+  const activeTab: Tab = isBilling ? "billing" : (search.tab ?? "profile");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
@@ -64,14 +66,11 @@ function SettingsLayout() {
         </p>
       </div>
 
-      {/* Tab strip */}
       <div className="mt-5 overflow-x-auto">
         <div className="flex min-w-max gap-1 border-b border-border">
           {tabs.map((t) => {
             const Icon = t.icon;
-            const active =
-              (t.key === "billing" && isBilling) ||
-              (!isBilling && t.key === (currentTab() ?? "profile"));
+            const active = t.key === activeTab;
             return (
               <Link
                 key={t.key}
@@ -89,18 +88,14 @@ function SettingsLayout() {
         </div>
       </div>
 
-      <div className="mt-6">{isBilling ? <Outlet /> : <TabContent />}</div>
+      <div className="mt-6">
+        {isBilling ? <Outlet /> : <TabContent tab={search.tab ?? "profile"} />}
+      </div>
     </div>
   );
-
-  function currentTab(): Tab | undefined {
-    const search = Route.useSearch();
-    return search.tab;
-  }
 }
 
-function TabContent() {
-  const { tab } = Route.useSearch();
+function TabContent({ tab }: { tab: "profile" | "engine" | "vault" | "policy" | "tokens" }) {
   switch (tab) {
     case "engine":
       return <EngineTab />;
