@@ -45,6 +45,12 @@ function Landing() {
           </nav>
           <div className="flex items-center gap-2">
             <Link
+              to="/pricing"
+              className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground md:hidden"
+            >
+              Pricing
+            </Link>
+            <Link
               to="/auth"
               className="hidden rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground md:inline-flex"
             >

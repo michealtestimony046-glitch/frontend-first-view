@@ -14,6 +14,12 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppRunsRouteImport } from './routes/app.runs'
+import { Route as AppReportsRouteImport } from './routes/app.reports'
+import { Route as AppProjectsRouteImport } from './routes/app.projects'
+import { Route as AppIssuesRouteImport } from './routes/app.issues'
+import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppSettingsBillingRouteImport } from './routes/app.settings.billing'
 import { Route as AppRunsRunIdRouteImport } from './routes/app.runs.$runId'
 
@@ -42,15 +48,45 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSettingsBillingRoute = AppSettingsBillingRouteImport.update({
-  id: '/settings/billing',
-  path: '/settings/billing',
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
-const AppRunsRunIdRoute = AppRunsRunIdRouteImport.update({
-  id: '/runs/$runId',
-  path: '/runs/$runId',
+const AppRunsRoute = AppRunsRouteImport.update({
+  id: '/runs',
+  path: '/runs',
   getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProjectsRoute = AppProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIssuesRoute = AppIssuesRouteImport.update({
+  id: '/issues',
+  path: '/issues',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsBillingRoute = AppSettingsBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppRunsRunIdRoute = AppRunsRunIdRouteImport.update({
+  id: '/$runId',
+  path: '/$runId',
+  getParentRoute: () => AppRunsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -58,6 +94,12 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/pricing': typeof PricingRoute
+  '/app/audit': typeof AppAuditRoute
+  '/app/issues': typeof AppIssuesRoute
+  '/app/projects': typeof AppProjectsRoute
+  '/app/reports': typeof AppReportsRoute
+  '/app/runs': typeof AppRunsRouteWithChildren
+  '/app/settings': typeof AppSettingsRouteWithChildren
   '/app/': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
@@ -66,6 +108,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/pricing': typeof PricingRoute
+  '/app/audit': typeof AppAuditRoute
+  '/app/issues': typeof AppIssuesRoute
+  '/app/projects': typeof AppProjectsRoute
+  '/app/reports': typeof AppReportsRoute
+  '/app/runs': typeof AppRunsRouteWithChildren
+  '/app/settings': typeof AppSettingsRouteWithChildren
   '/app': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
@@ -76,6 +124,12 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/pricing': typeof PricingRoute
+  '/app/audit': typeof AppAuditRoute
+  '/app/issues': typeof AppIssuesRoute
+  '/app/projects': typeof AppProjectsRoute
+  '/app/reports': typeof AppReportsRoute
+  '/app/runs': typeof AppRunsRouteWithChildren
+  '/app/settings': typeof AppSettingsRouteWithChildren
   '/app/': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
@@ -87,6 +141,12 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/pricing'
+    | '/app/audit'
+    | '/app/issues'
+    | '/app/projects'
+    | '/app/reports'
+    | '/app/runs'
+    | '/app/settings'
     | '/app/'
     | '/app/runs/$runId'
     | '/app/settings/billing'
@@ -95,6 +155,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/pricing'
+    | '/app/audit'
+    | '/app/issues'
+    | '/app/projects'
+    | '/app/reports'
+    | '/app/runs'
+    | '/app/settings'
     | '/app'
     | '/app/runs/$runId'
     | '/app/settings/billing'
@@ -104,6 +170,12 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/pricing'
+    | '/app/audit'
+    | '/app/issues'
+    | '/app/projects'
+    | '/app/reports'
+    | '/app/runs'
+    | '/app/settings'
     | '/app/'
     | '/app/runs/$runId'
     | '/app/settings/billing'
@@ -153,33 +225,106 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/runs': {
+      id: '/app/runs'
+      path: '/runs'
+      fullPath: '/app/runs'
+      preLoaderRoute: typeof AppRunsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/reports': {
+      id: '/app/reports'
+      path: '/reports'
+      fullPath: '/app/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/projects': {
+      id: '/app/projects'
+      path: '/projects'
+      fullPath: '/app/projects'
+      preLoaderRoute: typeof AppProjectsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/issues': {
+      id: '/app/issues'
+      path: '/issues'
+      fullPath: '/app/issues'
+      preLoaderRoute: typeof AppIssuesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/audit': {
+      id: '/app/audit'
+      path: '/audit'
+      fullPath: '/app/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/settings/billing': {
       id: '/app/settings/billing'
-      path: '/settings/billing'
+      path: '/billing'
       fullPath: '/app/settings/billing'
       preLoaderRoute: typeof AppSettingsBillingRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
     }
     '/app/runs/$runId': {
       id: '/app/runs/$runId'
-      path: '/runs/$runId'
+      path: '/$runId'
       fullPath: '/app/runs/$runId'
       preLoaderRoute: typeof AppRunsRunIdRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppRunsRoute
     }
   }
 }
 
-interface AppRouteChildren {
-  AppIndexRoute: typeof AppIndexRoute
+interface AppRunsRouteChildren {
   AppRunsRunIdRoute: typeof AppRunsRunIdRoute
+}
+
+const AppRunsRouteChildren: AppRunsRouteChildren = {
+  AppRunsRunIdRoute: AppRunsRunIdRoute,
+}
+
+const AppRunsRouteWithChildren =
+  AppRunsRoute._addFileChildren(AppRunsRouteChildren)
+
+interface AppSettingsRouteChildren {
   AppSettingsBillingRoute: typeof AppSettingsBillingRoute
 }
 
-const AppRouteChildren: AppRouteChildren = {
-  AppIndexRoute: AppIndexRoute,
-  AppRunsRunIdRoute: AppRunsRunIdRoute,
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsBillingRoute: AppSettingsBillingRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppAuditRoute: typeof AppAuditRoute
+  AppIssuesRoute: typeof AppIssuesRoute
+  AppProjectsRoute: typeof AppProjectsRoute
+  AppReportsRoute: typeof AppReportsRoute
+  AppRunsRoute: typeof AppRunsRouteWithChildren
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAuditRoute: AppAuditRoute,
+  AppIssuesRoute: AppIssuesRoute,
+  AppProjectsRoute: AppProjectsRoute,
+  AppReportsRoute: AppReportsRoute,
+  AppRunsRoute: AppRunsRouteWithChildren,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
+  AppIndexRoute: AppIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
