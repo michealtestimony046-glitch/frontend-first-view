@@ -37,13 +37,13 @@ export const Route = createFileRoute("/app/settings")({
 
 type Tab = "profile" | "engine" | "vault" | "policy" | "tokens" | "billing";
 
-const tabs: { key: Tab; label: string; icon: typeof User; href: string; scope: string }[] = [
-  { key: "profile", label: "Profile", icon: User, href: "/app/settings?tab=profile", scope: "user" },
-  { key: "billing", label: "Billing & Usage", icon: CreditCard, href: "/app/settings/billing", scope: "workspace" },
-  { key: "engine", label: "Target Engine", icon: Sliders, href: "/app/settings?tab=engine", scope: "workspace" },
-  { key: "vault", label: "Role Vault", icon: Users, href: "/app/settings?tab=vault", scope: "workspace" },
-  { key: "policy", label: "Run Policy", icon: ShieldCheck, href: "/app/settings?tab=policy", scope: "workspace" },
-  { key: "tokens", label: "API Tokens", icon: KeyRound, href: "/app/settings?tab=tokens", scope: "technical" },
+const tabs: { key: Tab; label: string; icon: typeof User; billing?: boolean; tab?: "profile" | "engine" | "vault" | "policy" | "tokens" }[] = [
+  { key: "profile", label: "Profile", icon: User, tab: "profile" },
+  { key: "billing", label: "Billing & Usage", icon: CreditCard, billing: true },
+  { key: "engine", label: "Target Engine", icon: Sliders, tab: "engine" },
+  { key: "vault", label: "Role Vault", icon: Users, tab: "vault" },
+  { key: "policy", label: "Run Policy", icon: ShieldCheck, tab: "policy" },
+  { key: "tokens", label: "API Tokens", icon: KeyRound, tab: "tokens" },
 ];
 
 function SettingsLayout() {
@@ -71,10 +71,13 @@ function SettingsLayout() {
           {tabs.map((t) => {
             const Icon = t.icon;
             const active = t.key === activeTab;
+            const linkProps = t.billing
+              ? { to: "/app/settings/billing" as const }
+              : { to: "/app/settings" as const, search: { tab: t.tab } };
             return (
               <Link
                 key={t.key}
-                to={t.href}
+                {...linkProps}
                 className={`inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
                   active
                     ? "border-primary text-foreground"
