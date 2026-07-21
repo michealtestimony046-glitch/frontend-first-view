@@ -10,6 +10,7 @@ export default defineConfig({
       server: { entry: "server" },
     }),
     viteConfigPaths(),
+    viteReact(),
     tailwindcss(),
   ],
   server: {
