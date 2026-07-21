@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import {
   Activity,
   AlertTriangle,
@@ -52,11 +53,32 @@ export const Route = createFileRoute("/app/")({
 function AppDashboard() {
   const [url, setUrl] = useState(project.url);
   const [showRunModal, setShowRunModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
   const stats = getDashboardStats();
   const trend = getFailureTrend();
   const issues = getTopIssues();
   const latest = getLatestSummary();
   const usage = getBillingUsage();
+
+  const handleStartRun = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRunError(null);
+    setIsSubmitting(true);
+
+    try {
+      // For now, just close the modal and show success
+      // Once backend is ready, this will call the actual API
+      console.log('Starting run for URL:', url);
+      setShowRunModal(false);
+    } catch (error) {
+      setRunError(
+        error instanceof Error ? error.message : 'Failed to start run. Please try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
@@ -463,10 +485,7 @@ function AppDashboard() {
               </button>
             </div>
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setShowRunModal(false);
-              }}
+              onSubmit={handleStartRun}
               className="space-y-3 p-5"
             >
               <label className="block">
@@ -493,6 +512,11 @@ function AppDashboard() {
                   </span>
                 ))}
               </div>
+              {runError && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                  {runError}
+                </div>
+              )}
               {usage.atCap ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
                   <div className="font-semibold">Preview pool exhausted</div>
@@ -516,15 +540,17 @@ function AppDashboard() {
                 <button
                   type="button"
                   onClick={() => setShowRunModal(false)}
-                  className="rounded-md border border-border bg-surface/60 px-3 py-2 text-sm hover:bg-accent"
+                  disabled={isSubmitting}
+                  className="rounded-md border border-border bg-surface/60 px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={usage.atCap}
+                  disabled={usage.atCap || isSubmitting}
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
                 >
+                  {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   <Play className="h-3.5 w-3.5" /> Start run
                 </button>
               </div>

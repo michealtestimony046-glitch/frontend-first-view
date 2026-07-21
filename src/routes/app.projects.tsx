@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus, ExternalLink, Globe, X, Play, Activity } from "lucide-react";
+import { Plus, ExternalLink, Globe, X, Play, Activity, Loader2 } from "lucide-react";
 import { getProjects, type ProjectCard } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/app/projects")({
@@ -156,21 +156,35 @@ function NewProjectDrawer({
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [env, setEnv] = useState<"staging" | "production" | "local">("staging");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !url) return;
-    onCreate({
-      id: `prj_${Math.random().toString(36).slice(2, 8)}`,
-      workspaceId: "ws_acme_01",
-      name,
-      targetUrl: url,
-      environment: env,
-      status: "idle",
-      totalVariants: 0,
-      lastRunHealth: 0,
-      lastRunAt: "never",
-    });
+    
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      // For now, just create locally
+      // Once backend is ready, this will call the actual API
+      onCreate({
+        id: `prj_${Math.random().toString(36).slice(2, 8)}`,
+        workspaceId: "ws_acme_01",
+        name,
+        targetUrl: url,
+        environment: env,
+        status: "idle",
+        totalVariants: 0,
+        lastRunHealth: 0,
+        lastRunAt: "never",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create project');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -197,6 +211,11 @@ function NewProjectDrawer({
           </button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
+          {error && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+              {error}
+            </div>
+          )}
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-foreground">
               Project name
@@ -205,7 +224,8 @@ function NewProjectDrawer({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Client Checkout Flow"
-              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary"
+              disabled={isSubmitting}
+              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
             />
           </label>
           <label className="block">
@@ -216,7 +236,8 @@ function NewProjectDrawer({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://staging.your-app.com"
-              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 font-mono text-sm outline-none focus:border-primary"
+              disabled={isSubmitting}
+              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 font-mono text-sm outline-none focus:border-primary disabled:opacity-50"
             />
           </label>
           <label className="block">
@@ -226,7 +247,8 @@ function NewProjectDrawer({
             <select
               value={env}
               onChange={(e) => setEnv(e.target.value as typeof env)}
-              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary"
+              disabled={isSubmitting}
+              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
             >
               <option value="staging">Staging</option>
               <option value="production">Production</option>
@@ -245,9 +267,10 @@ function NewProjectDrawer({
         <div className="border-t border-border bg-surface-2/40 px-5 py-3">
           <button
             type="submit"
-            disabled={!name || !url}
+            disabled={!name || !url || isSubmitting}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-40"
           >
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             <Play className="h-4 w-4" /> Create project
           </button>
         </div>

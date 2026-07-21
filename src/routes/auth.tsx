@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Github, Mail, Terminal } from "lucide-react";
+import { ArrowRight, Github, Mail, Terminal, Loader2 } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { authApi } from "@/lib/api-client";
+import { useMutation } from "@/hooks/use-api";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -17,6 +19,33 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const [loginMutate, loginState] = useMutation(authApi.login);
+  const [signupMutate, signupState] = useMutation(authApi.signup);
+
+  const isLoading = loginState.loading || signupState.loading;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage("");
+
+    try {
+      if (mode === "signin") {
+        await loginMutate({ email, password });
+      } else {
+        await signupMutate({ email, password });
+      }
+      navigate({ to: "/app" });
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Authentication failed. Please try again."
+      );
+    }
+  };
 
   return (
     <div className="grid min-h-screen bg-background md:grid-cols-2">
@@ -57,19 +86,20 @@ function AuthPage() {
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              navigate({ to: "/app" });
-            }}
-            className="space-y-3"
-          >
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {errorMessage && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                {errorMessage}
+              </div>
+            )}
             {mode === "signup" && (
               <Field
                 label="Full name"
                 type="text"
                 placeholder="Jane Cooper"
                 autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
               />
             )}
             <Field
@@ -78,20 +108,28 @@ function AuthPage() {
               placeholder="jane@company.com"
               icon={<Mail className="h-4 w-4" />}
               autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading}
             />
             <Field
               label="Password"
               type="password"
               placeholder="••••••••"
               autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
             />
 
             <button
               type="submit"
-              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow transition-transform hover:-translate-y-px"
+              disabled={isLoading || !email || !password || (mode === "signup" && !fullName)}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow transition-transform hover:-translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {mode === "signin" ? "Sign in" : "Create workspace"}
-              <ArrowRight className="h-4 w-4" />
+              {!isLoading && <ArrowRight className="h-4 w-4" />}
             </button>
           </form>
 
@@ -154,10 +192,12 @@ function AuthPage() {
 function Field({
   label,
   icon,
+  disabled,
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   icon?: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <label className="block">
@@ -172,7 +212,8 @@ function Field({
         )}
         <input
           {...props}
-          className={`w-full rounded-md border border-border bg-surface-2/60 py-2.5 text-sm placeholder:text-muted-foreground/70 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+          disabled={disabled}
+          className={`w-full rounded-md border border-border bg-surface-2/60 py-2.5 text-sm placeholder:text-muted-foreground/70 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed ${
             icon ? "pl-9 pr-3" : "px-3"
           }`}
         />

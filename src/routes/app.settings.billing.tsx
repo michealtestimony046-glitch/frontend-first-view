@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { billingApi } from "@/lib/api-client";
 import {
   ArrowRight,
   Check,
@@ -297,27 +299,13 @@ function AllocationModal({
     setError(null);
     setSubmitting(true);
     try {
-      if (WEBHOOK_URL) {
-        const res = await fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            source: "matrix_qa_billing",
-            email,
-            workload,
-            submittedAt: new Date().toISOString(),
-          }),
-        });
-        if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
-        onSubmitted("Request sent. We'll follow up by email shortly.");
-      } else {
-        // No webhook configured — soft success for local dev.
-        console.warn(
-          "[Matrix QA] VITE_ALLOCATION_WEBHOOK_URL not set; simulating success.",
-        );
-        await new Promise((r) => setTimeout(r, 400));
-        onSubmitted("Request recorded locally (no webhook configured).");
-      }
+      await billingApi.submitAllocationRequest({
+        source: "matrix_qa_billing",
+        email,
+        workload,
+        submittedAt: new Date().toISOString(),
+      });
+      onSubmitted("Request sent. We'll follow up by email shortly.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
