@@ -1,20 +1,16 @@
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import tailwindcss from "tailwindcss";
+import tailwindcss from "@tailwindcss/vite";
 import viteConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   plugins: [
     tanstackStart({
-      start: { entry: "./server.ts" },
+      server: { entry: "server" },
     }),
     viteConfigPaths(),
+    tailwindcss(),
   ],
-  css: {
-    postcss: {
-      plugins: [tailwindcss],
-    },
-  },
   server: {
     middlewareMode: false,
   },
