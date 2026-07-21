@@ -6,51 +6,64 @@ This is the frontend for Matrix QA, a core testing and quality assurance platfor
 
 ### Development
 ```bash
-npm run dev
+bun install
+bun run dev
 ```
 
 ### Build
 ```bash
-npm run build
+bun run build
 ```
 
 ### Preview
 ```bash
-npm run preview
+bun run preview
 ```
 
 ## Tech Stack
 
 - **Framework**: React 19
-- **Routing**: TanStack Router
+- **Routing**: TanStack Router with file-based routing
 - **Data Fetching**: TanStack React Query
-- **State Management**: TanStack React Router Context
 - **UI Components**: Radix UI
-- **Styling**: Tailwind CSS
-- **Forms**: React Hook Form
-- **Server**: TanStack React Start with Nitro
-- **Build Tool**: Vite
+- **Styling**: Tailwind CSS 4
+- **Forms**: React Hook Form with Zod validation
+- **Server**: TanStack React Start with Nitro backend
+- **Build Tool**: Vite 8
 - **Language**: TypeScript
+- **Package Manager**: Bun
 
 ## Project Structure
 
 ```
 src/
-├── routes/          # TanStack Router route definitions
-├── components/      # Reusable React components
+├── routes/          # TanStack Router file-based routes
+├── components/      # Reusable React components (Radix UI)
 ├── hooks/          # Custom React hooks
-├── lib/            # Utilities and helpers
-├── server.ts       # Server entry point
+├── lib/            # Utilities, helpers, and mock data
+├── server.ts       # Server entry point (Cloudflare Workers compatible)
 ├── start.ts        # TanStack Start configuration
-├── router.tsx      # Router setup
-└── styles.css      # Global styles
+├── router.tsx      # Router initialization
+└── styles.css      # Global Tailwind styles
 ```
 
 ## Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run build:dev` - Build in development mode
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run format` - Format code with Prettier
+- `bun run dev` - Start development server with HMR
+- `bun run build` - Build for production
+- `bun run build:dev` - Build in development mode
+- `bun run preview` - Preview production build locally
+- `bun run lint` - Run ESLint checks
+- `bun run format` - Format code with Prettier
+
+## Development Notes
+
+- TanStack Router uses file-based routing in `src/routes/`
+- All routes are auto-generated via `src/routeTree.gen.ts`
+- Authentication and state management are handled via React Context + React Query
+- UI components are built with Radix UI for accessibility
+- Styling uses Tailwind CSS with custom token system
+
+## Environment
+
+This project is optimized for deployment on Cloudflare Workers via the Nitro server runtime.
