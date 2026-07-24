@@ -3,7 +3,8 @@
  * Handles all HTTP requests to backend endpoints with proper error handling and token management
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+// Use the production API URL by default, or an environment variable if provided
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.trlabs.tech';
 
 // Token management
 const TOKEN_KEY = 'matrix_qa_auth_token';
