@@ -108,7 +108,28 @@ export interface CurrentUserResponse {
 
 export const authApi = {
   ping: async (): Promise<{ status: string }> => {
-    return apiRequest<{ status: string }>('/ping');
+    // Deep fix: Force absolute URL for ping to avoid any domain confusion
+    const url = `${API_BASE_URL}/ping`;
+    console.log(`[Matrix QA] Initiating stealth ping to: ${url}`);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ping failed with status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('[Matrix QA] Stealth ping failed:', error);
+      throw error;
+    }
   },
 
   signup: async (data: SignUpRequest): Promise<AuthResponse> => {
