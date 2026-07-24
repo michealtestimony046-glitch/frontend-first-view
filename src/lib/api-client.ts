@@ -65,7 +65,7 @@ export const apiRequest = async <T>(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(errorData.error || `Server Error (${response.status}). Please try again later.`);
     }
 
     // Handle 204 No Content
@@ -76,6 +76,9 @@ export const apiRequest = async <T>(
     return await response.json();
   } catch (error) {
     console.error(`API Error [${endpoint}]:`, error);
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new Error('Service is currently unavailable. Please check your connection or try again later.');
+    }
     throw error;
   }
 };
@@ -104,6 +107,10 @@ export interface CurrentUserResponse {
 }
 
 export const authApi = {
+  ping: async (): Promise<{ status: string }> => {
+    return apiRequest<{ status: string }>('/ping');
+  },
+
   signup: async (data: SignUpRequest): Promise<AuthResponse> => {
     const response = await apiRequest<AuthResponse>('/api/auth/signup', {
       method: 'POST',

@@ -20,7 +20,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const initApp = async () => {
+      // 1. Send a "Ping" to the server (requested by dev)
+      try {
+        await authApi.ping();
+        console.log('Server is reachable');
+      } catch (error) {
+        console.warn('Initial server ping failed:', error);
+      }
+
+      // 2. Check authentication
       const token = getAuthToken();
       if (token) {
         try {
@@ -35,7 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     };
 
-    checkAuth();
+    initApp();
   }, []);
 
   const logout = () => {
