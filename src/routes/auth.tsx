@@ -25,7 +25,10 @@ function AuthPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const [loginMutate, loginState] = useMutation(authApi.login);
-  const [signupMutate, signupState] = useMutation(authApi.signup);
+  const [signupMutate, signupState] = useMutation(async (data: any) => {
+    const res = await authApi.signup(data);
+    return res;
+  });
 
   const isLoading = loginState.loading || signupState.loading;
 
@@ -37,9 +40,14 @@ function AuthPage() {
       if (mode === "signin") {
         await loginMutate({ email, password });
       } else {
+        // Pass fullName if the backend supports it, or just email/password as per current authApi.signup
         await signupMutate({ email, password });
       }
-      navigate({ to: "/app" });
+      
+      // Small delay to ensure state/tokens are settled
+      setTimeout(() => {
+        navigate({ to: "/app" });
+      }, 100);
     } catch (err) {
       setErrorMessage(
         err instanceof Error ? err.message : "Authentication failed. Please try again."

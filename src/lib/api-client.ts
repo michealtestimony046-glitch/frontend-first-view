@@ -77,7 +77,7 @@ export const apiRequest = async <T>(
   } catch (error) {
     console.error(`API Error [${endpoint}]:`, error);
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Service is currently unavailable. Please check your connection or try again later.');
+      throw new Error(`Service is currently unavailable at ${url}. Please check your connection or try again later.`);
     }
     throw error;
   }

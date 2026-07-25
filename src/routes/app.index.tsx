@@ -89,7 +89,7 @@ function AppDashboard() {
             Overview
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Welcome back, Michael. Here's what's happening with your projects.
+            Welcome back. Here's what's happening with your projects.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
