@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowRight, Github, Mail, Terminal, Loader2 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { authApi } from "@/lib/api-client";
@@ -23,6 +23,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
 
   const [loginMutate, loginState] = useMutation(authApi.login);
   const [signupMutate, signupState] = useMutation(async (data: any) => {
@@ -31,6 +32,52 @@ function AuthPage() {
   });
 
   const isLoading = loginState.loading || signupState.loading;
+
+  // Handle OAuth callback after redirect back from provider
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const provider = params.get("provider");
+
+    if (code && provider) {
+      setOauthLoading(provider);
+      authApi
+        .handleOAuthCallback(code, provider)
+        .then(() => {
+          navigate({ to: "/app" });
+        })
+        .catch((err) => {
+          setErrorMessage(
+            err instanceof Error
+              ? err.message
+              : `${provider} authentication failed. Please try again.`
+          );
+          setOauthLoading(null);
+        });
+    }
+  }, [navigate]);
+
+  const handleGithubLogin = async () => {
+    setErrorMessage("");
+    setOauthLoading("github");
+    try {
+      authApi.loginWithGithub();
+    } catch (err) {
+      setErrorMessage("GitHub authentication is not available right now. Please try again later.");
+      setOauthLoading(null);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setErrorMessage("");
+    setOauthLoading("google");
+    try {
+      authApi.loginWithGoogle();
+    } catch (err) {
+      setErrorMessage("Google authentication is not available right now. Please try again later.");
+      setOauthLoading(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +90,7 @@ function AuthPage() {
         // Pass fullName if the backend supports it, or just email/password as per current authApi.signup
         await signupMutate({ email, password });
       }
-      
+
       // Small delay to ensure state/tokens are settled
       setTimeout(() => {
         navigate({ to: "/app" });
@@ -77,12 +124,31 @@ function AuthPage() {
           </p>
 
           <div className="mt-8 grid gap-2">
-            <button className="flex items-center justify-center gap-2 rounded-md border border-border bg-surface/60 py-2.5 text-sm font-medium transition-colors hover:bg-accent">
-              <Github className="h-4 w-4" />
+            <button
+              type="button"
+              onClick={handleGithubLogin}
+              disabled={oauthLoading !== null}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface/60 py-2.5 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {oauthLoading === "github" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Github className="h-4 w-4" />
+              )}
               Continue with GitHub
             </button>
-            <button className="flex items-center justify-center gap-2 rounded-md border border-border bg-surface/60 py-2.5 text-sm font-medium transition-colors hover:bg-accent">
-              <GoogleIcon /> Continue with Google
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={oauthLoading !== null}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface/60 py-2.5 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {oauthLoading === "google" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <GoogleIcon />
+              )}
+              Continue with Google
             </button>
           </div>
 
@@ -144,6 +210,7 @@ function AuthPage() {
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "signin" ? "New to Matrix QA?" : "Already have an account?"}{" "}
             <button
+              type="button"
               onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
               className="text-primary hover:underline"
             >

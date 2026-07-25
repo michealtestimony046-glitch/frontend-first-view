@@ -159,6 +159,34 @@ export const authApi = {
       requiresAuth: true,
     });
   },
+
+  /**
+   * Initiate GitHub OAuth flow — redirects the browser to the backend's GitHub OAuth endpoint
+   */
+  loginWithGithub: (): void => {
+    window.location.href = `${API_BASE_URL}/api/auth/github`;
+  },
+
+  /**
+   * Initiate Google OAuth flow — redirects the browser to the backend's Google OAuth endpoint
+   */
+  loginWithGoogle: (): void => {
+    window.location.href = `${API_BASE_URL}/api/auth/google`;
+  },
+
+  /**
+   * Handle OAuth callback with code from URL params
+   * Expects query params: ?code=XXX&provider=github|google
+   */
+  handleOAuthCallback: async (code: string, provider: string): Promise<AuthResponse> => {
+    const response = await apiRequest<AuthResponse>(`/api/auth/oauth/callback?code=${encodeURIComponent(code)}&provider=${encodeURIComponent(provider)}`, {
+      method: 'GET',
+    });
+    if (response.token) {
+      setAuthToken(response.token);
+    }
+    return response;
+  },
 };
 
 // ============ Runs Endpoints ============
@@ -205,4 +233,4 @@ export const billingApi = {
   },
 };
 
-// Triggering a fresh build to clear deployment cache - 2026-07-24
+// Triggering a fresh build to clear deployment cache - 2026-07-25
