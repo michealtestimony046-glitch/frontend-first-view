@@ -265,3 +265,65 @@ export type AuditEntry = {
 export function getAuditLog(): AuditEntry[] {
   return [];
 }
+
+// ---- Settings & Reports stubs --------------------------------------------
+
+export type FeatureScope = {
+  id: string | number;
+  name: string;
+  paths: string[];
+  enabled: boolean;
+};
+
+export function getFeatureScopes(): FeatureScope[] {
+  return [];
+}
+
+export type Persona = {
+  role: string;
+  identity: string;
+  target: string;
+};
+
+export function getPersonas(): Persona[] {
+  return [];
+}
+
+export type Report = {
+  id: string;
+  generatedAt: string;
+  runId: string;
+  status: string;
+  confidenceScore: number;
+  metrics: {
+    passed: number;
+    failed: number;
+    warnings: number;
+    totalMatrixPermutations: number;
+  };
+  groupedBugs: {
+    id: string;
+    severity: Severity;
+    title: string;
+    affected: string;
+    endpoint?: string;
+    reproMd: string;
+  }[];
+};
+
+export function getLatestReport(): Report {
+  return {
+    id: "",
+    generatedAt: "",
+    runId: "",
+    status: "",
+    confidenceScore: 0,
+    metrics: {
+      passed: 0,
+      failed: 0,
+      warnings: 0,
+      totalMatrixPermutations: 0,
+    },
+    groupedBugs: [],
+  };
+}
