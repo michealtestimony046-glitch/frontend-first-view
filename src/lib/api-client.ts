@@ -4,7 +4,7 @@
  */
 
 // Use the production API URL by default, or an environment variable if provided
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.trlabs.tech';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://matrix-first-view--jerrybrian12345.replit.app';
 
 // Token management
 const TOKEN_KEY = 'matrix_qa_auth_token';
@@ -96,21 +96,23 @@ export interface LoginRequest {
 }
 
 export interface AuthResponse {
-  user_id: string;
-  email: string;
-  token: string;
+  user: {
+    id: string;
+    email: string;
+  };
+  accessToken: string;
 }
 
 export interface CurrentUserResponse {
-  user_id: string;
+  id: string;
   email: string;
 }
 
 export const authApi = {
   ping: async (): Promise<{ status: string }> => {
-    // Deep fix: Force absolute URL for ping to avoid any domain confusion
-    const url = `${API_BASE_URL}/ping`;
-    console.log(`[Matrix QA] Initiating stealth ping to: ${url}`);
+    // Deep fix: Force absolute URL for health check to avoid any domain confusion
+    const url = `${API_BASE_URL}/health`;
+    console.log(`[Matrix QA] Initiating health check to: ${url}`);
     
     try {
       const response = await fetch(url, {
@@ -122,40 +124,40 @@ export const authApi = {
       });
       
       if (!response.ok) {
-        throw new Error(`Ping failed with status: ${response.status}`);
+        throw new Error(`Health check failed with status: ${response.status}`);
       }
       
       return await response.json();
     } catch (error) {
-      console.error('[Matrix QA] Stealth ping failed:', error);
+      console.error('[Matrix QA] Health check failed:', error);
       throw error;
     }
   },
 
   signup: async (data: SignUpRequest): Promise<AuthResponse> => {
-    const response = await apiRequest<AuthResponse>('/api/auth/signup', {
+    const response = await apiRequest<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    if (response.token) {
-      setAuthToken(response.token);
+    if (response.accessToken) {
+      setAuthToken(response.accessToken);
     }
     return response;
   },
 
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    const response = await apiRequest<AuthResponse>('/api/auth/login', {
+    const response = await apiRequest<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    if (response.token) {
-      setAuthToken(response.token);
+    if (response.accessToken) {
+      setAuthToken(response.accessToken);
     }
     return response;
   },
 
   getCurrentUser: async (): Promise<CurrentUserResponse> => {
-    return apiRequest<CurrentUserResponse>('/api/auth/me', {
+    return apiRequest<CurrentUserResponse>('/auth/me', {
       requiresAuth: true,
     });
   },
@@ -164,14 +166,14 @@ export const authApi = {
    * Initiate GitHub OAuth flow — redirects the browser to the backend's GitHub OAuth endpoint
    */
   loginWithGithub: (): void => {
-    window.location.href = `${API_BASE_URL}/api/auth/github`;
+    window.location.href = `${API_BASE_URL}/auth/github`;
   },
 
   /**
    * Initiate Google OAuth flow — redirects the browser to the backend's Google OAuth endpoint
    */
   loginWithGoogle: (): void => {
-    window.location.href = `${API_BASE_URL}/api/auth/google`;
+    window.location.href = `${API_BASE_URL}/auth/google`;
   },
 
   /**
@@ -179,11 +181,11 @@ export const authApi = {
    * Expects query params: ?code=XXX&provider=github|google
    */
   handleOAuthCallback: async (code: string, provider: string): Promise<AuthResponse> => {
-    const response = await apiRequest<AuthResponse>(`/api/auth/oauth/callback?code=${encodeURIComponent(code)}&provider=${encodeURIComponent(provider)}`, {
+    const response = await apiRequest<AuthResponse>(`/auth/oauth/callback?code=${encodeURIComponent(code)}&provider=${encodeURIComponent(provider)}`, {
       method: 'GET',
     });
-    if (response.token) {
-      setAuthToken(response.token);
+    if (response.accessToken) {
+      setAuthToken(response.accessToken);
     }
     return response;
   },
