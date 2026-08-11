@@ -13,7 +13,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationEmail, setVerificationEmail] = useState("");
@@ -96,10 +96,7 @@ function AuthPage() {
     }
   };
 
-  const handleCodeChange = (value: string) => {
-    setVerificationCode(value.replace(/\D/g, "").slice(0, 6));
-    setErrorMessage("");
-  };
+  const handleCodeChange = (value: string) => { setVerificationCode(value.replace(/\D/g, "").slice(0, 6)); setErrorMessage(""); };
   const backToSignup = () => { setVerificationStep(false); setVerificationCode(""); setErrorMessage(""); setSuccessMessage(""); };
   const switchMode = () => { setMode((current) => current === "signin" ? "signup" : "signin"); setVerificationStep(false); setErrorMessage(""); setSuccessMessage(""); };
   const handleGithubLogin = () => { setErrorMessage(""); setOauthLoading("github"); authApi.loginWithGithub(); };
