@@ -4,7 +4,7 @@
  */
 
 // Use the production API URL by default, or an environment variable if provided
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://matrix-first-view--jerrybrian12345.replit.app';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Token management
 const TOKEN_KEY = 'matrix_qa_auth_token';
