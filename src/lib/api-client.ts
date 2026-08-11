@@ -5,10 +5,21 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const TOKEN_KEY = 'matrix_qa_auth_token';
+const AUTH_EVENT = 'matrix-qa-auth-changed';
 
 export const getAuthToken = (): string | null => typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
-export const setAuthToken = (token: string): void => { if (typeof window !== 'undefined') localStorage.setItem(TOKEN_KEY, token); };
-export const clearAuthToken = (): void => { if (typeof window !== 'undefined') localStorage.removeItem(TOKEN_KEY); };
+export const setAuthToken = (token: string): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(TOKEN_KEY, token);
+    window.dispatchEvent(new Event(AUTH_EVENT));
+  }
+};
+export const clearAuthToken = (): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(TOKEN_KEY);
+    window.dispatchEvent(new Event(AUTH_EVENT));
+  }
+};
 
 interface RequestOptions extends RequestInit { requiresAuth?: boolean; }
 const getErrorMessage = (data: unknown, status: number): string => {
