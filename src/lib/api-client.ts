@@ -126,6 +126,7 @@ export interface RunSummary { assertionsPassed: number; assertionsFailed: number
 export interface RunReport {
   id?: string;
   runId?: string;
+  projectId?: string;
   status: string;
   targetUrl?: string;
   startedAt?: string | Date;
@@ -176,7 +177,11 @@ export const projectsApi = {
 
 export const runsApi = {
   triggerRun: async (data: TriggerRunRequest): Promise<TriggerRunResponse> => apiRequest('/v1/runs', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  getReport: async (runId: string): Promise<RunReport> => apiRequest<RunReport>(`/v1/runs/${encodeURIComponent(runId)}`, { requiresAuth: true }),
+  getReport: async (projectId: string, runId: string): Promise<RunReport> => {
+    const encodedProjectId = encodeURIComponent(projectId);
+    const encodedRunId = encodeURIComponent(runId);
+    return apiRequest<RunReport>(`/projects/${encodedProjectId}/runs/${encodedRunId}/report`, { requiresAuth: true });
+  },
 };
 
 export interface AllocationRequest { source: string; email: string; workload: string; submittedAt: string; }
