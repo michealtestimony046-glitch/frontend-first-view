@@ -1,659 +1,191 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
-  Bug,
   Camera,
   CheckCircle2,
   ChevronRight,
   Clock,
-  Copy,
   Download,
+  ExternalLink,
+  FileWarning,
   Globe,
   Loader2,
   Network,
+  Play,
   Terminal,
   XCircle,
-} from "lucide-react";
+} from 'lucide-react';
+import { runsApi, type RunError, type RunReport } from '@/lib/api-client';
+import { StatusPill } from './app.index';
 
-import { StatusPill } from "./app.index";
-import { BrowserFrame } from "@/components/browser-frame";
-import { runDetail, type Severity } from "@/lib/mock-data";
-
-export const Route = createFileRoute("/app/runs/$runId")({
+export const Route = createFileRoute('/app/runs/$runId')({
   head: ({ params }) => ({
     meta: [
       { title: `Run ${params.runId} · Matrix QA` },
-      { name: "description", content: "Run report with evidence." },
-      { name: "robots", content: "noindex" },
+      { name: 'description', content: 'Run report with real evidence.' },
+      { name: 'robots', content: 'noindex' },
     ],
   }),
   component: RunDetailPage,
 });
 
-type Tab = "overview" | "console" | "network" | "screenshots" | "scenarios";
+type Tab = 'overview' | 'console' | 'network' | 'screenshots' | 'scenarios';
+
+function msToClock(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+function duration(sec?: number) {
+  if (sec == null) return '—';
+  return `${Math.floor(sec / 60)}m ${Math.round(sec % 60)}s`;
+}
+
+function reportSummary(r: RunReport) {
+  const s = r.summary ?? { assertionsPassed: 0, assertionsFailed: 0, hardErrorCount: 0, bugCount: 0 };
+  return {
+    passed: r.passed ?? s.assertionsPassed,
+    failed: r.failed ?? s.assertionsFailed,
+    bugs: r.bugs ?? s.bugCount,
+    scenarios: r.scenarios ?? s.assertionsPassed + s.assertionsFailed,
+  };
+}
 
 function RunDetailPage() {
   const { runId } = Route.useParams();
-  const r = runDetail;
-  const [tab, setTab] = useState<Tab>("overview");
+  const projectId = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('projectId')
+    : null;
+  const [report, setReport] = useState<RunReport | null>(null);
+  const [tab, setTab] = useState<Tab>('overview');
   const [selected, setSelected] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+
+    if (!projectId) {
+      setReport(null);
+      setError('Project ID is required to load this run report.');
+      return () => { cancelled = true; };
+    }
+
+    runsApi.getReport(projectId, runId)
+      .then((data) => { if (!cancelled) setReport(data); })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Unable to load run report.'); });
+    return () => { cancelled = true; };
+  }, [projectId, runId]);
+
+  if (error) return <ErrorState message={error} />;
+  if (!report) return <LoadingState />;
+
+  const s = reportSummary(report);
+  const screenshots = report.screenshots ?? [];
+  const selectedShot = screenshots[selected];
+  const videoUrl = report.finalVideo ?? report.rawVideo ?? null;
 
   return (
     <div>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        {/* Breadcrumb */}
-        <Link
-          to="/app"
-          className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          back to runs
+        <Link to="/app" className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-3.5 w-3.5" /> back to runs
         </Link>
 
-        {/* Header */}
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="font-display text-3xl font-semibold tracking-tight">
-                Run <span className="text-primary">{runId}</span>
-              </h1>
-              <StatusPill status={r.status} />
+              <h1 className="font-display text-3xl font-semibold tracking-tight">Run <span className="text-primary">{report.id ?? report.runId ?? runId}</span></h1>
+              <StatusPill status={report.status} />
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <Globe className="h-3.5 w-3.5" />
-                {r.targetUrl}
-              </span>
+              {report.targetUrl && <span className="inline-flex items-center gap-1"><Globe className="h-3.5 w-3.5" />{report.targetUrl}</span>}
               <span className="text-border">·</span>
-              <span className="inline-flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                started {r.startedAt} · {formatDuration(r.durationSec)}
-              </span>
-              <span className="text-border">·</span>
-              <span>chromium 128 · desktop 1440×900</span>
+              <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />started {report.startedAt ? new Date(report.startedAt).toLocaleString() : '—'} · {duration(report.durationSec)}</span>
+              {report.triggeredBy && <><span className="text-border">·</span><span>by {typeof report.triggeredBy === 'string' ? report.triggeredBy : report.triggeredBy.name ?? report.triggeredBy.email ?? 'user'}</span></>}
             </div>
           </div>
-          <div className="flex gap-2">
-            <button className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-1.5 text-xs hover:bg-accent">
-              <Copy className="h-3.5 w-3.5" /> Copy link
-            </button>
-            <button className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-1.5 text-xs hover:bg-accent">
-              <Download className="h-3.5 w-3.5" /> Export
-            </button>
-          </div>
+          {videoUrl && <a href={videoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-1.5 text-xs hover:bg-accent"><Download className="h-3.5 w-3.5" /> Open evidence video</a>}
         </div>
 
-        {/* Summary strip */}
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat
-            label="Scenarios"
-            value={`${r.passed}/${r.scenarios}`}
-            hint="passed"
-            tone={r.failed > 0 ? "danger" : "success"}
-          />
-          <Stat
-            label="Bugs captured"
-            value={String(r.bugs)}
-            hint={r.bugs > 0 ? "needs review" : "clean"}
-            tone={r.bugs > 0 ? "danger" : "success"}
-          />
-          <Stat
-            label="Screenshots"
-            value={String(r.screenshots.length)}
-            hint="artifacts"
-          />
-          <Stat
-            label="Network calls"
-            value={String(r.network.length)}
-            hint={`${r.network.filter((n) => n.status >= 500).length} × 5xx`}
-            tone={r.network.some((n) => n.status >= 500) ? "danger" : undefined}
-          />
+          <Stat label="Scenarios" value={`${s.passed}/${s.scenarios}`} hint="passed" tone={s.failed > 0 ? 'danger' : 'success'} />
+          <Stat label="Bugs captured" value={String(s.bugs)} hint={s.bugs ? 'needs review' : 'clean'} tone={s.bugs ? 'danger' : 'success'} />
+          <Stat label="Screenshots" value={String(screenshots.length)} hint="artifacts" />
+          <Stat label="Events" value={String(report.events?.length ?? 0)} hint={`${report.errors?.length ?? 0} errors`} tone={(report.errors?.length ?? 0) ? 'danger' : undefined} />
         </div>
 
-        {/* Tabs — horizontally scrollable on mobile */}
+        {videoUrl && <EvidenceVideo report={report} url={videoUrl} />}
+
         <div className="mt-8 -mx-4 overflow-x-auto border-b border-border md:mx-0">
           <div className="flex min-w-max items-center gap-1 px-4 md:min-w-0 md:px-0">
-            {(
-              [
-                { id: "overview", label: "Overview", icon: CheckCircle2 },
-                { id: "screenshots", label: "Screenshots", icon: Camera },
-                { id: "console", label: "Console", icon: Terminal },
-                { id: "network", label: "Network", icon: Network },
-                { id: "scenarios", label: "Scenarios", icon: Bug },
-              ] as const
-            ).map((t) => {
+            {([
+              { id: 'overview', label: 'Overview', icon: CheckCircle2 },
+              { id: 'screenshots', label: 'Screenshots', icon: Camera },
+              { id: 'console', label: 'Errors', icon: Terminal },
+              { id: 'network', label: 'Events', icon: Network },
+              { id: 'scenarios', label: 'Assertions', icon: FileWarning },
+            ] as const).map((t) => {
               const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`relative -mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors ${
-                    active
-                      ? "border-primary text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <t.icon className="h-3.5 w-3.5" />
-                  {t.label}
-                </button>
-              );
+              return <button key={t.id} onClick={() => setTab(t.id)} className={`relative -mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm ${active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}><t.icon className="h-3.5 w-3.5" />{t.label}</button>;
             })}
           </div>
         </div>
 
         <div className="mt-6">
-          {tab === "overview" && <OverviewTab />}
-          {tab === "screenshots" && (
-            <ScreenshotsTab selected={selected} setSelected={setSelected} />
-          )}
-          {tab === "console" && <ConsoleTab />}
-          {tab === "network" && <NetworkTab />}
-          {tab === "scenarios" && <ScenariosTab />}
+          {tab === 'overview' && <OverviewTab report={report} />}
+          {tab === 'screenshots' && <ScreenshotsTab report={report} selected={selected} setSelected={setSelected} />}
+          {tab === 'console' && <ErrorsTab errors={report.errors ?? []} />}
+          {tab === 'network' && <EventsTab report={report} />}
+          {tab === 'scenarios' && <AssertionsTab report={report} />}
         </div>
       </div>
     </div>
   );
 }
 
-function OverviewTab() {
-  const r = runDetail;
-  return (
-    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-      {/* Bugs */}
-      <div className="surface-card overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h3 className="font-display text-sm font-semibold">Bugs captured</h3>
-          <span className="font-mono text-[11px] text-muted-foreground">
-            {r.bugs_list.length} findings
-          </span>
-        </div>
-        <ul>
-          {r.bugs_list.map((b) => (
-            <li
-              key={b.id}
-              className="group flex items-start gap-3 border-b border-border px-5 py-4 last:border-b-0 hover:bg-accent/30"
-            >
-              <SeverityDot severity={b.severity} />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {b.severity}
-                  </span>
-                  <span className="text-muted-foreground/40">·</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {b.scenario}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-foreground">{b.title}</p>
-                <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-                  evidence: {b.evidence} · captured at{" "}
-                  {formatMs(b.detectedAt)}
-                </p>
-              </div>
-              <ChevronRight className="mt-1 h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Timeline */}
-      <div className="surface-card overflow-hidden">
-        <div className="border-b border-border px-5 py-3">
-          <h3 className="font-display text-sm font-semibold">Execution timeline</h3>
-        </div>
-        <div className="p-5">
-          <ol className="relative space-y-4 border-l border-border pl-4">
-            {[
-              { t: "00:00", label: "Worker boot · chromium 128", tone: "muted" },
-              { t: "00:00", label: "Navigate to target URL", tone: "muted" },
-              { t: "00:04", label: "GET / · 200 (84ms)", tone: "muted" },
-              { t: "00:06", label: "Click \"Sign up\"", tone: "muted" },
-              { t: "00:11", label: "Warn: key prop missing", tone: "warning" },
-              {
-                t: "00:14",
-                label: "POST /api/checkout/quote · 500",
-                tone: "danger",
-              },
-              {
-                t: "00:15",
-                label: "Bug captured · TypeError in CheckoutSummary",
-                tone: "danger",
-              },
-              { t: "03:04", label: "Run finished · 12 scenarios", tone: "muted" },
-            ].map((s, i) => (
-              <li key={i} className="relative">
-                <span
-                  className={`absolute -left-[21px] top-1.5 flex h-3 w-3 items-center justify-center rounded-full border-2 border-background ${
-                    s.tone === "danger"
-                      ? "bg-destructive"
-                      : s.tone === "warning"
-                        ? "bg-warning"
-                        : "bg-muted-foreground/60"
-                  }`}
-                />
-                <div className="flex items-baseline gap-3">
-                  <span className="w-10 shrink-0 font-mono text-[11px] text-muted-foreground">
-                    {s.t}
-                  </span>
-                  <span
-                    className={`text-sm ${
-                      s.tone === "danger"
-                        ? "text-destructive"
-                        : s.tone === "warning"
-                          ? "text-warning"
-                          : "text-foreground/80"
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </div>
-    </div>
-  );
+function EvidenceVideo({ report, url }: { report: RunReport; url: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const chapters = report.chapters ?? [];
+  const [current, setCurrent] = useState(0);
+  return <div className="mt-8 surface-card overflow-hidden">
+    <div className="flex items-center justify-between border-b border-border px-5 py-3"><div><h2 className="font-display text-sm font-semibold">Evidence replay</h2><p className="font-mono text-[10px] text-muted-foreground">{report.finalVideo ? 'cinematic evidence' : 'raw browser recording'}</p></div><a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ExternalLink className="h-3.5 w-3.5" /> open</a></div>
+    <div className="bg-black"><video ref={videoRef} src={url} controls playsInline className="mx-auto aspect-video w-full max-h-[680px]" onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)} /></div>
+    {chapters.length > 0 && <div className="border-t border-border p-3"><div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Chapters</div><div className="flex flex-wrap gap-2">{chapters.map((c, i) => <button key={`${c.title}-${i}`} onClick={() => { if (videoRef.current) videoRef.current.currentTime = c.startTimestamp / 1000; }} className={`rounded border px-2 py-1 text-[11px] ${current * 1000 >= c.startTimestamp ? 'border-primary/40 bg-primary/5' : 'border-border hover:bg-accent'}`}>{msToClock(c.startTimestamp)} · {c.title}</button>)}</div></div>}
+  </div>;
 }
 
-function ScreenshotsTab({
-  selected,
-  setSelected,
-}: {
-  selected: number;
-  setSelected: (n: number) => void;
-}) {
-  const r = runDetail;
-  const shot = r.screenshots[selected];
-  return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
-      <BrowserFrame url={r.targetUrl}>
-        <FakeShot variant={selected} />
-        <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-2 rounded-md border border-border bg-background/80 px-2 py-1 font-mono text-[10px] text-muted-foreground backdrop-blur">
-          <Camera className="h-3 w-3 text-primary" />
-          {shot.label} · captured at {formatMs(shot.t)}
-        </div>
-      </BrowserFrame>
-
-      <div className="surface-card overflow-hidden">
-        <div className="border-b border-border px-4 py-3">
-          <h3 className="font-display text-sm font-semibold">All frames</h3>
-        </div>
-        <ul className="max-h-[520px] overflow-auto p-2">
-          {r.screenshots.map((s, i) => (
-            <li key={i}>
-              <button
-                onClick={() => setSelected(i)}
-                className={`flex w-full items-center gap-3 rounded-md border p-2 text-left transition-colors ${
-                  selected === i
-                    ? "border-primary/40 bg-primary/5"
-                    : "border-transparent hover:bg-accent/40"
-                }`}
-              >
-                <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded border border-border bg-surface-2">
-                  <FakeShot variant={i} thumbnail />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs text-foreground">{s.label}</p>
-                  <p className="font-mono text-[10px] text-muted-foreground">
-                    {formatMs(s.t)}
-                  </p>
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
+function OverviewTab({ report }: { report: RunReport }) {
+  const errors = report.errors ?? [];
+  const assertions = report.assertions ?? [];
+  return <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+    <div className="surface-card overflow-hidden"><div className="border-b border-border px-5 py-3"><h3 className="font-display text-sm font-semibold">Real findings</h3></div><div className="divide-y divide-border">{errors.length === 0 ? <EmptyState icon={CheckCircle2} title="No hard errors captured" body="The backend reported no hard errors for this run." compact /> : errors.map((e, i) => <ErrorRow key={i} error={e} />)}</div></div>
+    <div className="surface-card overflow-hidden"><div className="border-b border-border px-5 py-3"><h3 className="font-display text-sm font-semibold">Execution timeline</h3></div><ol className="max-h-[480px] space-y-3 overflow-auto p-5">{(report.events ?? []).slice().sort((a,b) => a.timestamp-b.timestamp).map((e,i) => <li key={i} className="flex gap-3 text-sm"><span className="w-12 shrink-0 font-mono text-[10px] text-muted-foreground">{msToClock(e.timestamp)}</span><span className="text-foreground/80">{eventLabel(e)}</span></li>)}</ol></div>
+    {assertions.length > 0 && <div className="lg:col-span-2 surface-card overflow-hidden"><div className="border-b border-border px-5 py-3"><h3 className="font-display text-sm font-semibold">Assertions</h3></div><div className="grid gap-2 p-4 sm:grid-cols-2">{assertions.map((a,i)=><div key={i} className="rounded border border-border p-3"><div className="flex items-center gap-2">{a.status === 'passed' ? <CheckCircle2 className="h-4 w-4 text-primary"/> : <XCircle className="h-4 w-4 text-destructive"/>}<span className="text-sm">{a.name}</span><span className="ml-auto font-mono text-[10px] text-muted-foreground">{msToClock(a.timestamp)}</span></div><p className="mt-2 font-mono text-[10px] text-muted-foreground">expected: {String(a.expected)} · actual: {String(a.actual)}</p></div>)}</div></div>}
+  </div>;
 }
 
-function ConsoleTab() {
-  const r = runDetail;
-  if (!r.console.length) {
-    return (
-      <EmptyState
-        icon={Terminal}
-        title="No console activity captured"
-        body="This run finished without any log, warning, or error events."
-      />
-    );
-  }
-  return (
-    <div className="surface-card overflow-hidden">
-      {/* Desktop table */}
-      <div className="hidden md:block">
-        <div className="grid grid-cols-[70px_60px_1fr_180px] gap-3 border-b border-border bg-surface-2/40 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          <span>Time</span>
-          <span>Level</span>
-          <span>Message</span>
-          <span>Source</span>
-        </div>
-        <ul className="max-h-[560px] divide-y divide-border overflow-auto font-mono text-[12px]">
-          {r.console.map((c, i) => (
-            <li
-              key={i}
-              className="grid grid-cols-[70px_60px_1fr_180px] items-start gap-3 px-4 py-2 hover:bg-accent/30"
-            >
-              <span className="text-muted-foreground">{formatMs(c.t)}</span>
-              <LevelBadge level={c.level} />
-              <span className={levelText(c.level)}>{c.message}</span>
-              <span className="truncate text-muted-foreground">{c.source}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      {/* Mobile cards */}
-      <ul className="max-h-[70vh] divide-y divide-border overflow-auto font-mono text-[12px] md:hidden">
-        {r.console.map((c, i) => (
-          <li key={i} className="space-y-1 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <LevelBadge level={c.level} />
-              <span className="text-[10px] text-muted-foreground">
-                {formatMs(c.t)}
-              </span>
-            </div>
-            <p className={`break-words ${levelText(c.level)}`}>{c.message}</p>
-            {c.source && (
-              <p className="truncate text-[10px] text-muted-foreground">
-                {c.source}
-              </p>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+function ScreenshotsTab({ report, selected, setSelected }: { report: RunReport; selected: number; setSelected: (n:number)=>void }) {
+  const shots = report.screenshots ?? [];
+  if (!shots.length) return <EmptyState icon={Camera} title="No screenshots captured" body="The backend did not return screenshot artifacts for this run." />;
+  const shot = shots[selected] ?? shots[0];
+  return <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+    <div className="surface-card overflow-hidden"><div className="border-b border-border px-5 py-3"><h3 className="font-display text-sm font-semibold">{shot.label}</h3><p className="font-mono text-[10px] text-muted-foreground">captured at {msToClock(shot.t ?? shot.timestamp)}</p></div>{shot.url ? <img src={shot.url} alt={shot.label} className="max-h-[680px] w-full object-contain bg-surface-2" /> : <EmptyState icon={Camera} title="Screenshot URL unavailable" body="The backend returned the artifact metadata but no signed URL." compact />}</div>
+    <div className="surface-card overflow-hidden"><div className="border-b border-border px-4 py-3"><h3 className="font-display text-sm font-semibold">All frames</h3></div><ul className="max-h-[560px] overflow-auto p-2">{shots.map((s,i)=><li key={s.filename}><button onClick={()=>setSelected(i)} className={`flex w-full items-center gap-3 rounded-md border p-2 text-left ${selected===i?'border-primary/40 bg-primary/5':'border-transparent hover:bg-accent/40'}`}><div className="h-12 w-20 shrink-0 overflow-hidden rounded border border-border bg-surface-2">{s.url&&<img src={s.url} alt="" className="h-full w-full object-cover"/>}</div><div className="min-w-0"><p className="truncate text-xs">{s.label}</p><p className="font-mono text-[10px] text-muted-foreground">{msToClock(s.t ?? s.timestamp)}</p></div></button></li>)}</ul></div>
+  </div>;
 }
 
-function NetworkTab() {
-  const r = runDetail;
-  if (!r.network.length) {
-    return (
-      <EmptyState
-        icon={Network}
-        title="No network calls recorded"
-        body="No requests were made during this run."
-      />
-    );
-  }
-  return (
-    <div className="surface-card overflow-hidden">
-      {/* Desktop table */}
-      <div className="hidden md:block">
-        <div className="grid grid-cols-[70px_60px_1fr_80px_80px_80px] border-b border-border bg-surface-2/40 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          <span>Time</span>
-          <span>Method</span>
-          <span>URL</span>
-          <span>Status</span>
-          <span>Latency</span>
-          <span className="text-right">Size</span>
-        </div>
-        <ul className="max-h-[560px] divide-y divide-border overflow-auto font-mono text-[12px]">
-          {r.network.map((n, i) => (
-            <li
-              key={i}
-              className="grid grid-cols-[70px_60px_1fr_80px_80px_80px] items-center gap-2 px-4 py-2 hover:bg-accent/30"
-            >
-              <span className="text-muted-foreground">{formatMs(n.t)}</span>
-              <span className="text-foreground/80">{n.method}</span>
-              <span className="truncate text-foreground">{n.url}</span>
-              <span className={statusColor(n.status)}>{n.status}</span>
-              <span className="text-muted-foreground">{n.ms}ms</span>
-              <span className="text-right text-muted-foreground">{n.size}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      {/* Mobile cards */}
-      <ul className="max-h-[70vh] divide-y divide-border overflow-auto font-mono text-[12px] md:hidden">
-        {r.network.map((n, i) => (
-          <li key={i} className="space-y-1.5 px-4 py-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
-                  {n.method}
-                </span>
-                <span className={`shrink-0 ${statusColor(n.status)}`}>
-                  {n.status}
-                </span>
-              </div>
-              <span className="text-[10px] text-muted-foreground">
-                {formatMs(n.t)}
-              </span>
-            </div>
-            <p className="break-all text-foreground">{n.url}</p>
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>{n.ms}ms</span>
-              <span>{n.size}</span>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
+function ErrorsTab({ errors }: { errors: RunError[] }) { return <div className="surface-card overflow-hidden"><div className="border-b border-border px-5 py-3"><h3 className="font-display text-sm font-semibold">Hard errors with real timestamps</h3></div>{errors.length ? <div className="divide-y divide-border">{errors.map((e,i)=><ErrorRow key={i} error={e}/>)}</div> : <EmptyState icon={CheckCircle2} title="No hard errors" body="No console, pageerror, or HTTP ≥ 400 hard errors were returned." compact/>}</div>; }
 
-function ScenariosTab() {
-  const r = runDetail;
-  if (!r.scenariosList.length) {
-    return (
-      <EmptyState
-        icon={Bug}
-        title="No scenarios ran"
-        body="This run didn't include any scenario definitions."
-      />
-    );
-  }
-  return (
-    <div className="surface-card overflow-hidden">
-      <ul className="divide-y divide-border">
-        {r.scenariosList.map((s) => (
-          <li
-            key={s.id}
-            className="flex items-center gap-4 px-4 py-3 hover:bg-accent/30 md:px-5"
-          >
-            {s.status === "passed" ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
-            ) : (
-              <XCircle className="h-4 w-4 shrink-0 text-destructive" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-foreground">{s.name}</p>
-              <p className="font-mono text-[11px] text-muted-foreground">
-                {s.steps} steps · {s.durationSec}s
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
+function EventsTab({ report }: { report: RunReport }) { const events=report.events??[]; return <div className="surface-card overflow-hidden"><div className="border-b border-border px-5 py-3"><h3 className="font-display text-sm font-semibold">Browser events</h3></div><div className="max-h-[620px] overflow-auto">{events.map((e,i)=><div key={i} className="grid gap-2 border-b border-border px-5 py-3 md:grid-cols-[80px_130px_1fr]"><span className="font-mono text-[11px] text-muted-foreground">{msToClock(e.timestamp)}</span><span className="font-mono text-[11px] text-primary">{e.type}</span><span className="text-sm">{eventLabel(e)}{e.x != null&&e.y != null&&<span className="ml-2 font-mono text-[10px] text-muted-foreground">({Math.round(e.x)}, {Math.round(e.y)})</span>}</span></div>)}</div></div>; }
 
-function LevelBadge({ level }: { level: "log" | "warn" | "error" }) {
-  return (
-    <span
-      className={`inline-flex w-14 shrink-0 justify-center rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-        level === "error"
-          ? "bg-destructive/15 text-destructive"
-          : level === "warn"
-            ? "bg-warning/15 text-warning"
-            : "bg-muted text-muted-foreground"
-      }`}
-    >
-      {level}
-    </span>
-  );
-}
+function AssertionsTab({ report }: { report: RunReport }) { const assertions=report.assertions??[]; return <div className="surface-card overflow-hidden"><div className="border-b border-border px-5 py-3"><h3 className="font-display text-sm font-semibold">Real assertions</h3></div>{assertions.length?<div className="divide-y divide-border">{assertions.map((a,i)=><div key={i} className="px-5 py-4"><div className="flex items-center gap-2">{a.status==='passed'?<CheckCircle2 className="h-4 w-4 text-primary"/>:<XCircle className="h-4 w-4 text-destructive"/>}<span>{a.name}</span><span className="ml-auto font-mono text-[10px] text-muted-foreground">{msToClock(a.timestamp)}</span></div><div className="mt-2 grid gap-2 text-xs md:grid-cols-2"><div className="rounded bg-surface-2 p-2"><span className="text-muted-foreground">Expected</span><div className="mt-1 font-mono">{String(a.expected)}</div></div><div className="rounded bg-surface-2 p-2"><span className="text-muted-foreground">Actual</span><div className="mt-1 font-mono">{String(a.actual)}</div></div></div></div>)}</div>:<EmptyState icon={FileWarning} title="No assertions returned" body="The backend has not attached assertions to this run." compact/>}</div>; }
 
-function levelText(level: "log" | "warn" | "error") {
-  return level === "error"
-    ? "text-destructive"
-    : level === "warn"
-      ? "text-warning"
-      : "text-foreground/90";
-}
+function ErrorRow({ error }: { error: RunError }) { return <div className="flex items-start gap-3 px-5 py-4"><XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive"/><div className="min-w-0 flex-1"><div className="flex flex-wrap gap-2 font-mono text-[10px] text-muted-foreground"><span>{msToClock(error.timestamp)}</span><span>·</span><span>{error.subtype}</span>{error.status!=null&&<><span>·</span><span>HTTP {error.status}</span></>}</div><p className="mt-1 break-words text-sm">{error.message}</p>{error.target&&<p className="mt-1 font-mono text-[10px] text-muted-foreground">target: {error.target}{error.x!=null&&error.y!=null?` · (${Math.round(error.x)}, ${Math.round(error.y)})`:''}</p>}</div></div>; }
 
-function statusColor(status: number) {
-  return status >= 500
-    ? "text-destructive"
-    : status >= 400
-      ? "text-warning"
-      : "text-success";
-}
-
-export function EmptyState({
-  icon: Icon,
-  title,
-  body,
-}: {
-  icon: typeof Terminal;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div className="surface-card flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <div className="rounded-full border border-border bg-surface p-3">
-        <Icon className="h-5 w-5 text-muted-foreground" />
-      </div>
-      <h3 className="font-display text-base font-semibold">{title}</h3>
-      <p className="max-w-sm text-sm text-muted-foreground">{body}</p>
-    </div>
-  );
-}
-
-export function LoadingState({ label = "Loading run…" }: { label?: string }) {
-  return (
-    <div className="surface-card flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-        {label}
-      </p>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  tone?: "success" | "danger";
-}) {
-  return (
-    <div className="surface-card p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-2 flex items-baseline gap-2">
-        <span className="font-display text-2xl font-semibold">{value}</span>
-        <span
-          className={`font-mono text-[11px] ${
-            tone === "danger"
-              ? "text-destructive"
-              : tone === "success"
-                ? "text-success"
-                : "text-muted-foreground"
-          }`}
-        >
-          {hint}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function SeverityDot({ severity }: { severity: Severity }) {
-  const tone =
-    severity === "critical"
-      ? "bg-destructive shadow-[0_0_12px] shadow-destructive/50"
-      : severity === "high"
-        ? "bg-destructive/70"
-        : severity === "medium"
-          ? "bg-warning"
-          : "bg-muted-foreground";
-  return <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${tone}`} />;
-}
-
-function FakeShot({ variant, thumbnail }: { variant: number; thumbnail?: boolean }) {
-  // Four visually distinct fake app screens
-  const base = thumbnail ? "p-1.5" : "p-6";
-  const gap = thumbnail ? "gap-1" : "gap-3";
-  const barH = thumbnail ? "h-1" : "h-3";
-
-  if (variant === 2) {
-    return (
-      <div className={`absolute inset-0 flex bg-background ${base}`}>
-        <div className="flex-1 pr-4">
-          <div className={`${barH} w-1/3 rounded bg-foreground/60`} />
-          <div className={`mt-2 ${barH} w-1/2 rounded bg-foreground/30`} />
-          <div
-            className={`mt-4 rounded-lg border border-destructive/40 bg-destructive/10 ${thumbnail ? "p-1" : "p-4"}`}
-          >
-            <div
-              className={`${barH} w-1/2 rounded bg-destructive`}
-            />
-            <div
-              className={`mt-1.5 ${barH} w-3/4 rounded bg-destructive/50`}
-            />
-          </div>
-        </div>
-        <div className={`w-1/3 space-y-1 rounded border border-border bg-surface ${thumbnail ? "p-1" : "p-3"}`}>
-          <div className={`${barH} w-2/3 rounded bg-foreground/60`} />
-          <div className={`${barH} w-full rounded bg-foreground/20`} />
-          <div className={`${barH} w-full rounded bg-foreground/20`} />
-        </div>
-      </div>
-    );
-  }
-  if (variant === 3) {
-    return (
-      <div className={`absolute inset-0 flex flex-col items-center justify-center bg-background ${base}`}>
-        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <div className={`mt-3 ${barH} w-1/3 rounded bg-foreground/40`} />
-      </div>
-    );
-  }
-  return (
-    <div className={`absolute inset-0 flex flex-col bg-background ${base}`}>
-      <div className={`flex items-center justify-between ${gap}`}>
-        <div className={`${barH} w-16 rounded bg-foreground/70`} />
-        <div className={`${barH} w-20 rounded bg-primary/80`} />
-      </div>
-      <div className={`mt-4 ${barH} w-2/3 rounded bg-foreground/60`} />
-      <div className={`mt-2 ${barH} w-1/2 rounded bg-foreground/30`} />
-      {variant === 0 ? (
-        <div className={`mt-4 grid flex-1 grid-cols-3 ${gap}`}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded border border-border bg-surface" />
-          ))}
-        </div>
-      ) : (
-        <div className={`mt-4 grid flex-1 grid-cols-2 ${gap}`}>
-          <div className={`space-y-${thumbnail ? "1" : "2"}`}>
-            <div className={`${barH} w-1/2 rounded bg-foreground/40`} />
-            <div className={`${thumbnail ? "h-2" : "h-6"} rounded border border-border bg-surface`} />
-            <div className={`${thumbnail ? "h-2" : "h-6"} rounded border border-border bg-surface`} />
-          </div>
-          <div className="rounded-lg border border-border bg-surface" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function formatDuration(s: number) {
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${m}m ${r.toString().padStart(2, "0")}s`;
-}
-function formatMs(ms: number) {
-  const s = Math.floor(ms / 1000);
-  const rem = ms % 1000;
-  return `${s.toString().padStart(2, "0")}.${rem.toString().padStart(3, "0")}`;
-}
+function eventLabel(e: {type:string; target?:string; label?:string; url?:string; message?:string}) { return e.target ?? e.label ?? e.message ?? e.url ?? e.type; }
+function Stat({label,value,hint,tone}:{label:string;value:string;hint:string;tone?:'danger'|'success'}) { return <div className="surface-card p-4"><p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p><div className={`mt-1 font-display text-2xl font-semibold ${tone==='danger'?'text-destructive':tone==='success'?'text-primary':''}`}>{value}</div><p className="mt-0.5 font-mono text-[10px] text-muted-foreground">{hint}</p></div>; }
+function LoadingState(){return <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-24 text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Loading real run evidence…</div>;}
+function ErrorState({message}:{message:string}){return <div className="mx-auto max-w-7xl px-4 py-16"><div className="surface-card p-6"><div className="flex items-center gap-2 text-destructive"><XCircle className="h-5 w-5"/><h2 className="font-display font-semibold">Unable to load run</h2></div><p className="mt-2 text-sm text-muted-foreground">{message}</p></div></div>;}
+function EmptyState({icon:Icon,title,body,compact=false}:{icon:typeof Camera;title:string;body:string;compact?:boolean}){return <div className={`flex flex-col items-center justify-center text-center ${compact?'p-8':'min-h-[280px] p-10'}`}><Icon className="h-6 w-6 text-muted-foreground"/><h3 className="mt-3 text-sm font-semibold">{title}</h3><p className="mt-1 max-w-md text-xs text-muted-foreground">{body}</p></div>;}
