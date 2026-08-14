@@ -54,6 +54,9 @@ function reportSummary(r: RunReport) {
 
 function RunDetailPage() {
   const { runId } = Route.useParams();
+  const projectId = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('projectId')
+    : null;
   const [report, setReport] = useState<RunReport | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [selected, setSelected] = useState(0);
@@ -62,11 +65,18 @@ function RunDetailPage() {
   useEffect(() => {
     let cancelled = false;
     setError(null);
-    runsApi.getReport(runId)
+
+    if (!projectId) {
+      setReport(null);
+      setError('Project ID is required to load this run report.');
+      return () => { cancelled = true; };
+    }
+
+    runsApi.getReport(projectId, runId)
       .then((data) => { if (!cancelled) setReport(data); })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Unable to load run report.'); });
     return () => { cancelled = true; };
-  }, [runId]);
+  }, [projectId, runId]);
 
   if (error) return <ErrorState message={error} />;
   if (!report) return <LoadingState />;
