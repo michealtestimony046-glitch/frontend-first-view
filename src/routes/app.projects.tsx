@@ -1,23 +1,146 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Plus, ExternalLink, Globe, X, Play, Activity, Loader2 } from "lucide-react";
-import { getProjects, type ProjectCard } from "@/lib/mock-data";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { ExternalLink, Globe, Loader2, Plus, Play, X } from "lucide-react";
+import {
+  organizationsApi,
+  projectsApi,
+  workspacesApi,
+  type Organization,
+  type Project,
+  type Workspace,
+} from "@/lib/api-client";
+
+const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
+const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
+const ACTIVE_PROJECT_KEY = "matrix_qa_active_project";
 
 export const Route = createFileRoute("/app/projects")({
   head: () => ({
-    meta: [
-      { title: "Projects · Matrix QA" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Projects · Matrix QA" }, { name: "robots", content: "noindex" }],
   }),
   component: ProjectsPage,
 });
 
 function ProjectsPage() {
-  const [projects, setProjects] = useState<ProjectCard[]>(getProjects());
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
 
-  const addProject = (p: ProjectCard) => setProjects((prev) => [p, ...prev]);
+  useEffect(() => {
+    let cancelled = false;
+    organizationsApi
+      .list()
+      .then((items) => {
+        if (cancelled) return;
+        setOrganizations(items);
+        const stored = localStorage.getItem(ACTIVE_ORG_KEY);
+        const selected = items.find((item) => item.id === stored) ?? items[0];
+        if (selected) {
+          setOrganizationId(selected.id);
+          localStorage.setItem(ACTIVE_ORG_KEY, selected.id);
+        }
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(toMessage(cause, "Unable to load organizations."));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!organizationId) {
+      setWorkspaces([]);
+      setWorkspaceId(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingProjects(true);
+    setError(null);
+    workspacesApi
+      .list(organizationId)
+      .then((items) => {
+        if (cancelled) return;
+        setWorkspaces(items);
+        const stored = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+        const selected = items.find((item) => item.id === stored) ?? items[0];
+        setWorkspaceId(selected?.id ?? null);
+        if (selected) localStorage.setItem(ACTIVE_WORKSPACE_KEY, selected.id);
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(toMessage(cause, "Unable to load workspaces."));
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProjects(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    let cancelled = false;
+    setLoadingProjects(true);
+    projectsApi
+      .list(organizationId, workspaceId ?? undefined)
+      .then((items) => {
+        if (!cancelled) setProjects(items);
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(toMessage(cause, "Unable to load projects."));
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProjects(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId, workspaceId]);
+
+  const activeOrganization = organizations.find((item) => item.id === organizationId);
+  const activeWorkspace = workspaces.find((item) => item.id === workspaceId);
+
+  const createWorkspace = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!organizationId || !workspaceName.trim()) return;
+    setCreatingWorkspace(true);
+    setError(null);
+    try {
+      const created = await workspacesApi.create({ organizationId, name: workspaceName.trim() });
+      setWorkspaces((current) => [created, ...current]);
+      setWorkspaceId(created.id);
+      localStorage.setItem(ACTIVE_WORKSPACE_KEY, created.id);
+      setWorkspaceName("");
+    } catch (cause) {
+      setError(toMessage(cause, "Unable to create workspace."));
+    } finally {
+      setCreatingWorkspace(false);
+    }
+  };
+
+  const handleOrganizationChange = (value: string) => {
+    setOrganizationId(value);
+    localStorage.setItem(ACTIVE_ORG_KEY, value);
+    localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+    localStorage.removeItem(ACTIVE_PROJECT_KEY);
+  };
+
+  const projectCountLabel = useMemo(
+    () => `${projects.length} project${projects.length === 1 ? "" : "s"}`,
+    [projects.length],
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
@@ -28,33 +151,124 @@ function ProjectsPage() {
               Projects
             </h1>
             <span className="rounded-full border border-border bg-surface-2/60 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
-              {projects.length}
+              {projectCountLabel}
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Isolated targets for the browser worker. Each project scopes its
-            own runs, evidence, and issues.
+            Live projects scoped to the selected organization and workspace.
           </p>
         </div>
         <button
           onClick={() => setOpenDrawer(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow hover:opacity-90"
+          disabled={!organizationId || !workspaceId}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-4 w-4" /> New Project
         </button>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {projects.map((p) => (
-          <ProjectGridCard key={p.id} project={p} />
-        ))}
+      <div className="mt-5 grid gap-3 md:grid-cols-[1fr_1fr]">
+        <label className="block text-xs font-medium text-muted-foreground">
+          Organization
+          <select
+            value={organizationId ?? ""}
+            onChange={(event) => handleOrganizationChange(event.target.value)}
+            disabled={loading || organizations.length === 0}
+            className="mt-1.5 w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+          >
+            {!organizations.length && <option value="">No organization yet</option>}
+            {organizations.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-xs font-medium text-muted-foreground">
+          Workspace
+          <select
+            value={workspaceId ?? ""}
+            onChange={(event) => {
+              setWorkspaceId(event.target.value);
+              localStorage.setItem(ACTIVE_WORKSPACE_KEY, event.target.value);
+            }}
+            disabled={!organizationId || workspaces.length === 0}
+            className="mt-1.5 w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+          >
+            {!workspaces.length && <option value="">Create a workspace below</option>}
+            {workspaces.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
-      {openDrawer && (
+      {error && (
+        <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {!loading && organizationId && workspaces.length === 0 && (
+        <form
+          onSubmit={createWorkspace}
+          className="mt-5 flex flex-wrap items-end gap-3 rounded-md border border-primary/25 bg-primary/5 p-4"
+        >
+          <div className="min-w-[240px] flex-1">
+            <label className="block text-xs font-medium text-foreground">
+              Create your first workspace
+            </label>
+            <input
+              value={workspaceName}
+              onChange={(event) => setWorkspaceName(event.target.value)}
+              placeholder={`${activeOrganization?.name ?? "Team"} QA`}
+              className="mt-1.5 w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={creatingWorkspace || !workspaceName.trim()}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            {creatingWorkspace && <Loader2 className="h-4 w-4 animate-spin" />}Create workspace
+          </button>
+        </form>
+      )}
+
+      {(loading || loadingProjects) && (
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading live projects…
+        </div>
+      )}
+      {!loading && !loadingProjects && organizationId && workspaceId && projects.length === 0 && (
+        <div className="mt-6 rounded-md border border-dashed border-border p-12 text-center">
+          <p className="font-display text-base font-semibold">
+            No projects in {activeWorkspace?.name ?? "this workspace"} yet.
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create a project with a staging URL to start the first live browser run.
+          </p>
+        </div>
+      )}
+      {!loading && !loadingProjects && projects.length > 0 && (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {projects.map((project) => (
+            <ProjectGridCard key={project.id} project={project} />
+          ))}
+        </div>
+      )}
+
+      {openDrawer && organizationId && workspaceId && (
         <NewProjectDrawer
+          organizationId={organizationId}
+          workspaceId={workspaceId}
           onClose={() => setOpenDrawer(false)}
-          onCreate={(p) => {
-            addProject(p);
+          onCreated={(created) => {
+            setProjects((current) => [created, ...current]);
+            localStorage.setItem(ACTIVE_PROJECT_KEY, created.id);
             setOpenDrawer(false);
           }}
         />
@@ -63,125 +277,91 @@ function ProjectsPage() {
   );
 }
 
-function ProjectGridCard({ project: p }: { project: ProjectCard }) {
-  const statusMap = {
-    idle: { label: "Idle", tone: "text-muted-foreground bg-surface-2/60" },
-    running: { label: "Running", tone: "text-primary bg-primary/15" },
-    active: { label: "Active", tone: "text-success bg-success/15" },
-  } as const;
-  const s = statusMap[p.status];
-  const healthColor =
-    p.lastRunHealth >= 90
-      ? "bg-success"
-      : p.lastRunHealth >= 70
-        ? "bg-warning"
-        : "bg-destructive";
-
+function ProjectGridCard({ project }: { project: Project }) {
+  const targetUrl = project.defaultTargetUrl || project.targetUrl || "No target URL";
   return (
     <div className="surface-card group flex flex-col overflow-hidden">
       <div className="flex items-start justify-between border-b border-border px-4 py-3">
         <div className="min-w-0">
-          <div className="truncate font-display text-sm font-semibold">
-            {p.name}
-          </div>
+          <div className="truncate font-display text-sm font-semibold">{project.name}</div>
           <a
-            href={p.targetUrl}
+            href={targetUrl}
             target="_blank"
             rel="noreferrer"
-            className="mt-0.5 inline-flex items-center gap-1 truncate font-mono text-[11px] text-muted-foreground hover:text-primary"
+            className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate font-mono text-[11px] text-muted-foreground hover:text-primary"
           >
-            <Globe className="h-3 w-3" /> {p.targetUrl}
-            <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100" />
+            <Globe className="h-3 w-3 shrink-0" />
+            {targetUrl}
+            <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-0 group-hover:opacity-100" />
           </a>
         </div>
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${s.tone}`}
-        >
-          {p.status === "running" && (
-            <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-          )}
-          {s.label}
+        <span className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          Ready
         </span>
       </div>
-
-      <div className="grid grid-cols-2 gap-3 px-4 py-3 text-sm">
+      <div className="grid grid-cols-2 gap-3 px-4 py-4 text-sm">
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Matrix variants
-          </div>
-          <div className="mt-0.5 font-display text-xl font-semibold">
-            {p.totalVariants}
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Created</div>
+          <div className="mt-1 font-mono text-xs">
+            {project.createdAt ? new Date(project.createdAt).toLocaleDateString() : "—"}
           </div>
         </div>
         <div>
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Last run health
+            Workspace
           </div>
-          <div className="mt-0.5 flex items-center gap-2">
-            <span className="font-display text-xl font-semibold">
-              {p.lastRunHealth.toFixed(1)}%
-            </span>
-          </div>
-          <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface-2">
-            <div
-              className={`h-full ${healthColor}`}
-              style={{ width: `${p.lastRunHealth}%` }}
-            />
-          </div>
+          <div className="mt-1 truncate font-mono text-xs">{project.workspaceId.slice(0, 8)}…</div>
         </div>
       </div>
-
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-border bg-surface-2/40 px-4 py-2.5">
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          {p.environment} · last tested {p.lastRunAt}
+          Live backend project
         </span>
-        <Link
-          to="/app/runs"
+        <a
+          href={`/app/runs?projectId=${encodeURIComponent(project.id)}`}
+          onClick={() => localStorage.setItem(ACTIVE_PROJECT_KEY, project.id)}
           className="inline-flex items-center gap-1 rounded-md border border-border bg-surface/60 px-2.5 py-1 text-xs font-medium hover:bg-accent"
         >
-          <Activity className="h-3.5 w-3.5" /> View runs
-        </Link>
+          <Play className="h-3.5 w-3.5" /> View runs
+        </a>
       </div>
     </div>
   );
 }
 
 function NewProjectDrawer({
+  organizationId,
+  workspaceId,
   onClose,
-  onCreate,
+  onCreated,
 }: {
+  organizationId: string;
+  workspaceId: string;
   onClose: () => void;
-  onCreate: (p: ProjectCard) => void;
+  onCreated: (project: Project) => void;
 }) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [env, setEnv] = useState<"staging" | "production" | "local">("staging");
+  const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !url) return;
-    
-    setError(null);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || !url.trim()) return;
     setIsSubmitting(true);
-
+    setError(null);
     try {
-      // For now, just create locally
-      // Once backend is ready, this will call the actual API
-      onCreate({
-        id: `prj_${Math.random().toString(36).slice(2, 8)}`,
-        workspaceId: "ws_acme_01",
-        name,
-        targetUrl: url,
-        environment: env,
-        status: "idle",
-        totalVariants: 0,
-        lastRunHealth: 0,
-        lastRunAt: "never",
+      const created = await projectsApi.create({
+        organizationId,
+        workspaceId,
+        name: name.trim(),
+        description: description.trim() || undefined,
+        defaultTargetUrl: url.trim(),
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create project');
+      onCreated(created);
+    } catch (cause) {
+      setError(toMessage(cause, "Failed to create project."));
     } finally {
       setIsSubmitting(false);
     }
@@ -198,7 +378,7 @@ function NewProjectDrawer({
           <div>
             <h2 className="font-display text-base font-semibold">New Project</h2>
             <p className="text-xs text-muted-foreground">
-              Name + URL. That's all v1 needs.
+              Create a real backend project in the selected workspace.
             </p>
           </div>
           <button
@@ -217,15 +397,13 @@ function NewProjectDrawer({
             </div>
           )}
           <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-foreground">
-              Project name
-            </span>
+            <span className="mb-1.5 block text-xs font-medium text-foreground">Project name</span>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
               placeholder="Client Checkout Flow"
               disabled={isSubmitting}
-              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
+              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </label>
           <label className="block">
@@ -234,47 +412,44 @@ function NewProjectDrawer({
             </span>
             <input
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(event) => setUrl(event.target.value)}
               placeholder="https://staging.your-app.com"
               disabled={isSubmitting}
-              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 font-mono text-sm outline-none focus:border-primary disabled:opacity-50"
+              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 font-mono text-sm outline-none focus:border-primary"
             />
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-foreground">
-              Environment
+              Description <span className="text-muted-foreground">(optional)</span>
             </span>
-            <select
-              value={env}
-              onChange={(e) => setEnv(e.target.value as typeof env)}
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={3}
+              placeholder="What should Matrix QA validate?"
               disabled={isSubmitting}
-              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
-            >
-              <option value="staging">Staging</option>
-              <option value="production">Production</option>
-              <option value="local">Local / Dev</option>
-            </select>
+              className="w-full resize-none rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary"
+            />
           </label>
-
           <div className="rounded-md border border-border/60 bg-surface-2/30 p-3 text-xs text-muted-foreground">
-            <span className="font-mono uppercase tracking-wider text-primary">
-              v1 guardrail —
-            </span>{" "}
-            Repository authentication, tokens, and webhooks land in v2. Give it
-            a name and URL and Matrix QA can walk it.
+            Projects are created in the selected organization and workspace. Test credentials can be
+            added later through the secure project settings flow.
           </div>
         </div>
         <div className="border-t border-border bg-surface-2/40 px-5 py-3">
           <button
             type="submit"
-            disabled={!name || !url || isSubmitting}
+            disabled={!name.trim() || !url.trim() || isSubmitting}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            <Play className="h-4 w-4" /> Create project
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}Create project
           </button>
         </div>
       </form>
     </div>
   );
+}
+
+function toMessage(cause: unknown, fallback: string) {
+  return cause instanceof Error ? cause.message : fallback;
 }
