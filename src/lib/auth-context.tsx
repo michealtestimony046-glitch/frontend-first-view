@@ -22,18 +22,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = async () => {
-    const token = getAuthToken();
-    if (!token) {
-      setUser(null);
-      return;
-    }
+    setIsLoading(true);
     try {
+      const token = getAuthToken();
+      if (!token) {
+        setUser(null);
+        return;
+      }
       const currentUser = await authApi.getCurrentUser();
       setUser(currentUser);
     } catch (error) {
       console.error('Failed to fetch current user:', error);
       clearAuthToken();
       setUser(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -45,7 +48,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn('Initial server ping failed:', error);
       }
       await refreshUser();
-      setIsLoading(false);
     };
 
     void initApp();
