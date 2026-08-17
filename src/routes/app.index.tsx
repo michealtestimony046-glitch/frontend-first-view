@@ -53,6 +53,7 @@ function AppDashboard() {
   const live = useLivePortfolio();
   const [url, setUrl] = useState(live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "https://portal.trlabs.tech/");
   const [showRunModal, setShowRunModal] = useState(false);
+  const [utilityPanel, setUtilityPanel] = useState<"notifications" | "help" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const runs = live.runs;
@@ -116,18 +117,35 @@ function AppDashboard() {
             <span className="hidden sm:inline">New Test Run</span>
             <span className="sm:hidden">New Run</span>
           </button>
-          <button
-            aria-label="Notifications"
-            className="hidden rounded-md border border-border bg-surface/60 p-2 text-muted-foreground hover:text-foreground sm:inline-flex"
-          >
-            <Bell className="h-4 w-4" />
-          </button>
-          <button
-            aria-label="Help"
-            className="hidden rounded-md border border-border bg-surface/60 p-2 text-muted-foreground hover:text-foreground sm:inline-flex"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
+          <div className="relative hidden sm:block">
+            <button
+              aria-label="Notifications"
+              aria-expanded={utilityPanel === "notifications"}
+              onClick={() => setUtilityPanel((current) => current === "notifications" ? null : "notifications")}
+              className="inline-flex rounded-md border border-border bg-surface/60 p-2 text-muted-foreground hover:text-foreground"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
+            {utilityPanel === "notifications" && <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-md border border-border bg-popover p-3 text-xs shadow-2xl">
+              <div className="font-medium text-foreground">No new notifications</div>
+              <p className="mt-1 leading-5 text-muted-foreground">Run status and report changes appear here when the backend has new activity.</p>
+            </div>}
+          </div>
+          <div className="relative hidden sm:block">
+            <button
+              aria-label="Help"
+              aria-expanded={utilityPanel === "help"}
+              onClick={() => setUtilityPanel((current) => current === "help" ? null : "help")}
+              className="inline-flex rounded-md border border-border bg-surface/60 p-2 text-muted-foreground hover:text-foreground"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
+            {utilityPanel === "help" && <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-md border border-border bg-popover p-3 text-xs shadow-2xl">
+              <div className="font-medium text-foreground">Matrix QA v1 help</div>
+              <p className="mt-1 leading-5 text-muted-foreground">Create a project, queue a browser run, then review terminal evidence in Reports. Video processing is still being stabilized.</p>
+              <Link to="/app/settings" className="mt-2 inline-flex text-primary hover:underline">Open Settings</Link>
+            </div>}
+          </div>
         </div>
       </div>
 
