@@ -138,7 +138,7 @@ function AppDashboard() {
           value={stats.total}
           icon={BarChart3}
           tone="neutral"
-          hint={`↑ ${stats.deltaTotalPct}% vs last 7 days`}
+          hint="Live backend total"
         />
         <StatCard
           label="Passed"
@@ -159,7 +159,7 @@ function AppDashboard() {
           value={stats.warnings}
           icon={AlertTriangle}
           tone="warning"
-          hint={`${percent(stats.warnings, stats.total)}% of total`}
+          hint={`${stats.warnings} retained events`}
         />
       </div>
 

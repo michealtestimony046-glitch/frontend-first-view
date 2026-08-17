@@ -77,6 +77,15 @@ const formatDate = (value: unknown) => {
   return date ? date.toLocaleString() : "—";
 };
 
+const eventDate = (value: unknown, fallback: unknown) => {
+  const numeric = typeof value === "number" ? value : typeof value === "string" && /^\d+(\.\d+)?$/.test(value) ? Number(value) : NaN;
+  if (Number.isFinite(numeric) && numeric >= 0 && numeric < 1_000_000_000_000) {
+    const base = safeDate(fallback);
+    if (base) return new Date(base.getTime() + numeric);
+  }
+  return safeDate(value) ?? safeDate(fallback) ?? new Date();
+};
+
 const textValue = (value: unknown, fallback = "Unknown finding") => {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (typeof value === "number" || typeof value === "boolean") return String(value);
@@ -104,7 +113,7 @@ const issueFrom = (run: LiveRun, report: RunReport, raw: unknown, index: number)
   const status = Number(item.status);
   const scope = textValue(item.target ?? item.url ?? item.scope, run.targetUrl);
   const category = status ? `HTTP ${status}` : subtype;
-  const timestamp = safeDate(item.timestamp ?? item.t ?? run.startedAt) ?? new Date();
+  const timestamp = eventDate(item.timestamp ?? item.t, run.startedAt ?? run.createdAt);
   return {
     id: `${run.id}-${index}-${subtype}`,
     title: message,
@@ -139,7 +148,7 @@ export const deriveIssues = (runs: LiveRun[], reports: RunReport[]): LiveIssue[]
       }
       existing.occurrences += 1;
       if (!existing.affectedRuns.includes(run.id)) existing.affectedRuns.push(run.id);
-      const candidate = safeDate(recordValue(raw).timestamp ?? recordValue(raw).t);
+      const candidate = eventDate(recordValue(raw).timestamp ?? recordValue(raw).t, run.startedAt ?? run.createdAt);
       if (candidate && candidate.getTime() < (safeDate(existing.firstSeen)?.getTime() ?? Infinity)) existing.firstSeen = formatDate(candidate);
       if (candidate && candidate.getTime() > (safeDate(existing.lastSeen)?.getTime() ?? -Infinity)) existing.lastSeen = formatDate(candidate);
     });
@@ -156,7 +165,7 @@ export const deriveAuditEntries = (runs: LiveRun[], reports: RunReport[]): LiveA
     if (!Array.isArray(auditLog)) return;
     auditLog.forEach((raw, index) => {
       const item = recordValue(raw);
-      const timestamp = safeDate(item.timestamp ?? item.t ?? run.startedAt)?.getTime() ?? Date.now();
+      const timestamp = eventDate(item.timestamp ?? item.t, run.startedAt ?? run.createdAt).getTime();
       const type = textValue(item.type, "info").toLowerCase();
       const category: LiveAuditCategory = type === "warning" ? "console_warning" : type === "redirect" ? "network_noise" : "visual_shift";
       entries.push({
