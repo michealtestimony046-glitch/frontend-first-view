@@ -248,6 +248,84 @@ export interface ArtifactStatus {
   artifactError?: string | null;
 }
 
+export type V2EnvironmentKind = "PREVIEW" | "STAGING" | "PRODUCTION";
+export type V2ScanStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+export type V2PlannerMode = "QUICK_SMOKE" | "STANDARD_ADAPTIVE" | "DEEP_MATRIX";
+export type V2PlanStatus = "DRAFT" | "READY" | "AWAITING_APPROVAL" | "APPROVED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
+export type V2PolicyTier = "SAFE" | "CAUTION" | "DANGEROUS" | "UNKNOWN";
+export type V2PolicyStatus = "PENDING" | "ALLOWED" | "BLOCKED" | "APPROVED" | "REJECTED" | "NEEDS_HUMAN_REVIEW";
+export type V2CaseStatus = "PLANNED" | "QUEUED" | "RUNNING" | "PASSED" | "FAILED" | "WARNING" | "SKIPPED" | "BLOCKED" | "FLAKY" | "NEEDS_REVIEW";
+
+export interface V2Environment {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  projectId: string;
+  name: string;
+  kind: V2EnvironmentKind;
+  baseUrl: string;
+  allowedHostnames?: unknown;
+  createdAt?: string;
+  updatedAt?: string;
+}
+export interface V2ApplicationScan {
+  id: string;
+  projectId: string;
+  environmentId?: string | null;
+  status: V2ScanStatus;
+  targetUrl: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  summary?: Record<string, unknown> | null;
+  projectMap?: {
+    targetOrigin?: string;
+    features?: string[];
+    scannedPages?: Array<{ url: string; route: string; title: string; features?: string[]; authSignals?: Record<string, boolean> }>;
+    actions?: Array<{ key: string; text: string; tag: string; tier: V2PolicyTier; reason: string; locatorCandidates?: Array<Record<string, string>> }>;
+    riskSummary?: { safe: number; caution: number; dangerous: number };
+    httpErrors?: Array<{ status: number; url: string }>;
+  } | null;
+  errorMessage?: string | null;
+  createdAt?: string;
+}
+export interface V2PolicyDecision {
+  id: string;
+  scenarioId?: string | null;
+  actionKey: string;
+  intent: string;
+  tier: V2PolicyTier;
+  status: V2PolicyStatus;
+  reason?: string | null;
+}
+export interface V2Scenario {
+  id: string;
+  featureId?: string | null;
+  name: string;
+  intent: string;
+  expectedOutcome: string;
+  priority: number;
+  status: V2CaseStatus;
+  steps?: unknown;
+  locators?: unknown;
+  result?: unknown;
+}
+export interface V2TestPlan {
+  id: string;
+  projectId: string;
+  environmentId?: string | null;
+  name: string;
+  mode: V2PlannerMode;
+  status: V2PlanStatus;
+  version: string;
+  estimatedUnits?: number | null;
+  reservedUnits?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+  scenarios: V2Scenario[];
+  policyDecisions: V2PolicyDecision[];
+  testCases?: Array<{ id: string; scenarioId: string; status: V2CaseStatus; result?: unknown }>;
+}
+
 export interface RunReport {
   id?: string;
   runId?: string;
@@ -561,6 +639,20 @@ export const usersApi = {
     return apiRequest("/users/me/avatar", { method: "POST", body, requiresAuth: true });
   },
   removeAvatar: (): Promise<CurrentUserResponse> => apiRequest("/users/me/avatar", { method: "DELETE", requiresAuth: true }),
+};
+
+export const v2Api = {
+  listEnvironments: (projectId: string): Promise<V2Environment[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
+  createEnvironment: (data: { organizationId: string; workspaceId: string; projectId: string; name: string; kind?: V2EnvironmentKind; baseUrl: string }): Promise<V2Environment> => apiRequest('/environments', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  startScan: (projectId: string, data: { environmentId?: string } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
+  getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
+  createPlanFromScan: (scanId: string, data: { name: string; mode?: V2PlannerMode }): Promise<V2TestPlan> => apiRequest(`/scans/${encodeURIComponent(scanId)}/plans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  getPlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}`, { requiresAuth: true }),
+  approvePlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}/approve`, { method: 'POST', requiresAuth: true }),
+  runPlan: (planId: string, data: TriggerRunRequest = {}): Promise<TriggerRunResponse & { planId?: string }> => apiRequest(`/plans/${encodeURIComponent(planId)}/run`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  approvePolicy: (planId: string, decisionId: string) => apiRequest<V2PolicyDecision>(`/plans/${encodeURIComponent(planId)}/policy/${encodeURIComponent(decisionId)}/approve`, { method: 'POST', requiresAuth: true }),
+  rejectPolicy: (planId: string, decisionId: string) => apiRequest<V2PolicyDecision>(`/plans/${encodeURIComponent(planId)}/policy/${encodeURIComponent(decisionId)}/reject`, { method: 'POST', requiresAuth: true }),
 };
 
 export const projectsApi = {
