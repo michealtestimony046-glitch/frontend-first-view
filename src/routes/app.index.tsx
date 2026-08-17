@@ -782,7 +782,7 @@ function SeverityDot({
   );
 }
 
-function SeverityPill({ severity }: { severity: TopIssue["severity"] }) {
+function SeverityPill({ severity }: { severity: LiveIssue["severity"] }) {
   const s = severityMap[severity];
   return (
     <span

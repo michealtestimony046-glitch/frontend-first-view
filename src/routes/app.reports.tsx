@@ -80,7 +80,7 @@ function ReportsPage() {
                   <div className="flex flex-wrap items-center gap-2 border-t border-border bg-surface-2/40 px-5 py-3">
                     <button onClick={() => navigator.clipboard?.writeText(repairMarkdown)} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"><Copy className="h-3.5 w-3.5" /> Copy markdown</button>
                     {report.finalVideo && <a href={report.finalVideo} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary"><ExternalLink className="h-3 w-3" /> Evidence video</a>}
-                    {report.reportUrl && <a href={String(report.reportUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary"><Download className="h-3 w-3" /> report.md</a>}
+                    {typeof report.reportUrl === "string" && report.reportUrl && <a href={report.reportUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary"><Download className="h-3 w-3" /> report.md</a>}
                     <Link to="/app/runs/$runId" params={{ runId: selectedRun.id }} search={{ projectId: selectedRun.projectId }} className="ml-auto text-xs text-primary">Open run</Link>
                   </div>
                 </section>

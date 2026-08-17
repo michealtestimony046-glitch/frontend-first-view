@@ -50,15 +50,13 @@ export const apiRequest = async <T>(endpoint: string, options: RequestOptions = 
 
   const { requiresAuth = false, ...fetchOptions } = options;
   const url = `${API_BASE_URL}${endpoint}`;
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...fetchOptions.headers,
-  };
+  const headers = new Headers(fetchOptions.headers);
+  headers.set("Content-Type", "application/json");
 
   if (requiresAuth) {
     const token = getAuthToken();
     if (!token) throw new Error("No authentication token found");
-    headers["Authorization"] = `Bearer ${token}`;
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   try {
@@ -324,6 +322,8 @@ export const projectsApi = {
       requiresAuth: true,
     }),
 };
+
+export type RunStatus = "passed" | "failed" | "running" | "queued";
 
 export interface RunListItem {
   id: string;
