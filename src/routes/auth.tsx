@@ -94,8 +94,6 @@ function AuthPage() {
   const handleCodeChange = (value: string) => { setVerificationCode(value.replace(/\D/g, "").slice(0, 6)); setErrorMessage(""); };
   const backToSignup = () => { setVerificationStep(false); setVerificationCode(""); setErrorMessage(""); setSuccessMessage(""); };
   const switchMode = () => { setMode((current) => current === "signin" ? "signup" : "signin"); setVerificationStep(false); setErrorMessage(""); setSuccessMessage(""); };
-  const handleGithubLogin = () => { setErrorMessage(""); setOauthLoading("github"); authApi.loginWithGithub(); };
-  const handleGoogleLogin = () => { setErrorMessage(""); setOauthLoading("google"); authApi.loginWithGoogle(); };
 
   return (
     <div className="grid min-h-screen bg-background md:grid-cols-2">
@@ -107,8 +105,8 @@ function AuthPage() {
             <h1 className="mt-2 font-display text-3xl font-semibold text-gradient">{mode === "signin" ? "Return to the console." : "Create your workspace."}</h1>
             <p className="mt-2 text-sm text-muted-foreground">{mode === "signin" ? "Sign in to see your latest runs and evidence." : "Name your workspace, create your account, then verify your email before entering Matrix QA."}</p>
             <div className="mt-8 grid gap-2">
-              <button type="button" onClick={handleGithubLogin} disabled={oauthLoading !== null || isLoading} className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface/60 py-2.5 text-sm font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50">{oauthLoading === "github" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Github className="h-4 w-4" />}Continue with GitHub</button>
-              <button type="button" onClick={handleGoogleLogin} disabled={oauthLoading !== null || isLoading} className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface/60 py-2.5 text-sm font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50">{oauthLoading === "google" ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}Continue with Google</button>
+              <button type="button" disabled className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-border bg-surface/40 py-2.5 text-sm font-medium text-muted-foreground opacity-80"><Github className="h-4 w-4" />GitHub sign-in · coming later</button>
+              <button type="button" disabled className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-border bg-surface/40 py-2.5 text-sm font-medium text-muted-foreground opacity-80"><GoogleIcon />Google sign-in · coming later</button>
             </div>
             <div className="my-6 flex items-center gap-3"><span className="h-px flex-1 bg-border" /><span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">or</span><span className="h-px flex-1 bg-border" /></div>
             <form onSubmit={handleSubmit} className="space-y-3">
