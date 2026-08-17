@@ -215,6 +215,18 @@ export interface RunSummary {
   bugCount: number;
 }
 
+export type VideoArtifactStatus = "not_available" | "ready" | "raw_only" | "failed";
+
+export interface ArtifactStatus {
+  video?: {
+    status?: VideoArtifactStatus;
+    finalUploaded?: boolean;
+    rawUploaded?: boolean;
+    error?: string;
+  };
+  artifactError?: string | null;
+}
+
 export interface RunReport {
   id?: string;
   runId?: string;
@@ -241,6 +253,7 @@ export interface RunReport {
   evidenceFiles?: Record<string, string | null>;
   finalVideo?: string | null;
   rawVideo?: string | null;
+  artifactStatus?: ArtifactStatus;
   evidenceLog?: string | null;
   auditLog?: string | null;
   homepage?: string | null;
