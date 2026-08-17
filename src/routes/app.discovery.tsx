@@ -58,16 +58,23 @@ function DiscoveryPage() {
   }, [project?.id]);
 
   useEffect(() => {
-    if (!selectedScan || !["PENDING", "RUNNING"].includes(selectedScan.status)) return;
+    if (!selectedScan || !["PENDING", "RUNNING"].includes(selectedScan.status)) {
+      setScanning(false);
+      return;
+    }
     let cancelled = false;
+    let timer: number | undefined;
     const poll = async () => {
       try {
         const refreshed = await v2Api.getScan(selectedScan.id);
         if (cancelled) return;
         setSelectedScan(refreshed);
         setScans((current) => current.map((scan) => scan.id === refreshed.id ? refreshed : scan));
-        if (["PENDING", "RUNNING"].includes(refreshed.status)) window.setTimeout(poll, 2500);
-        else setScanning(false);
+        if (["PENDING", "RUNNING"].includes(refreshed.status)) {
+          timer = window.setTimeout(poll, 2500);
+        } else {
+          setScanning(false);
+        }
       } catch (cause) {
         if (!cancelled) {
           setScanning(false);
@@ -76,9 +83,9 @@ function DiscoveryPage() {
       }
     };
     setScanning(true);
-    const timer = window.setTimeout(poll, 1800);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [selectedScan?.id, selectedScan?.status]);
+    timer = window.setTimeout(poll, 1800);
+    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
+  }, [selectedScan?.id]);
 
   const startScan = async () => {
     if (!project) return;
