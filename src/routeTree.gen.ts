@@ -23,6 +23,7 @@ import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppRunsIndexRouteImport } from './routes/app.runs.index'
 import { Route as AppRunsRunIdRouteImport } from './routes/app.runs.$runId'
 import { Route as AppSettingsBillingRouteImport } from './routes/app.settings.billing'
+import { Route as AppSettingsOrganizationRouteImport } from './routes/app.settings.organization'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -94,6 +95,11 @@ const AppSettingsBillingRoute = AppSettingsBillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsOrganizationRoute = AppSettingsOrganizationRouteImport.update({
+  id: '/organization',
+  path: '/organization',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
+  '/app/settings/organization': typeof AppSettingsOrganizationRoute
   '/app/runs/': typeof AppRunsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
+  '/app/settings/organization': typeof AppSettingsOrganizationRoute
   '/app/runs': typeof AppRunsIndexRoute
 }
 export interface FileRoutesById {
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
+  '/app/settings/organization': typeof AppSettingsOrganizationRoute
   '/app/runs/': typeof AppRunsIndexRoute
 }
 export interface FileRouteTypes {
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/runs/$runId'
     | '/app/settings/billing'
+    | '/app/settings/organization'
     | '/app/runs/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/runs/$runId'
     | '/app/settings/billing'
+    | '/app/settings/organization'
     | '/app/runs'
   id:
     | '__root__'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/runs/$runId'
     | '/app/settings/billing'
+    | '/app/settings/organization'
     | '/app/runs/'
   fileRoutesById: FileRoutesById
 }
@@ -298,6 +310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsBillingRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/app/settings/organization': {
+      id: '/app/settings/organization'
+      path: '/organization'
+      fullPath: '/app/settings/organization'
+      preLoaderRoute: typeof AppSettingsOrganizationRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
   }
 }
 
@@ -316,10 +335,12 @@ const AppRunsRouteWithChildren =
 
 interface AppSettingsRouteChildren {
   AppSettingsBillingRoute: typeof AppSettingsBillingRoute
+  AppSettingsOrganizationRoute: typeof AppSettingsOrganizationRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsBillingRoute: AppSettingsBillingRoute,
+  AppSettingsOrganizationRoute: AppSettingsOrganizationRoute,
 }
 
 const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(

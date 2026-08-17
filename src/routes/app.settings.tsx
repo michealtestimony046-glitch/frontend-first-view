@@ -1,5 +1,4 @@
-import { createFileRoute, Link, Outlet, useLocation, useMatches } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   CreditCard,
   KeyRound,
@@ -7,18 +6,12 @@ import {
   Sliders,
   User,
   Users,
-  Copy,
-  Eye,
-  EyeOff,
-  Plus,
+  LockKeyhole,
+  ArrowRight,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import {
-  currentUser,
-  workspaces,
-  getPersonas,
-  getFeatureScopes,
-} from "@/lib/mock-data";
 
 const searchSchema = z.object({
   tab: z
@@ -35,10 +28,20 @@ export const Route = createFileRoute("/app/settings")({
   component: SettingsLayout,
 });
 
-type Tab = "profile" | "engine" | "vault" | "policy" | "tokens" | "billing";
+type Tab = "profile" | "organization" | "engine" | "vault" | "policy" | "tokens" | "billing";
 
-const tabs: { key: Tab; label: string; icon: typeof User; billing?: boolean; tab?: "profile" | "engine" | "vault" | "policy" | "tokens" }[] = [
+type TabConfig = {
+  key: Tab;
+  label: string;
+  icon: typeof User;
+  billing?: boolean;
+  tab?: "profile" | "engine" | "vault" | "policy" | "tokens";
+  subroute?: "/app/settings/organization";
+};
+
+const tabs: TabConfig[] = [
   { key: "profile", label: "Profile", icon: User, tab: "profile" },
+  { key: "organization", label: "Organization", icon: Users, subroute: "/app/settings/organization" },
   { key: "billing", label: "Billing & Usage", icon: CreditCard, billing: true },
   { key: "engine", label: "Target Engine", icon: Sliders, tab: "engine" },
   { key: "vault", label: "Role Vault", icon: Users, tab: "vault" },
@@ -52,8 +55,9 @@ function SettingsLayout() {
   const search = Route.useSearch();
   const isBilling =
     pathname.startsWith("/app/settings/billing") ||
-    matches.some((m) => m.routeId === "/app/settings/billing");
-  const activeTab: Tab = isBilling ? "billing" : (search.tab ?? "profile");
+    matches.some((match) => match.routeId === "/app/settings/billing");
+  const isOrganization = matches.some((match) => match.routeId === "/app/settings/organization");
+  const activeTab: Tab = isBilling ? "billing" : isOrganization ? "organization" : search.tab ?? "profile";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
@@ -62,21 +66,23 @@ function SettingsLayout() {
           Settings
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Account, workspace, and engine configuration.
+          Account, organization, and engine configuration.
         </p>
       </div>
 
       <div className="mt-5 overflow-x-auto">
         <div className="flex min-w-max gap-1 border-b border-border">
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            const active = t.key === activeTab;
-            const linkProps = t.billing
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = tab.key === activeTab;
+            const linkProps = tab.billing
               ? { to: "/app/settings/billing" as const }
-              : { to: "/app/settings" as const, search: { tab: t.tab } };
+              : tab.subroute
+                ? { to: tab.subroute }
+                : { to: "/app/settings" as const, search: { tab: tab.tab } };
             return (
               <Link
-                key={t.key}
+                key={tab.key}
                 {...linkProps}
                 className={`inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
                   active
@@ -84,7 +90,7 @@ function SettingsLayout() {
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" /> {t.label}
+                <Icon className="h-3.5 w-3.5" /> {tab.label}
               </Link>
             );
           })}
@@ -92,7 +98,7 @@ function SettingsLayout() {
       </div>
 
       <div className="mt-6">
-        {isBilling ? <Outlet /> : <TabContent tab={search.tab ?? "profile"} />}
+        {isBilling || isOrganization ? <Outlet /> : <TabContent tab={search.tab ?? "profile"} />}
       </div>
     </div>
   );
@@ -113,158 +119,108 @@ function TabContent({ tab }: { tab: "profile" | "engine" | "vault" | "policy" | 
   }
 }
 
-// ---------------- Profile ----------------
-
 function ProfileTab() {
+  const { user } = useAuth();
+  const displayName = user?.fullName?.trim() || "Matrix QA user";
+  const initials = displayName
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <section className="surface-card overflow-hidden">
         <header className="border-b border-border px-5 py-3">
           <h2 className="font-display text-sm font-semibold">Profile</h2>
-          <p className="text-[11px] text-muted-foreground">User-level · scoped to you</p>
+          <p className="text-[11px] text-muted-foreground">Live identity from the authenticated session</p>
         </header>
         <div className="space-y-4 p-5">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/70 to-primary/20 font-mono text-lg font-semibold text-primary-foreground">
-              {currentUser.initials}
+              {initials}
             </div>
-            <button className="rounded-md border border-border bg-surface-2/60 px-3 py-1.5 text-xs hover:bg-accent">
-              Change avatar
-            </button>
+            <div>
+              <div className="text-sm font-medium">{displayName}</div>
+              <div className="text-xs text-muted-foreground">Avatar editing is not enabled in v1.</div>
+            </div>
           </div>
-          <Field label="Full name" value={currentUser.name} />
-          <Field label="Email" value={currentUser.email} readonly />
-          <div>
-            <div className="mb-1.5 text-xs font-medium">Password</div>
-            <button className="rounded-md border border-border bg-surface-2/60 px-3 py-1.5 text-xs hover:bg-accent">
-              Change password
-            </button>
-          </div>
+          <Field label="Full name" value={user?.fullName || "Not provided"} />
+          <Field label="Email" value={user?.email || "Unavailable"} readonly />
+          <DisabledAction label="Change password" detail="Password changes ship with the account-security flow in a later release." />
         </div>
       </section>
 
       <section className="surface-card overflow-hidden">
         <header className="border-b border-border px-5 py-3">
           <h2 className="font-display text-sm font-semibold">Session</h2>
-          <p className="text-[11px] text-muted-foreground">This device</p>
+          <p className="text-[11px] text-muted-foreground">This browser</p>
         </header>
         <div className="space-y-3 p-5 text-sm">
-          <Meta label="System role" value={currentUser.systemRole} />
-          <Meta label="Active workspace" value={workspaces.find((w) => w.current)?.name ?? "—"} />
-          <Meta label="Last sign-in" value="Just now · Chromium 128 · macOS" />
-          <button className="mt-3 w-full rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/20">
-            Sign out of all sessions
-          </button>
+          <Meta label="Authentication" value={user ? "Authenticated" : "Not available"} />
+          <Meta label="Account" value={user?.email || "Unavailable"} />
+          <Meta label="Organization and workspace" value="Use the selector in the sidebar" />
+          <div className="mt-3 rounded-md border border-border/60 bg-surface-2/30 p-3 text-[11px] text-muted-foreground">
+            Session-wide sign-out is not exposed in v1. Use the account menu to log out of this browser.
+          </div>
         </div>
       </section>
     </div>
   );
 }
 
-// ---------------- Engine ----------------
-
 function EngineTab() {
-  const scopes = getFeatureScopes();
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="surface-card overflow-hidden">
         <header className="border-b border-border px-5 py-3">
           <h2 className="font-display text-sm font-semibold">Target environments</h2>
-          <p className="text-[11px] text-muted-foreground">
-            URLs the worker points at
-          </p>
+          <p className="text-[11px] text-muted-foreground">Configured per project in the live Projects page</p>
         </header>
         <div className="space-y-4 p-5">
-          <Field label="Staging / Preview URL" value="https://staging.acme.dev" mono />
-          <div>
-            <Field label="Production URL" value="https://app.acme.dev" mono />
-            <p className="mt-1.5 inline-flex items-center gap-1.5 rounded border border-warning/40 bg-warning/10 px-2 py-1 text-[10px] font-medium text-warning">
-              Production targets default to Safe Mode controls.
-            </p>
-          </div>
+          <p className="text-sm leading-6 text-muted-foreground">
+            Matrix QA v1 stores each project’s target URL with the backend project record. Open Projects to review or create a project target instead of editing example URLs here.
+          </p>
+          <Link
+            to="/app/projects"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2/60 px-3 py-2 text-xs font-medium hover:bg-accent"
+          >
+            Open Projects <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </section>
 
       <section className="surface-card overflow-hidden">
         <header className="border-b border-border px-5 py-3">
           <h2 className="font-display text-sm font-semibold">Feature scope map</h2>
-          <p className="text-[11px] text-muted-foreground">
-            Declare which parts of the app the worker walks
-          </p>
+          <p className="text-[11px] text-muted-foreground">Worker defaults are controlled by the backend in v1</p>
         </header>
-        <ul className="divide-y divide-border">
-          {scopes.map((s) => (
-            <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">{s.name}</div>
-                <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
-                  {s.paths.join(" · ")}
-                </div>
-              </div>
-              <label className="relative inline-flex cursor-pointer items-center">
-                <input type="checkbox" defaultChecked={s.enabled} className="peer sr-only" />
-                <div className="h-5 w-9 rounded-full bg-surface-2 transition-colors peer-checked:bg-primary" />
-                <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-foreground transition-transform peer-checked:translate-x-4" />
-              </label>
-            </li>
-          ))}
-        </ul>
-        <div className="border-t border-border p-3">
-          <button className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2/60 px-3 py-1.5 text-xs hover:bg-accent">
-            <Plus className="h-3.5 w-3.5" /> Add feature
-          </button>
+        <div className="p-5">
+          <V1Notice>
+            Per-project feature scopes and custom journey maps are not configurable in the v1 console yet. The browser worker uses the deployed backend defaults and reports the resulting evidence.
+          </V1Notice>
         </div>
       </section>
     </div>
   );
 }
 
-// ---------------- Vault ----------------
-
 function VaultTab() {
   return (
     <section className="surface-card overflow-hidden">
-      <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <div>
-          <h2 className="font-display text-sm font-semibold">Role Vault</h2>
-          <p className="text-[11px] text-muted-foreground">
-            Test personas the browser workers log in as
-          </p>
-        </div>
-        <button className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-2/60 px-3 py-1.5 text-xs hover:bg-accent">
-          <Plus className="h-3.5 w-3.5" /> Add persona
-        </button>
+      <header className="border-b border-border px-5 py-3">
+        <h2 className="font-display text-sm font-semibold">Role Vault</h2>
+        <p className="text-[11px] text-muted-foreground">Secure test personas for browser runs</p>
       </header>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface-2/40 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              <th className="px-5 py-2 text-left">Role</th>
-              <th className="px-5 py-2 text-left">Identity</th>
-              <th className="px-5 py-2 text-left">Password</th>
-              <th className="px-5 py-2 text-left">Target profile</th>
-            </tr>
-          </thead>
-          <tbody>
-            {getPersonas().map((p) => (
-              <tr key={p.role} className="border-b border-border last:border-b-0">
-                <td className="px-5 py-3 font-mono text-xs text-primary">{p.role}</td>
-                <td className="px-5 py-3 font-mono text-xs text-foreground">{p.identity}</td>
-                <td className="px-5 py-3 font-mono text-muted-foreground">••••••••</td>
-                <td className="px-5 py-3 text-xs text-muted-foreground">{p.target}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="border-t border-border bg-surface-2/40 px-5 py-2.5 text-[11px] text-muted-foreground">
-        Credentials are masked in v1. Encrypted vault backend ships with v2.
+      <div className="p-5">
+        <V1Notice>
+          The encrypted role vault is not enabled in v1. Do not paste test credentials into this page. Secure persona storage is planned for the v2 backend.
+        </V1Notice>
       </div>
     </section>
   );
 }
-
-// ---------------- Policy ----------------
 
 function PolicyTab() {
   const [noise, setNoise] = useState(true);
@@ -273,23 +229,20 @@ function PolicyTab() {
       <section className="surface-card overflow-hidden">
         <header className="border-b border-border px-5 py-3">
           <h2 className="font-display text-sm font-semibold">UI Noise Gate</h2>
-          <p className="text-[11px] text-muted-foreground">
-            Deterministic quality filter
-          </p>
+          <p className="text-[11px] text-muted-foreground">Preview-only browser preference</p>
         </header>
         <div className="space-y-3 p-5">
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
               checked={noise}
-              onChange={(e) => setNoise(e.target.checked)}
+              onChange={(event) => setNoise(event.target.checked)}
               className="mt-0.5 h-4 w-4 accent-primary"
             />
             <span className="text-sm">
               <span className="font-medium">Hide minor visual shifts and console warnings</span>
               <span className="mt-0.5 block text-xs text-muted-foreground">
-                Relegates low-severity alerts to the background Audit Log so
-                developers only see hard system errors.
+                This toggle is local to the current browser session in v1. Terminal reports continue to use the backend noise gate.
               </span>
             </span>
           </label>
@@ -298,68 +251,36 @@ function PolicyTab() {
 
       <section className="surface-card overflow-hidden">
         <header className="border-b border-border px-5 py-3">
-          <h2 className="font-display text-sm font-semibold">
-            Concurrency & Credit Governor
-          </h2>
+          <h2 className="font-display text-sm font-semibold">Concurrency & credit governor</h2>
           <p className="text-[11px] text-muted-foreground">Preview workspace boundaries</p>
         </header>
         <div className="space-y-4 p-5 text-sm">
-          <Meta label="Concurrent worker limit" value="2 ephemeral browser nodes" />
-          <Meta label="Daily compute budget" value="100 / 100 credits — resets tomorrow" />
-          <div className="rounded-md border border-border/60 bg-surface-2/30 p-3 text-[11px] text-muted-foreground">
-            <span className="font-mono uppercase tracking-wider text-primary">v1 —</span>{" "}
-            Read-only. Governor tuning ships with per-plan quotas in v2.
-          </div>
+          <Meta label="Configuration" value="Managed by the deployed backend" />
+          <V1Notice>Quota editing and concurrency controls are read-only in v1. Plan-specific governors ship with the paid product releases.</V1Notice>
         </div>
       </section>
     </div>
   );
 }
 
-// ---------------- API Tokens ----------------
-
 function TokensTab() {
-  const [reveal, setReveal] = useState(false);
-  const token = "mqa_sk_live_a7f3e2c9d0b14e8b9c1f6a5e2d3c4b5a";
   return (
     <div className="grid gap-4">
       <section className="surface-card overflow-hidden">
-        <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <div>
-            <h2 className="font-display text-sm font-semibold">Workspace API token</h2>
-            <p className="text-[11px] text-muted-foreground">
-              Trigger runs from your terminal or CI
-            </p>
-          </div>
-          <button className="rounded-md border border-border bg-surface-2/60 px-3 py-1.5 text-xs hover:bg-accent">
-            Regenerate
-          </button>
+        <header className="border-b border-border px-5 py-3">
+          <h2 className="font-display text-sm font-semibold">Workspace API tokens</h2>
+          <p className="text-[11px] text-muted-foreground">Programmatic run triggers are not enabled in the v1 web console</p>
         </header>
         <div className="p-5">
-          <div className="flex items-center gap-2 rounded-md border border-border bg-background/60 px-3 py-2 font-mono text-xs">
-            <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="flex-1 truncate">
-              {reveal ? token : "•".repeat(token.length)}
-            </span>
-            <button
-              onClick={() => setReveal((v) => !v)}
-              className="rounded p-1 text-muted-foreground hover:text-foreground"
-              aria-label="Toggle reveal"
-            >
-              {reveal ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              onClick={() => navigator.clipboard?.writeText(token)}
-              className="rounded p-1 text-muted-foreground hover:text-foreground"
-              aria-label="Copy"
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </button>
+          <div className="flex items-start gap-3 rounded-md border border-border bg-surface-2/30 p-4">
+            <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <div>
+              <div className="text-sm font-medium">No API token is available</div>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Matrix QA v1 has no token-generation endpoint. The previous placeholder token UI has been removed so the console never presents a value that cannot authenticate against the live backend.
+              </p>
+            </div>
           </div>
-          <p className="mt-3 text-[11px] text-muted-foreground">
-            Treat this key like a password. Anyone with it can trigger runs
-            against your workspace's declared targets.
-          </p>
         </div>
       </section>
 
@@ -367,37 +288,43 @@ function TokensTab() {
         <header className="border-b border-border px-5 py-3">
           <h2 className="font-display text-sm font-semibold">Quick start</h2>
         </header>
-        <pre className="overflow-auto p-5 font-mono text-[11px] leading-relaxed text-foreground">
-{`# Trigger a run from your terminal
-curl -X POST https://api.matrixqa.dev/v1/runs \\
-  -H "Authorization: Bearer $MATRIX_QA_TOKEN" \\
-  -d '{"project_id":"prj_01"}'`}
-        </pre>
+        <div className="p-5">
+          <V1Notice>Use the authenticated web console to create projects and queue runs in v1. CLI and API-token workflows are planned for a later release.</V1Notice>
+        </div>
       </section>
     </div>
   );
 }
 
-// ---------------- helpers ----------------
+function DisabledAction({ label, detail }: { label: string; detail: string }) {
+  return (
+    <div>
+      <div className="mb-1.5 text-xs font-medium">{label}</div>
+      <button
+        type="button"
+        disabled
+        className="rounded-md border border-border bg-surface-2/60 px-3 py-1.5 text-xs text-muted-foreground disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        Coming later
+      </button>
+      <p className="mt-1.5 text-[11px] text-muted-foreground">{detail}</p>
+    </div>
+  );
+}
 
-function Field({
-  label,
-  value,
-  readonly,
-  mono,
-}: {
-  label: string;
-  value: string;
-  readonly?: boolean;
-  mono?: boolean;
-}) {
+function V1Notice({ children }: { children: ReactNode }) {
+  return <div className="rounded-md border border-border/60 bg-surface-2/30 p-3 text-[11px] leading-5 text-muted-foreground">{children}</div>;
+}
+
+function Field({ label, value, readonly }: { label: string; value: string; readonly?: boolean }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-medium text-foreground">{label}</span>
       <input
-        defaultValue={value}
+        value={value}
         readOnly={readonly}
-        className={`w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary ${mono ? "font-mono text-xs" : ""} ${readonly ? "text-muted-foreground" : ""}`}
+        aria-readonly={readonly}
+        className={`w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary ${readonly ? "text-muted-foreground" : ""}`}
       />
     </label>
   );
@@ -406,9 +333,7 @@ function Field({
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-sm text-foreground">{value}</div>
     </div>
   );

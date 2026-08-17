@@ -64,7 +64,7 @@ export function AppShell({ children, title = "Overview" }: { children: ReactNode
 function SidebarBody({ isActive, onNavigate, hideHeader }: { isActive: (item: NavItem) => boolean; onNavigate?: () => void; hideHeader?: boolean }) {
   return <>
     {!hideHeader && <div className="flex h-14 items-center border-b border-border px-4"><Logo /></div>}
-    <div className="px-3 pb-3 pt-4"><p className="mb-2 px-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Workspace</p><WorkspaceSwitcher /></div>
+    <div className="px-3 pb-3 pt-4"><p className="mb-2 px-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Organization</p><WorkspaceSwitcher /></div>
     <nav className="flex-1 space-y-0.5 overflow-y-auto px-2">{nav.map((item) => { const active = isActive(item); const Icon = item.icon; return <Link key={item.label} to={item.to} onClick={onNavigate} className={`relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${active ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`}>{active && <span className="absolute inset-y-1 left-0 w-0.5 rounded-r bg-primary" />}<Icon className="h-4 w-4" />{item.label}</Link>; })}</nav>
     <div className="border-t border-border p-3"><UserMenu onNavigate={onNavigate} /></div>
   </>;
@@ -99,7 +99,7 @@ function WorkspaceSwitcher() {
         const selected = items.find((o) => o.id === stored) ?? items[0];
         if (selected) { setActiveId(selected.id); localStorage.setItem(ACTIVE_ORG_KEY, selected.id); }
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Unable to load workspaces."))
+      .catch((e) => setError(e instanceof Error ? e.message : "Unable to load organizations."))
       .finally(() => setLoading(false));
   }, [isAuthenticated]);
 
@@ -139,12 +139,12 @@ function WorkspaceSwitcher() {
       </ul>
       {error && <p className="border-t border-border px-3 py-2 text-[11px] text-destructive">{error}</p>}
       <div className="border-t border-border p-1">
-        {!showCreate ? <button onClick={() => { setShowCreate(true); setError(null); }} className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs text-primary hover:bg-accent"><PlusCircle className="h-3.5 w-3.5" />Create new workspace</button> : <form onSubmit={createWorkspace} className="p-2">
-          <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Workspace name</label>
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Acme QA" maxLength={80} className="mb-2 w-full rounded-md border border-border bg-surface-2 px-2.5 py-2 text-sm outline-none focus:border-primary" />
+        {!showCreate ? <button onClick={() => { setShowCreate(true); setError(null); }} className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs text-primary hover:bg-accent"><PlusCircle className="h-3.5 w-3.5" />Create new organization</button> : <form onSubmit={createWorkspace} className="p-2">
+          <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Organization name</label>
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Acme QA Organization" maxLength={80} className="mb-2 w-full rounded-md border border-border bg-surface-2 px-2.5 py-2 text-sm outline-none focus:border-primary" />
           <div className="flex gap-2"><button type="button" onClick={() => setShowCreate(false)} className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent">Cancel</button><button type="submit" disabled={creating || !name.trim()} className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-2 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50">{creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Create</button></div>
         </form>}
-        <Link to="/app/settings" onClick={() => setOpen(false)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground"><Cog className="h-3.5 w-3.5" />Workspace settings</Link>
+        <Link to="/app/settings" onClick={() => setOpen(false)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground"><Cog className="h-3.5 w-3.5" />Organization & workspaces</Link>
       </div>
     </div>}
   </div>;
