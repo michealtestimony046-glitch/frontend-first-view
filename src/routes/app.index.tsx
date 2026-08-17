@@ -27,17 +27,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { runsApi, type RunStatus } from "@/lib/api-client";
 import {
-  project,
-  runs,
-  type RunStatus,
-  getDashboardStats,
-  getFailureTrend,
-  getTopIssues,
-  getLatestSummary,
-  getBillingUsage,
-  type TopIssue,
-} from "@/lib/mock-data";
+  formatLiveDate,
+  formatLiveDuration,
+  reportForRun,
+  reportWarnings,
+  runNumber,
+  useLivePortfolio,
+  type LiveIssue,
+} from "@/lib/live-data";
 
 export const Route = createFileRoute("/app/")({
   head: () => ({
@@ -51,30 +50,46 @@ export const Route = createFileRoute("/app/")({
 });
 
 function AppDashboard() {
-  const [url, setUrl] = useState(project.url);
+  const live = useLivePortfolio();
+  const [url, setUrl] = useState(live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "https://portal.trlabs.tech/");
   const [showRunModal, setShowRunModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
-  const stats = getDashboardStats();
-  const trend = getFailureTrend();
-  const issues = getTopIssues();
-  const latest = getLatestSummary();
-  const usage = getBillingUsage();
+  const runs = live.runs;
+  const issues = live.issues;
+  const reports = live.reports;
+  const latestRun = runs[0] ?? null;
+  const latestReport = reportForRun(reports, latestRun?.id);
+  const total = runs.length;
+  const passed = runs.filter((run) => run.status === "COMPLETED").length;
+  const failed = runs.filter((run) => run.status === "FAILED").length;
+  const warnings = runs.reduce((sum, run) => sum + reportWarnings(reportForRun(reports, run.id)), 0);
+  const stats = { total, passed, failed, warnings };
+  const trend = buildFailureTrend(runs);
+  const latest = {
+    runId: latestRun?.id ?? "",
+    status: statusFromApi(latestRun?.status),
+    startedAt: latestRun ? formatLiveDate(latestRun.startedAt ?? latestRun.createdAt) : "—",
+    duration: formatLiveDuration(latestReport?.durationSec),
+    steps: Array.isArray(latestReport?.steps) ? latestReport.steps.length : 0,
+    issues: latestReport?.bugs ?? latestReport?.summary?.bugCount ?? 0,
+  };
+  const usage = { used: total, cap: Number.POSITIVE_INFINITY, atCap: false };
 
   const handleStartRun = async (e: React.FormEvent) => {
     e.preventDefault();
     setRunError(null);
+    if (!live.activeProject) {
+      setRunError("Choose or create a project before starting a run.");
+      return;
+    }
     setIsSubmitting(true);
-
     try {
-      // For now, just close the modal and show success
-      // Once backend is ready, this will call the actual API
-      console.log('Starting run for URL:', url);
+      const response = await runsApi.triggerRun(live.activeProject.id, { targetUrl: url.trim() });
       setShowRunModal(false);
+      window.location.href = `/app/runs/${response.id}?projectId=${encodeURIComponent(live.activeProject.id)}`;
     } catch (error) {
-      setRunError(
-        error instanceof Error ? error.message : 'Failed to start run. Please try again.'
-      );
+      setRunError(error instanceof Error ? error.message : "Failed to start run. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -130,21 +145,21 @@ function AppDashboard() {
           value={stats.passed}
           icon={CheckCircle2}
           tone="success"
-          hint={`${Math.round((stats.passed / stats.total) * 100)}% of total`}
+          hint={`${percent(stats.passed, stats.total)}% of total`}
         />
         <StatCard
           label="Failed"
           value={stats.failed}
           icon={XCircle}
           tone="danger"
-          hint={`${Math.round((stats.failed / stats.total) * 100)}% of total`}
+          hint={`${percent(stats.failed, stats.total)}% of total`}
         />
         <StatCard
           label="Warnings"
           value={stats.warnings}
           icon={AlertTriangle}
           tone="warning"
-          hint={`${Math.round((stats.warnings / stats.total) * 100)}% of total`}
+          hint={`${percent(stats.warnings, stats.total)}% of total`}
         />
       </div>
 
@@ -176,30 +191,22 @@ function AppDashboard() {
               <span />
             </div>
             <ul>
-              {runs.map((r, i) => (
+              {runs.slice(0, 6).map((r) => (
                 <li key={r.id}>
                   <Link
                     to="/app/runs/$runId"
                     params={{ runId: r.id }}
+                    search={{ projectId: r.projectId }}
                     className="group grid grid-cols-[60px_minmax(0,1fr)_92px_84px_74px_16px] items-center gap-3 border-b border-border px-5 py-3.5 transition-colors last:border-b-0 hover:bg-accent/30 xl:grid-cols-[60px_minmax(0,1fr)_92px_100px_84px_74px_16px]"
                   >
-                    <span className="font-mono text-xs text-muted-foreground">
-                      #{102 - i}
-                    </span>
-                    <span className="truncate text-sm text-foreground">
-                      {project.name}
-                    </span>
-                    <StatusPill status={r.status} />
+                    <span className="font-mono text-xs text-muted-foreground">{runNumber(runs, r.id)}</span>
+                    <span className="truncate text-sm text-foreground">{r.project.name}</span>
+                    <StatusPill status={statusFromApi(r.status)} />
                     <span className="hidden items-center gap-1.5 text-xs text-muted-foreground xl:flex">
                       <Chrome className="h-3.5 w-3.5" /> Chromium
                     </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {r.startedAt}
-                    </span>
-                    <span className="font-mono text-xs text-foreground">
-
-                      {formatDuration(r.durationSec)}
-                    </span>
+                    <span className="truncate text-xs text-muted-foreground">{formatLiveDate(r.startedAt ?? r.createdAt)}</span>
+                    <span className="font-mono text-xs text-foreground">{formatLiveDuration(reportForRun(reports, r.id)?.durationSec)}</span>
                     <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   </Link>
                 </li>
@@ -209,31 +216,26 @@ function AppDashboard() {
 
           {/* Mobile cards */}
           <ul className="divide-y divide-border md:hidden">
-            {runs.map((r, i) => (
+            {runs.slice(0, 6).map((r) => (
               <li key={r.id}>
                 <Link
                   to="/app/runs/$runId"
                   params={{ runId: r.id }}
+                  search={{ projectId: r.projectId }}
                   className="flex items-center justify-between gap-3 px-4 py-3"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-muted-foreground">
-                        #{102 - i}
-                      </span>
-                      <span className="truncate text-sm text-foreground">
-                        {project.name}
-                      </span>
+                      <span className="font-mono text-xs text-muted-foreground">{runNumber(runs, r.id)}</span>
+                      <span className="truncate text-sm text-foreground">{r.project.name}</span>
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span>{r.startedAt}</span>
+                      <span>{formatLiveDate(r.startedAt ?? r.createdAt)}</span>
                       <span>·</span>
-                      <span className="font-mono">
-                        {formatDuration(r.durationSec)}
-                      </span>
+                      <span className="font-mono">{formatLiveDuration(reportForRun(reports, r.id)?.durationSec)}</span>
                     </div>
                   </div>
-                  <StatusPill status={r.status} />
+                  <StatusPill status={statusFromApi(r.status)} />
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>
               </li>
@@ -338,7 +340,7 @@ function AppDashboard() {
               <span>First Seen</span>
             </div>
             <ul>
-              {issues.map((i) => (
+              {issues.slice(0, 6).map((i) => (
                 <li
                   key={i.id}
                   className="grid grid-cols-[minmax(0,1fr)_110px_100px_140px] items-center gap-3 border-b border-border px-5 py-3 last:border-b-0"
@@ -363,7 +365,7 @@ function AppDashboard() {
 
           {/* Mobile cards */}
           <ul className="divide-y divide-border md:hidden">
-            {issues.map((i) => (
+            {issues.slice(0, 6).map((i) => (
               <li key={i.id} className="px-4 py-3">
                 <div className="flex items-start gap-2">
                   <SeverityDot severity={i.severity} className="mt-1" />
@@ -384,9 +386,9 @@ function AppDashboard() {
           {/* Legend */}
           <div className="flex flex-wrap items-center gap-4 border-t border-border bg-surface-2/40 px-5 py-2.5 text-[11px] text-muted-foreground">
             <LegendDot severity="critical" label="Critical" />
-            <LegendDot severity="functional" label="Functional" />
-            <LegendDot severity="warning" label="Warning" />
-            <LegendDot severity="info" label="Info" />
+            <LegendDot severity="high" label="High" />
+            <LegendDot severity="medium" label="Medium" />
+            <LegendDot severity="low" label="Low" />
           </div>
         </section>
 
@@ -394,15 +396,18 @@ function AppDashboard() {
         <section className="surface-card overflow-hidden">
           <header className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="font-display text-base font-semibold">
-              Run #{latest.runId.slice(-4).toUpperCase()} Summary
+              {latest.runId ? `Run ${latest.runId.slice(-4).toUpperCase()} Summary` : "Latest Run Summary"}
             </h2>
-            <Link
-              to="/app/runs/$runId"
-              params={{ runId: latest.runId }}
-              className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:opacity-80"
-            >
-              View Details <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
+            {latest.runId ? (
+              <Link
+                to="/app/runs/$runId"
+                params={{ runId: latest.runId }}
+                search={{ projectId: latestRun?.projectId ?? "" }}
+                className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:opacity-80"
+              >
+                View Details <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            ) : null}
           </header>
           <div className="space-y-4 p-5">
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -436,14 +441,19 @@ function AppDashboard() {
                 Quick Actions
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                <Link
-                  to="/app/runs/$runId"
-                  params={{ runId: latest.runId }}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow"
-                >
-                  <Eye className="h-4 w-4" />
-                  View Full Report
-                </Link>
+                {latest.runId ? (
+                  <Link
+                    to="/app/runs/$runId"
+                    params={{ runId: latest.runId }}
+                    search={{ projectId: latestRun?.projectId ?? "" }}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View Full Report
+                  </Link>
+                ) : (
+                  <span className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">No runs yet</span>
+                )}
                 <button className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent">
                   <Download className="h-4 w-4" />
                   Download
@@ -562,6 +572,37 @@ function AppDashboard() {
   );
 }
 
+function statusFromApi(value: string | undefined): RunStatus {
+  const normalized = String(value ?? "PENDING").toLowerCase();
+  if (normalized === "completed") return "passed";
+  if (normalized === "failed") return "failed";
+  if (normalized === "running") return "running";
+  return "queued";
+}
+
+function percent(value: number, total: number) {
+  return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+function buildFailureTrend(runs: Array<{ status: string; startedAt?: string | null; createdAt?: string }>) {
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+    return date;
+  });
+  return days.map((date) => {
+    const day = date.toLocaleDateString(undefined, { weekday: "short" });
+    const failures = runs.filter((run) => {
+      if (run.status !== "FAILED") return false;
+      const started = run.startedAt ?? run.createdAt;
+      const parsed = started ? new Date(started) : null;
+      return parsed && parsed.toDateString() === date.toDateString();
+    }).length;
+    return { day, failures };
+  });
+}
+
 function StatCard({
   label,
   value,
@@ -634,7 +675,7 @@ function MiniStat({
 }
 
 const severityMap: Record<
-  TopIssue["severity"],
+  LiveIssue["severity"],
   { dot: string; pill: string; label: string }
 > = {
   critical: {
@@ -642,20 +683,20 @@ const severityMap: Record<
     pill: "bg-destructive/15 text-destructive border-destructive/30",
     label: "Critical",
   },
-  functional: {
-    dot: "bg-info",
-    pill: "bg-info/15 text-info border-info/30",
-    label: "Functional",
-  },
-  warning: {
+  high: {
     dot: "bg-warning",
     pill: "bg-warning/15 text-warning border-warning/30",
-    label: "Warning",
+    label: "High",
   },
-  info: {
+  medium: {
+    dot: "bg-info",
+    pill: "bg-info/15 text-info border-info/30",
+    label: "Medium",
+  },
+  low: {
     dot: "bg-muted-foreground",
     pill: "bg-muted text-muted-foreground border-border",
-    label: "Info",
+    label: "Low",
   },
 };
 
@@ -663,7 +704,7 @@ function SeverityDot({
   severity,
   className = "",
 }: {
-  severity: TopIssue["severity"];
+  severity: LiveIssue["severity"];
   className?: string;
 }) {
   return (
@@ -688,7 +729,7 @@ function LegendDot({
   severity,
   label,
 }: {
-  severity: TopIssue["severity"];
+  severity: LiveIssue["severity"];
   label: string;
 }) {
   return (
