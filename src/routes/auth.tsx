@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { z } from "zod";
 import { ArrowRight, Github, Mail, Terminal, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { authApi } from "@/lib/api-client";
@@ -7,13 +8,21 @@ import { useMutation } from "@/hooks/use-api";
 
 const PENDING_WORKSPACE_KEY = "matrix_qa_pending_workspace";
 
+const authSearchSchema = z.object({
+  mode: z.enum(["signin", "signup"]).optional().default("signup"),
+  returnTo: z.enum(["/app"]).optional().default("/app"),
+});
+
 export const Route = createFileRoute("/auth")({
+  validateSearch: authSearchSchema,
   head: () => ({ meta: [{ title: "Sign in · Matrix QA" }, { name: "description", content: "Sign in to the Matrix QA console." }, { name: "robots", content: "noindex" }] }),
   component: AuthPage,
 });
 
 function AuthPage() {
-  const [mode, setMode] = useState<"signin" | "signup">("signup");
+  const search = Route.useSearch();
+  const [mode, setMode] = useState<"signin" | "signup">(search.mode);
+
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationEmail, setVerificationEmail] = useState("");
@@ -25,6 +34,7 @@ function AuthPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const navigate = useNavigate();
+  const returnTo = search.returnTo === "/app" ? "/app" : "/app";
 
   const [loginMutate, loginState] = useMutation(authApi.login);
   const [signupMutate, signupState] = useMutation(authApi.signup);
@@ -35,9 +45,9 @@ function AuthPage() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const provider = params.get("provider");
-    if (code && provider) {
+      if (code && provider) {
       setOauthLoading(provider);
-      authApi.handleOAuthCallback(code, provider).then(() => navigate({ to: "/app" })).catch((err) => {
+      authApi.handleOAuthCallback(code, provider).then(() => navigate({ to: returnTo })).catch((err) => {
         setErrorMessage(err instanceof Error ? err.message : `${provider} authentication failed. Please try again.`);
         setOauthLoading(null);
       });
@@ -51,7 +61,7 @@ function AuthPage() {
     try {
       if (mode === "signin") {
         await loginMutate({ email: email.trim().toLowerCase(), password });
-        navigate({ to: "/app" });
+        navigate({ to: returnTo });
         return;
       }
       const cleanWorkspace = workspaceName.trim();
@@ -80,12 +90,12 @@ function AuthPage() {
       const pendingWorkspace = localStorage.getItem(PENDING_WORKSPACE_KEY)?.trim();
       if (!pendingWorkspace) {
         setSuccessMessage("Email verified. Welcome to Matrix QA.");
-        setTimeout(() => navigate({ to: "/app" }), 250);
+        setTimeout(() => navigate({ to: returnTo }), 250);
         return;
       }
       localStorage.removeItem(PENDING_WORKSPACE_KEY);
       setSuccessMessage("Email verified. Your organization is ready. Create a workspace to begin.");
-      setTimeout(() => navigate({ to: "/app" }), 250);
+      setTimeout(() => navigate({ to: returnTo }), 250);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "We could not complete verification and workspace setup. Please try again.");
     }
