@@ -11,6 +11,7 @@ const PENDING_WORKSPACE_KEY = "matrix_qa_pending_workspace";
 const authSearchSchema = z.object({
   mode: z.enum(["signin", "signup"]).optional().default("signup"),
   returnTo: z.enum(["/app", "/admin"]).optional().default("/app"),
+  recover: z.boolean().optional().default(false),
 });
 
 export const Route = createFileRoute("/auth")({
@@ -40,7 +41,7 @@ function AuthPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
-  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(search.recover);
   const navigate = useNavigate();
   const returnTo = search.returnTo === "/admin" ? "/admin" : "/app";
 
