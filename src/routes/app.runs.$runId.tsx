@@ -76,6 +76,7 @@ function RunDetailPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let timer: number | undefined;
     setError(null);
 
     if (!projectId) {
@@ -86,16 +87,23 @@ function RunDetailPage() {
       };
     }
 
-    runsApi
-      .getReport(projectId, runId)
-      .then((data) => {
-        if (!cancelled) setReport(data);
-      })
-      .catch((e) => {
+    const loadReport = async () => {
+      try {
+        const data = await runsApi.getReport(projectId, runId);
+        if (cancelled) return;
+        setReport(data);
+        if (data.incomplete && data.status !== "COMPLETED" && data.status !== "FAILED") {
+          timer = window.setTimeout(loadReport, 5000);
+        }
+      } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Unable to load run report.");
-      });
+      }
+    };
+
+    void loadReport();
     return () => {
       cancelled = true;
+      if (timer) window.clearTimeout(timer);
     };
   }, [projectId, runId]);
 
@@ -223,8 +231,7 @@ function RunDetailPage() {
         )}
         {report.incomplete && (
           <div className="mt-5 rounded-md border border-primary/25 bg-primary/5 p-4 text-sm text-muted-foreground">
-            This run is still processing. The backend has returned an incomplete report; refresh
-            after the worker reaches a terminal state.
+            This run is still processing. The report will refresh automatically when the worker reaches a terminal state.
           </div>
         )}
 
