@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   CreditCard,
   KeyRound,
@@ -10,6 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { authApi, usersApi } from "@/lib/api-client";
 import { createFileRoute, Link, Outlet, useLocation, useMatches } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -120,52 +121,100 @@ function TabContent({ tab }: { tab: "profile" | "engine" | "vault" | "policy" | 
 }
 
 function ProfileTab() {
-  const { user } = useAuth();
+  const { user, refreshUser, logoutAll } = useAuth();
   const displayName = user?.fullName?.trim() || "Matrix QA user";
-  const initials = displayName
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+  const [name, setName] = useState(user?.fullName || "");
+  const [newEmail, setNewEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => setName(user?.fullName || ""), [user?.fullName]);
+
+  const saveName = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await usersApi.updateProfile({ fullName: name });
+      await refreshUser();
+      setMessage("Profile updated.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not update your profile.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      await usersApi.uploadAvatar(file);
+      await refreshUser();
+      setMessage("Avatar updated.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not upload your avatar.");
+    } finally {
+      setBusy(false);
+      event.target.value = "";
+    }
+  };
+
+  const changePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await authApi.changePassword({ currentPassword, newPassword });
+      setCurrentPassword("");
+      setNewPassword("");
+      setMessage("Password changed. Other sessions were signed out.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not change your password.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const requestEmailChange = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await authApi.requestEmailChange({ newEmail, currentPassword });
+      setNewEmail("");
+      setCurrentPassword("");
+      setMessage("Check the new email address for a confirmation link.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not request an email change.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <section className="surface-card overflow-hidden">
-        <header className="border-b border-border px-5 py-3">
-          <h2 className="font-display text-sm font-semibold">Profile</h2>
-          <p className="text-[11px] text-muted-foreground">Live identity from the authenticated session</p>
-        </header>
-        <div className="space-y-4 p-5">
+        <header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Profile</h2><p className="text-[11px] text-muted-foreground">Your account identity and avatar</p></header>
+        <div className="space-y-5 p-5">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/70 to-primary/20 font-mono text-lg font-semibold text-primary-foreground">
-              {initials}
-            </div>
-            <div>
-              <div className="text-sm font-medium">{displayName}</div>
-              <div className="text-xs text-muted-foreground">Avatar editing is not enabled in v1.</div>
-            </div>
+            {user?.avatarUrl ? <img src={user.avatarUrl} alt="Profile avatar" className="h-14 w-14 rounded-full object-cover" /> : <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/70 to-primary/20 font-mono text-lg font-semibold text-primary-foreground">{initials}</div>}
+            <div><div className="text-sm font-medium">{displayName}</div><div className="text-xs text-muted-foreground">PNG, JPEG, or WebP up to 2 MB.</div><div className="mt-2 flex gap-2"><button type="button" onClick={() => fileRef.current?.click()} className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent">Upload avatar</button>{user?.avatarUrl && <button type="button" onClick={async () => { await usersApi.removeAvatar(); await refreshUser(); setMessage("Avatar removed."); }} className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent">Remove</button>}<input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadAvatar} className="hidden" /></div></div>
           </div>
-          <Field label="Full name" value={user?.fullName || "Not provided"} />
+          <form onSubmit={saveName} className="space-y-3"><label className="block"><span className="mb-1.5 block text-xs font-medium">Full name</span><input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary" /></label><button disabled={busy} className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60">Save profile</button></form>
           <Field label="Email" value={user?.email || "Unavailable"} readonly />
-          <DisabledAction label="Change password" detail="Password changes ship with the account-security flow in a later release." />
+          {message && <p className="rounded-md border border-border/60 bg-surface-2/30 p-3 text-xs text-muted-foreground">{message}</p>}
         </div>
       </section>
 
-      <section className="surface-card overflow-hidden">
-        <header className="border-b border-border px-5 py-3">
-          <h2 className="font-display text-sm font-semibold">Session</h2>
-          <p className="text-[11px] text-muted-foreground">This browser</p>
-        </header>
-        <div className="space-y-3 p-5 text-sm">
-          <Meta label="Authentication" value={user ? "Authenticated" : "Not available"} />
-          <Meta label="Account" value={user?.email || "Unavailable"} />
-          <Meta label="Organization and workspace" value="Use the selector in the sidebar" />
-          <div className="mt-3 rounded-md border border-border/60 bg-surface-2/30 p-3 text-[11px] text-muted-foreground">
-            Session-wide sign-out is not exposed in v1. Use the account menu to log out of this browser.
-          </div>
-        </div>
-      </section>
+      <div className="space-y-4">
+        <section className="surface-card overflow-hidden"><header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Password</h2><p className="text-[11px] text-muted-foreground">Change it without leaving Settings</p></header><form onSubmit={changePassword} className="space-y-3 p-5"><input type="password" placeholder="Current password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><input type="password" placeholder="New password · 10+ characters" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={10} required className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><button disabled={busy} className="rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-60">Change password</button></form></section>
+        <section className="surface-card overflow-hidden"><header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Change email</h2><p className="text-[11px] text-muted-foreground">We will confirm the new address before switching it</p></header><form onSubmit={requestEmailChange} className="space-y-3 p-5"><input type="email" placeholder="New email address" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} required className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><input type="password" placeholder="Current password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><button disabled={busy} className="rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-60">Send confirmation</button></form></section>
+        <section className="surface-card overflow-hidden"><header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Sessions</h2><p className="text-[11px] text-muted-foreground">Revoke every active Matrix QA session</p></header><div className="space-y-3 p-5"><Meta label="Authentication" value={user ? "Authenticated" : "Not available"} /><Meta label="Account" value={user?.email || "Unavailable"} /><button type="button" onClick={() => void logoutAll()} className="rounded-md border border-destructive/50 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10">Sign out everywhere</button></div></section>
+        <section className="surface-card overflow-hidden"><header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">About Matrix QA</h2></header><div className="space-y-2 p-5 text-xs text-muted-foreground"><Meta label="Product release" value="Matrix QA v1.2.0" /><Meta label="Build/runtime" value="1.6.2" /></div></section>
+      </div>
     </div>
   );
 }

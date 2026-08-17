@@ -51,7 +51,8 @@ export const apiRequest = async <T>(endpoint: string, options: RequestOptions = 
   const { requiresAuth = false, ...fetchOptions } = options;
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = new Headers(fetchOptions.headers);
-  headers.set("Content-Type", "application/json");
+  const isMultipart = typeof FormData !== "undefined" && fetchOptions.body instanceof FormData;
+  if (!isMultipart) headers.set("Content-Type", "application/json");
 
   if (requiresAuth) {
     const token = getAuthToken();
@@ -99,6 +100,7 @@ export interface CurrentUserResponse {
   id: string;
   email: string;
   fullName?: string | null;
+  avatarUrl?: string | null;
   createdAt?: string;
 }
 export interface LoginRequest {
@@ -283,6 +285,21 @@ export const authApi = {
   },
   getCurrentUser: (): Promise<CurrentUserResponse> =>
     apiRequest("/auth/me", { requiresAuth: true }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    apiRequest<{ message: string }>("/auth/change-password", { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
+  logoutAll: async () => {
+    const response = await apiRequest<{ message: string }>("/auth/logout-all", { method: "POST", requiresAuth: true });
+    clearAuthToken();
+    return response;
+  },
+  requestPasswordReset: (email: string) =>
+    apiRequest<{ message: string }>("/auth/request-password-reset", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    apiRequest<{ message: string }>("/auth/reset-password", { method: "POST", body: JSON.stringify(data) }),
+  requestEmailChange: (data: { newEmail: string; currentPassword: string }) =>
+    apiRequest<{ message: string }>("/auth/request-email-change", { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
+  confirmEmailChange: (token: string) =>
+    apiRequest<{ message: string }>("/auth/confirm-email-change", { method: "POST", body: JSON.stringify({ token }) }),
   loginWithGithub: (): void => {
     window.location.href = `${API_BASE_URL}/auth/github`;
   },
@@ -308,6 +325,11 @@ export const organizationsApi = {
     }),
   get: (id: string): Promise<Organization> =>
     apiRequest(`/organizations/${encodeURIComponent(id)}`, { requiresAuth: true }),
+  rename: (id: string, name: string): Promise<Organization> =>
+    apiRequest(`/organizations/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ name }), requiresAuth: true }),
+  removeMember: (id: string, memberId: string) =>
+    apiRequest<{ message: string }>(`/organizations/${encodeURIComponent(id)}/members/${encodeURIComponent(memberId)}`, { method: "DELETE", requiresAuth: true }),
+  remove: (id: string) => apiRequest<Organization>(`/organizations/${encodeURIComponent(id)}`, { method: "DELETE", requiresAuth: true }),
 };
 
 export const workspacesApi = {
@@ -319,6 +341,21 @@ export const workspacesApi = {
     apiRequest("/workspaces", { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
   get: (id: string): Promise<Workspace> =>
     apiRequest(`/workspaces/${encodeURIComponent(id)}`, { requiresAuth: true }),
+  rename: (id: string, name: string): Promise<Workspace> =>
+    apiRequest(`/workspaces/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ name }), requiresAuth: true }),
+  remove: (id: string) => apiRequest<Workspace>(`/workspaces/${encodeURIComponent(id)}`, { method: "DELETE", requiresAuth: true }),
+};
+
+export const usersApi = {
+  getProfile: (): Promise<CurrentUserResponse> => apiRequest("/users/me", { requiresAuth: true }),
+  updateProfile: (data: { fullName: string }): Promise<CurrentUserResponse> =>
+    apiRequest("/users/me", { method: "PATCH", body: JSON.stringify(data), requiresAuth: true }),
+  uploadAvatar: (file: File): Promise<CurrentUserResponse> => {
+    const body = new FormData();
+    body.append("avatar", file);
+    return apiRequest("/users/me/avatar", { method: "POST", body, requiresAuth: true });
+  },
+  removeAvatar: (): Promise<CurrentUserResponse> => apiRequest("/users/me/avatar", { method: "DELETE", requiresAuth: true }),
 };
 
 export const projectsApi = {

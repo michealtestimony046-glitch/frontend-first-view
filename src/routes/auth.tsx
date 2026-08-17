@@ -33,6 +33,7 @@ function AuthPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const navigate = useNavigate();
   const returnTo = search.returnTo === "/app" ? "/app" : "/app";
 
@@ -53,6 +54,18 @@ function AuthPage() {
       });
     }
   }, [navigate]);
+
+  const handleRequestReset = async (e: FormEvent) => {
+    e.preventDefault();
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      await authApi.requestPasswordReset(email.trim().toLowerCase());
+      setSuccessMessage("If an account exists for that email, a reset link is on its way.");
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "We could not request a password reset.");
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -111,15 +124,15 @@ function AuthPage() {
         <Logo />
         <div className="mx-auto w-full max-w-sm">
           {!verificationStep ? <>
-            <span className="font-mono text-xs uppercase tracking-widest text-primary">{mode === "signin" ? "Welcome back" : "Get started"}</span>
-            <h1 className="mt-2 font-display text-3xl font-semibold text-gradient">{mode === "signin" ? "Return to the console." : "Create your workspace."}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{mode === "signin" ? "Sign in to see your latest runs and evidence." : "Name your workspace, create your account, then verify your email before entering Matrix QA."}</p>
+            <span className="font-mono text-xs uppercase tracking-widest text-primary">{recoveryMode ? "Account recovery" : mode === "signin" ? "Welcome back" : "Get started"}</span>
+            <h1 className="mt-2 font-display text-3xl font-semibold text-gradient">{recoveryMode ? "Reset your password." : mode === "signin" ? "Return to the console." : "Create your workspace."}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{recoveryMode ? "Enter your work email and we will send a single-use reset link." : mode === "signin" ? "Sign in to see your latest runs and evidence." : "Name your workspace, create your account, then verify your email before entering Matrix QA."}</p>
             <div className="mt-8 grid gap-2">
               <button type="button" disabled className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-border bg-surface/40 py-2.5 text-sm font-medium text-muted-foreground opacity-80"><Github className="h-4 w-4" />GitHub sign-in · coming later</button>
               <button type="button" disabled className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-border bg-surface/40 py-2.5 text-sm font-medium text-muted-foreground opacity-80"><GoogleIcon />Google sign-in · coming later</button>
             </div>
             <div className="my-6 flex items-center gap-3"><span className="h-px flex-1 bg-border" /><span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">or</span><span className="h-px flex-1 bg-border" /></div>
-            <form onSubmit={handleSubmit} className="space-y-3">
+            {recoveryMode ? <form onSubmit={handleRequestReset} className="space-y-3"><Field label="Work email" type="email" placeholder="jane@company.com" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /><button type="submit" disabled={!email} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">Send reset link <ArrowRight className="h-4 w-4" /></button><button type="button" onClick={() => { setRecoveryMode(false); setErrorMessage(""); setSuccessMessage(""); }} className="w-full text-xs text-muted-foreground hover:text-foreground">Back to sign in</button></form> : <form onSubmit={handleSubmit} className="space-y-3">
               {errorMessage && <ErrorNotice>{errorMessage}</ErrorNotice>}
               {successMessage && <SuccessNotice>{successMessage}</SuccessNotice>}
               {mode === "signup" && <>
@@ -129,7 +142,8 @@ function AuthPage() {
               <Field label="Work email" type="email" placeholder="jane@company.com" icon={<Mail className="h-4 w-4" />} autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
               <Field label="Password" type="password" placeholder="••••••••" autoComplete={mode === "signin" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
               <button type="submit" disabled={isLoading || !email || !password || (mode === "signup" && (!fullName || !workspaceName))} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50">{isLoading && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "signin" ? "Sign in" : "Create workspace"}{!isLoading && <ArrowRight className="h-4 w-4" />}</button>
-            </form>
+            </form>}
+            {!recoveryMode && mode === "signin" && <button type="button" onClick={() => { setRecoveryMode(true); setErrorMessage(""); setSuccessMessage(""); }} className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-primary">Forgot your password?</button>}
             <p className="mt-6 text-center text-sm text-muted-foreground">{mode === "signin" ? "New to Matrix QA?" : "Already have an account?"}{" "}<button type="button" onClick={switchMode} className="text-primary hover:underline">{mode === "signin" ? "Create an account" : "Sign in"}</button></p>
           </> : <VerificationPanel email={verificationEmail} code={verificationCode} loading={isLoading} error={errorMessage} success={successMessage} onCodeChange={handleCodeChange} onSubmit={handleVerify} onBack={backToSignup} />}
         </div>

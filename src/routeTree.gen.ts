@@ -22,6 +22,8 @@ import { Route as AppProjectsRouteImport } from './routes/app.projects'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppRunsRouteImport } from './routes/app.runs'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AuthConfirmEmailRouteImport } from './routes/auth.confirm-email'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AppRunsIndexRouteImport } from './routes/app.runs.index'
 import { Route as AppRunsRunIdRouteImport } from './routes/app.runs.$runId'
 import { Route as AppSettingsBillingRouteImport } from './routes/app.settings.billing'
@@ -92,6 +94,16 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AuthConfirmEmailRoute = AuthConfirmEmailRouteImport.update({
+  id: '/confirm-email',
+  path: '/confirm-email',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AppRunsIndexRoute = AppRunsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -116,7 +128,7 @@ const AppSettingsOrganizationRoute = AppSettingsOrganizationRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/sample-report': typeof SampleReportRoute
@@ -126,6 +138,8 @@ export interface FileRoutesByFullPath {
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
   '/app/settings': typeof AppSettingsRouteWithChildren
+  '/auth/confirm-email': typeof AuthConfirmEmailRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/app/': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
@@ -134,7 +148,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/sample-report': typeof SampleReportRoute
@@ -143,6 +157,8 @@ export interface FileRoutesByTo {
   '/app/projects': typeof AppProjectsRoute
   '/app/reports': typeof AppReportsRoute
   '/app/settings': typeof AppSettingsRouteWithChildren
+  '/auth/confirm-email': typeof AuthConfirmEmailRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/app': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
@@ -153,7 +169,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/sample-report': typeof SampleReportRoute
@@ -163,6 +179,8 @@ export interface FileRoutesById {
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
   '/app/settings': typeof AppSettingsRouteWithChildren
+  '/auth/confirm-email': typeof AuthConfirmEmailRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/app/': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
@@ -184,6 +202,8 @@ export interface FileRouteTypes {
     | '/app/reports'
     | '/app/runs'
     | '/app/settings'
+    | '/auth/confirm-email'
+    | '/auth/reset-password'
     | '/app/'
     | '/app/runs/$runId'
     | '/app/settings/billing'
@@ -201,6 +221,8 @@ export interface FileRouteTypes {
     | '/app/projects'
     | '/app/reports'
     | '/app/settings'
+    | '/auth/confirm-email'
+    | '/auth/reset-password'
     | '/app'
     | '/app/runs/$runId'
     | '/app/settings/billing'
@@ -220,6 +242,8 @@ export interface FileRouteTypes {
     | '/app/reports'
     | '/app/runs'
     | '/app/settings'
+    | '/auth/confirm-email'
+    | '/auth/reset-password'
     | '/app/'
     | '/app/runs/$runId'
     | '/app/settings/billing'
@@ -230,7 +254,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   FaqRoute: typeof FaqRoute
   PricingRoute: typeof PricingRoute
   SampleReportRoute: typeof SampleReportRoute
@@ -329,6 +353,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/auth/confirm-email': {
+      id: '/auth/confirm-email'
+      path: '/confirm-email'
+      fullPath: '/auth/confirm-email'
+      preLoaderRoute: typeof AuthConfirmEmailRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/app/runs/': {
       id: '/app/runs/'
       path: '/'
@@ -409,10 +447,22 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface AuthRouteChildren {
+  AuthConfirmEmailRoute: typeof AuthConfirmEmailRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthConfirmEmailRoute: AuthConfirmEmailRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   FaqRoute: FaqRoute,
   PricingRoute: PricingRoute,
   SampleReportRoute: SampleReportRoute,
