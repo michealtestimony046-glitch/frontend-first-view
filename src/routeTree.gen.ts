@@ -27,6 +27,8 @@ import { Route as AppRunsRouteImport } from './routes/app.runs'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AuthConfirmEmailRouteImport } from './routes/auth.confirm-email'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
+import { Route as StaffInvitationsAcceptRouteImport } from './routes/staff-invitations.accept'
+import { Route as StaffInvitationsDeclineRouteImport } from './routes/staff-invitations.decline'
 import { Route as AppRunsIndexRouteImport } from './routes/app.runs.index'
 import { Route as AppRunsRunIdRouteImport } from './routes/app.runs.$runId'
 import { Route as AppSettingsBillingRouteImport } from './routes/app.settings.billing'
@@ -122,6 +124,16 @@ const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => AuthRoute,
 } as any)
+const StaffInvitationsAcceptRoute = StaffInvitationsAcceptRouteImport.update({
+  id: '/staff-invitations/accept',
+  path: '/staff-invitations/accept',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffInvitationsDeclineRoute = StaffInvitationsDeclineRouteImport.update({
+  id: '/staff-invitations/decline',
+  path: '/staff-invitations/decline',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRunsIndexRoute = AppRunsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -161,6 +173,8 @@ export interface FileRoutesByFullPath {
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/staff-invitations/accept': typeof StaffInvitationsAcceptRoute
+  '/staff-invitations/decline': typeof StaffInvitationsDeclineRoute
   '/app/': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
@@ -183,6 +197,8 @@ export interface FileRoutesByTo {
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/staff-invitations/accept': typeof StaffInvitationsAcceptRoute
+  '/staff-invitations/decline': typeof StaffInvitationsDeclineRoute
   '/app': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
@@ -208,6 +224,8 @@ export interface FileRoutesById {
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/staff-invitations/accept': typeof StaffInvitationsAcceptRoute
+  '/staff-invitations/decline': typeof StaffInvitationsDeclineRoute
   '/app/': typeof AppIndexRoute
   '/app/runs/$runId': typeof AppRunsRunIdRoute
   '/app/settings/billing': typeof AppSettingsBillingRoute
@@ -234,6 +252,8 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/auth/confirm-email'
     | '/auth/reset-password'
+    | '/staff-invitations/accept'
+    | '/staff-invitations/decline'
     | '/app/'
     | '/app/runs/$runId'
     | '/app/settings/billing'
@@ -256,6 +276,8 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/auth/confirm-email'
     | '/auth/reset-password'
+    | '/staff-invitations/accept'
+    | '/staff-invitations/decline'
     | '/app'
     | '/app/runs/$runId'
     | '/app/settings/billing'
@@ -280,6 +302,8 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/auth/confirm-email'
     | '/auth/reset-password'
+    | '/staff-invitations/accept'
+    | '/staff-invitations/decline'
     | '/app/'
     | '/app/runs/$runId'
     | '/app/settings/billing'
@@ -295,6 +319,8 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   PricingRoute: typeof PricingRoute
   SampleReportRoute: typeof SampleReportRoute
+  StaffInvitationsAcceptRoute: typeof StaffInvitationsAcceptRoute
+  StaffInvitationsDeclineRoute: typeof StaffInvitationsDeclineRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -425,6 +451,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthResetPasswordRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/staff-invitations/accept': {
+      id: '/staff-invitations/accept'
+      path: '/staff-invitations/accept'
+      fullPath: '/staff-invitations/accept'
+      preLoaderRoute: typeof StaffInvitationsAcceptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff-invitations/decline': {
+      id: '/staff-invitations/decline'
+      path: '/staff-invitations/decline'
+      fullPath: '/staff-invitations/decline'
+      preLoaderRoute: typeof StaffInvitationsDeclineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/runs/': {
       id: '/app/runs/'
       path: '/'
@@ -529,6 +569,8 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   PricingRoute: PricingRoute,
   SampleReportRoute: SampleReportRoute,
+  StaffInvitationsAcceptRoute: StaffInvitationsAcceptRoute,
+  StaffInvitationsDeclineRoute: StaffInvitationsDeclineRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
