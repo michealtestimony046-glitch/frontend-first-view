@@ -26,7 +26,9 @@ function AuthRoute() {
 
 function AuthPage() {
   const search = Route.useSearch();
-  const [mode, setMode] = useState<"signin" | "signup">(search.mode);
+  const adminSignInOnly = search.returnTo === "/admin";
+  const [selectedMode, setSelectedMode] = useState<"signin" | "signup">(search.mode);
+  const mode: "signin" | "signup" = adminSignInOnly ? "signin" : selectedMode;
 
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
@@ -121,7 +123,13 @@ function AuthPage() {
 
   const handleCodeChange = (value: string) => { setVerificationCode(value.replace(/\D/g, "").slice(0, 6)); setErrorMessage(""); };
   const backToSignup = () => { setVerificationStep(false); setVerificationCode(""); setErrorMessage(""); setSuccessMessage(""); };
-  const switchMode = () => { setMode((current) => current === "signin" ? "signup" : "signin"); setVerificationStep(false); setErrorMessage(""); setSuccessMessage(""); };
+  const switchMode = () => {
+    if (adminSignInOnly) return;
+    setSelectedMode((current) => current === "signin" ? "signup" : "signin");
+    setVerificationStep(false);
+    setErrorMessage("");
+    setSuccessMessage("");
+  };
 
   return (
     <div className="grid min-h-screen bg-background md:grid-cols-2">
@@ -129,9 +137,9 @@ function AuthPage() {
         <Logo />
         <div className="mx-auto w-full max-w-sm">
           {!verificationStep ? <>
-            <span className="font-mono text-xs uppercase tracking-widest text-primary">{recoveryMode ? "Account recovery" : mode === "signin" ? "Welcome back" : "Get started"}</span>
-            <h1 className="mt-2 font-display text-3xl font-semibold text-gradient">{recoveryMode ? "Reset your password." : mode === "signin" ? "Return to the console." : "Create your workspace."}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{recoveryMode ? "Enter your work email and we will send a single-use reset link." : mode === "signin" ? "Sign in to see your latest runs and evidence." : "Name your workspace, create your account, then verify your email before entering Matrix QA."}</p>
+            <span className="font-mono text-xs uppercase tracking-widest text-primary">{recoveryMode ? "Account recovery" : adminSignInOnly ? "Matrix QA staff" : mode === "signin" ? "Welcome back" : "Get started"}</span>
+            <h1 className="mt-2 font-display text-3xl font-semibold text-gradient">{recoveryMode ? "Reset your password." : adminSignInOnly ? "Sign in to staff operations." : mode === "signin" ? "Return to the console." : "Create your workspace."}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{recoveryMode ? "Enter your work email and we will send a single-use reset link." : adminSignInOnly ? "Use an existing staff-enabled Matrix QA account. Staff access is provisioned separately; creating a customer account here will not grant staff access." : mode === "signin" ? "Sign in to see your latest runs and evidence." : "Name your workspace, create your account, then verify your email before entering Matrix QA."}</p>
             <div className="mt-8 grid gap-2">
               <button type="button" disabled className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-border bg-surface/40 py-2.5 text-sm font-medium text-muted-foreground opacity-80"><Github className="h-4 w-4" />GitHub sign-in · coming later</button>
               <button type="button" disabled className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-border bg-surface/40 py-2.5 text-sm font-medium text-muted-foreground opacity-80"><GoogleIcon />Google sign-in · coming later</button>
@@ -149,7 +157,7 @@ function AuthPage() {
               <button type="submit" disabled={isLoading || !email || !password || (mode === "signup" && (!fullName || !workspaceName))} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50">{isLoading && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "signin" ? "Sign in" : "Create workspace"}{!isLoading && <ArrowRight className="h-4 w-4" />}</button>
             </form>}
             {!recoveryMode && mode === "signin" && <button type="button" onClick={() => { setRecoveryMode(true); setErrorMessage(""); setSuccessMessage(""); }} className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-primary">Forgot your password?</button>}
-            <p className="mt-6 text-center text-sm text-muted-foreground">{mode === "signin" ? "New to Matrix QA?" : "Already have an account?"}{" "}<button type="button" onClick={switchMode} className="text-primary hover:underline">{mode === "signin" ? "Create an account" : "Sign in"}</button></p>
+            {!adminSignInOnly && <p className="mt-6 text-center text-sm text-muted-foreground">{mode === "signin" ? "New to Matrix QA?" : "Already have an account?"}{" "}<button type="button" onClick={switchMode} className="text-primary hover:underline">{mode === "signin" ? "Create an account" : "Sign in"}</button></p>}
           </> : <VerificationPanel email={verificationEmail} code={verificationCode} loading={isLoading} error={errorMessage} success={successMessage} onCodeChange={handleCodeChange} onSubmit={handleVerify} onBack={backToSignup} />}
         </div>
         <p className="font-mono text-[11px] text-muted-foreground"><Link to="/" className="hover:text-foreground">← back to matrixqa.dev</Link></p>
