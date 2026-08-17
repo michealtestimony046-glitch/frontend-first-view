@@ -688,7 +688,7 @@ function buildReportMarkdown(report: RunReport, runId: string) {
     }
   }
 
-  return lines.join("\\n");
+  return lines.join("\n");
 }
 
 function eventLabel(e: {
