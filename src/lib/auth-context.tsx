@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { authApi, getAuthToken, clearAuthToken } from './api-client';
+import { authApi, getAuthToken, clearAuthToken, clearClientWorkspaceContext } from './api-client';
 
 const AUTH_EVENT = 'matrix-qa-auth-changed';
 
@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const token = getAuthToken();
       if (!token) {
+        clearClientWorkspaceContext();
         setUser(null);
         return;
       }

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
   Activity,
@@ -51,8 +51,13 @@ export const Route = createFileRoute("/app/")({
 
 function AppDashboard() {
   const live = useLivePortfolio();
-  const [url, setUrl] = useState(live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "https://portal.trlabs.tech/");
+  const [url, setUrl] = useState("");
   const [showRunModal, setShowRunModal] = useState(false);
+
+  useEffect(() => {
+    if (!showRunModal || !live.activeProject) return;
+    setUrl((current) => current.trim() ? current : live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "");
+  }, [live.activeProject, showRunModal]);
   const [utilityPanel, setUtilityPanel] = useState<"notifications" | "help" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
@@ -513,7 +518,7 @@ function AppDashboard() {
                 type="button"
                 onClick={() => {
                   setRunError(null);
-                  setUrl(latestRun?.targetUrl ?? live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "https://portal.trlabs.tech/");
+                  setUrl(latestRun?.targetUrl ?? live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "");
                   setShowRunModal(true);
                 }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
@@ -565,11 +570,17 @@ function AppDashboard() {
                   <input
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://your-app.com"
-                    className="w-full rounded-md border border-border bg-surface-2/60 py-2.5 pl-9 pr-3 font-mono text-sm focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    placeholder={live.activeProject ? "https://your-app.com" : "Create or select a project first"}
+                    disabled={!live.activeProject}
+                    className="w-full rounded-md border border-border bg-surface-2/60 py-2.5 pl-9 pr-3 font-mono text-sm focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
               </label>
+              {!live.activeProject && (
+                <div className="rounded-md border border-border bg-surface-2/60 p-3 text-xs text-muted-foreground">
+                  No project is selected for this account. Create a project first; Matrix QA will not use a target from another workspace.
+                </div>
+              )}
               <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
                 {["login", "signup", "navigation", "forms"].map((s) => (
                   <span
@@ -615,7 +626,7 @@ function AppDashboard() {
                 </button>
                 <button
                   type="submit"
-                  disabled={usage.atCap || isSubmitting}
+                  disabled={usage.atCap || isSubmitting || !live.activeProject || !url.trim()}
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
                 >
                   {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
