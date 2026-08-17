@@ -24,7 +24,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = async () => {
-    setIsLoading(true);
+    const blockAppWhileLoading = !user;
+    if (blockAppWhileLoading) setIsLoading(true);
     try {
       const token = getAuthToken();
       if (!token) {
@@ -38,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       clearAuthToken();
       setUser(null);
     } finally {
-      setIsLoading(false);
+      if (blockAppWhileLoading) setIsLoading(false);
     }
   };
 

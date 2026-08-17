@@ -130,6 +130,7 @@ function ProfileTab() {
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setName(user?.fullName || ""), [user?.fullName]);
@@ -151,7 +152,7 @@ function ProfileTab() {
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setBusy(true);
+    setAvatarBusy(true);
     try {
       await usersApi.uploadAvatar(file);
       await refreshUser();
@@ -159,7 +160,7 @@ function ProfileTab() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not upload your avatar.");
     } finally {
-      setBusy(false);
+      setAvatarBusy(false);
       event.target.value = "";
     }
   };
@@ -201,7 +202,7 @@ function ProfileTab() {
         <div className="space-y-5 p-5">
           <div className="flex items-center gap-4">
             {user?.avatarUrl ? <img src={user.avatarUrl} alt="Profile avatar" className="h-14 w-14 rounded-full object-cover" /> : <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/70 to-primary/20 font-mono text-lg font-semibold text-primary-foreground">{initials}</div>}
-            <div><div className="text-sm font-medium">{displayName}</div><div className="text-xs text-muted-foreground">PNG, JPEG, or WebP up to 2 MB.</div><div className="mt-2 flex gap-2"><button type="button" onClick={() => fileRef.current?.click()} className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent">Upload avatar</button>{user?.avatarUrl && <button type="button" onClick={async () => { await usersApi.removeAvatar(); await refreshUser(); setMessage("Avatar removed."); }} className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent">Remove</button>}<input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadAvatar} className="hidden" /></div></div>
+            <div><div className="text-sm font-medium">{displayName}</div><div className="text-xs text-muted-foreground">PNG, JPEG, or WebP up to 2 MB.</div><div className="mt-2 flex gap-2"><button type="button" disabled={avatarBusy} onClick={() => fileRef.current?.click()} className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-60">{avatarBusy ? "Updating…" : "Upload avatar"}</button>{user?.avatarUrl && <button type="button" disabled={avatarBusy} onClick={async () => { setAvatarBusy(true); try { await usersApi.removeAvatar(); await refreshUser(); setMessage("Avatar removed."); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not remove your avatar."); } finally { setAvatarBusy(false); } }} className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent disabled:opacity-60">{avatarBusy ? "Updating…" : "Remove"}</button>}<input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadAvatar} disabled={avatarBusy} className="hidden" /></div></div>
           </div>
           <form onSubmit={saveName} className="space-y-3"><label className="block"><span className="mb-1.5 block text-xs font-medium">Full name</span><input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary" /></label><button disabled={busy} className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60">Save profile</button></form>
           <Field label="Email" value={user?.email || "Unavailable"} readonly />
