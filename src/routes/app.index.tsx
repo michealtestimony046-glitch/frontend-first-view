@@ -519,7 +519,15 @@ function AppDashboard() {
                   Download
                 </button>
               </div>
-              <button className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent">
+              <button
+                type="button"
+                onClick={() => {
+                  setRunError(null);
+                  setUrl(latestRun?.targetUrl ?? live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "https://portal.trlabs.tech/");
+                  setShowRunModal(true);
+                }}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+              >
                 <RotateCw className="h-4 w-4" />
                 Rerun Test
               </button>
