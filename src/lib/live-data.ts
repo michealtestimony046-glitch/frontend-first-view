@@ -279,4 +279,3 @@ export const runNumber = (runs: LiveRun[], id: string) => {
   const index = runs.findIndex((run) => run.id === id);
   return index >= 0 ? `#${runs.length - index}` : "#—";
 };
-EOF
