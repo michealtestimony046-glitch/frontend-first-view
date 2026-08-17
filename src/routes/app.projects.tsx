@@ -348,16 +348,26 @@ function NewProjectDrawer({
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!name.trim() || !url.trim()) return;
+    const trimmedName = name.trim();
+    const trimmedUrl = url.trim();
+    if (!trimmedName || !trimmedUrl) {
+      setError("Project name and target URL are required.");
+      return;
+    }
+    const urlError = validateTargetUrl(trimmedUrl);
+    if (urlError) {
+      setError(urlError);
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     try {
       const created = await projectsApi.create({
         organizationId,
         workspaceId,
-        name: name.trim(),
+        name: trimmedName,
         description: description.trim() || undefined,
-        defaultTargetUrl: url.trim(),
+        defaultTargetUrl: trimmedUrl,
       });
       onCreated(created);
     } catch (cause) {
@@ -411,6 +421,7 @@ function NewProjectDrawer({
               Target base URL
             </span>
             <input
+              type="url"
               value={url}
               onChange={(event) => setUrl(event.target.value)}
               placeholder="https://staging.your-app.com"
@@ -448,6 +459,18 @@ function NewProjectDrawer({
       </form>
     </div>
   );
+}
+
+function validateTargetUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
+      return "Target URL must use a valid http:// or https:// address.";
+    }
+    return null;
+  } catch {
+    return "Target URL must use a valid http:// or https:// address.";
+  }
 }
 
 function toMessage(cause: unknown, fallback: string) {
