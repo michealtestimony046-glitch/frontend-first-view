@@ -27,7 +27,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { runsApi, type RunStatus } from "@/lib/api-client";
+import { runsApi, type RunReport, type RunStatus } from "@/lib/api-client";
 import {
   formatLiveDate,
   formatLiveDuration,
@@ -76,6 +76,43 @@ function AppDashboard() {
     issues: latestReport?.bugs ?? latestReport?.summary?.bugCount ?? 0,
   };
   const usage = { used: total, cap: Number.POSITIVE_INFINITY, atCap: false };
+
+  const downloadLatestReport = () => {
+    if (!latestRun) return;
+    const report = latestReport as RunReport | undefined;
+    const lines = [
+      `# Matrix QA run ${latestRun.id}`,
+      "",
+      `- Status: ${latestRun.status}`,
+      `- Target URL: ${latestRun.targetUrl ?? "—"}`,
+      `- Started: ${latestRun.startedAt ?? latestRun.createdAt ?? "—"}`,
+      `- Duration: ${formatLiveDuration(report?.durationSec)}`,
+      `- Bugs captured: ${report?.bugs ?? report?.summary?.bugCount ?? 0}`,
+      `- Screenshots: ${(report?.screenshots ?? []).length}`,
+      `- Events: ${(report?.events ?? []).length}`,
+    ];
+    if (latestRun.errorMessage || report?.errorMessage) {
+      lines.push("", `> Diagnostic: ${latestRun.errorMessage ?? report?.errorMessage}`);
+    }
+    const errors = report?.errors ?? [];
+    lines.push("", "## Hard errors");
+    if (!errors.length) {
+      lines.push("", "No hard errors captured.");
+    } else {
+      for (const error of errors) {
+        lines.push("", `- ${error.subtype}: ${error.message}`);
+      }
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `matrixqa-dashboard-run-${latestRun.id}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(href);
+  };
 
   const handleStartRun = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,7 +227,7 @@ function AppDashboard() {
               Recent Test Runs
             </h2>
             <Link
-              to="/app"
+              to="/app/runs"
               className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:opacity-80"
             >
               View all <ChevronRight className="h-3.5 w-3.5" />
@@ -342,7 +379,7 @@ function AppDashboard() {
               <p className="text-[11px] text-muted-foreground">Last 7 days</p>
             </div>
             <Link
-              to="/app"
+              to="/app/issues"
               className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:opacity-80"
             >
               View all Issues <ChevronRight className="h-3.5 w-3.5" />
@@ -472,7 +509,12 @@ function AppDashboard() {
                 ) : (
                   <span className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">No runs yet</span>
                 )}
-                <button className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent">
+                <button
+                  type="button"
+                  onClick={downloadLatestReport}
+                  disabled={!latestRun || !latestReport}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                >
                   <Download className="h-4 w-4" />
                   Download
                 </button>
