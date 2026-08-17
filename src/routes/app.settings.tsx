@@ -10,7 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation, useMatches } from "@tanstack/react-router";
 import { z } from "zod";
 
 const searchSchema = z.object({
