@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as SampleReportRouteImport } from './routes/sample-report'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppIssuesRouteImport } from './routes/app.issues'
@@ -40,9 +42,19 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SampleReportRoute = SampleReportRouteImport.update({
+  id: '/sample-report',
+  path: '/sample-report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -105,7 +117,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
+  '/sample-report': typeof SampleReportRoute
   '/app/audit': typeof AppAuditRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/projects': typeof AppProjectsRoute
@@ -121,7 +135,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
+  '/sample-report': typeof SampleReportRoute
   '/app/audit': typeof AppAuditRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/projects': typeof AppProjectsRoute
@@ -138,7 +154,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
+  '/sample-report': typeof SampleReportRoute
   '/app/audit': typeof AppAuditRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/projects': typeof AppProjectsRoute
@@ -157,7 +175,9 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
+    | '/faq'
     | '/pricing'
+    | '/sample-report'
     | '/app/audit'
     | '/app/issues'
     | '/app/projects'
@@ -173,7 +193,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/faq'
     | '/pricing'
+    | '/sample-report'
     | '/app/audit'
     | '/app/issues'
     | '/app/projects'
@@ -189,7 +211,9 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
+    | '/faq'
     | '/pricing'
+    | '/sample-report'
     | '/app/audit'
     | '/app/issues'
     | '/app/projects'
@@ -207,7 +231,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
+  FaqRoute: typeof FaqRoute
   PricingRoute: typeof PricingRoute
+  SampleReportRoute: typeof SampleReportRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -233,11 +259,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pricing': {
       id: '/pricing'
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sample-report': {
+      id: '/sample-report'
+      path: '/sample-report'
+      fullPath: '/sample-report'
+      preLoaderRoute: typeof SampleReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -373,7 +413,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
+  FaqRoute: FaqRoute,
   PricingRoute: PricingRoute,
+  SampleReportRoute: SampleReportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

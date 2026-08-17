@@ -1,16 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
 import {
   ArrowRight,
   Check,
   CheckCircle2,
-  ChevronDown,
   FileSearch,
   Lock,
   Sparkles,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { PREVIEW_INCLUSIONS, ROADMAP } from "@/lib/mock-data";
+import { LaunchConsoleLink } from "@/components/launch-console-link";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -41,7 +40,7 @@ type ComingPlan = {
   audience: string;
   features: string[];
   cta: string;
-};
+}
 
 const comingPlans: ComingPlan[] = [
   {
@@ -109,41 +108,6 @@ const comingPlans: ComingPlan[] = [
   },
 ];
 
-const faqs = [
-  {
-    q: "Is Preview really free?",
-    a: "Yes. Matrix QA is free during v1 Public Preview. No credit card, no checkout, no trial expiry. We're validating the Core Engine with early developers.",
-  },
-  {
-    q: "Why call it Preview instead of a free trial?",
-    a: "A trial implies a finished product you're evaluating. Matrix QA v1 is the Core Engine — you're joining an evolving product, closer to Linear, Vercel, or Supabase early access than a polished SaaS free tier.",
-  },
-  {
-    q: "What happens when v2 ships?",
-    a: "The Preview card retires and Starter ($49/mo) launches. We'll keep a limited free tier so you can continue running scans; existing Preview workspaces get notice and a grace period before quota rules change.",
-  },
-  {
-    q: "Are there usage limits today?",
-    a: "Soft cap of 250 total test runs per workspace during Preview. Limits may change as we tune worker capacity — we'll always tell you before we tighten them.",
-  },
-  {
-    q: "What does Matrix QA actually do in v1?",
-    a: "It walks your critical user journeys — login, signup, navigation, forms — and streams screenshots, console logs, network activity, and timestamps into an evidence-grade report. Only hard failures (uncaught JS, non-2xx/3xx, failed selectors) are surfaced.",
-  },
-  {
-    q: "How do I get more allocation?",
-    a: "Preview allocation changes are handled manually. Contact the Matrix QA team through your agreed internal channel with your expected workload, and we'll review additional capacity during Preview.",
-  },
-  {
-    q: "Do you store the test data or credentials I use?",
-    a: "Every run and every piece of evidence is isolated behind strict workspace UUID guards from day one. Credentials you enter for a scan are used to drive the browser worker and are not shared across workspaces.",
-  },
-  {
-    q: "Is there an API, CLI, or GitHub integration?",
-    a: "Not in v1. CLI ships in V6, GitHub in V7, and broader AI integrations in V8. The web console is the only entry point today.",
-  },
-];
-
 function PricingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -168,17 +132,12 @@ function PricingPage() {
           <div className="flex items-center gap-2">
             <Link
               to="/auth"
+              search={{ mode: "signin", returnTo: "/app" }}
               className="hidden rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground md:inline-flex"
             >
-              Sign in
+              Already a user? Sign in
             </Link>
-            <Link
-              to="/app"
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              Launch console
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            <LaunchConsoleLink className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90" />
           </div>
         </div>
       </header>
@@ -221,8 +180,7 @@ function PricingPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              to="/app/runs/$runId"
-              params={{ runId: "run_9f2c" }}
+              to="/sample-report"
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
             >
               <FileSearch className="h-4 w-4" />
@@ -405,22 +363,14 @@ function PricingPage() {
         </div>
       </section>
 
-      {/* FAQ */}
       <section className="border-t border-border bg-surface/30">
-        <div className="mx-auto max-w-3xl px-6 py-16 md:py-20">
-          <div className="mb-8 text-center">
-            <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
-              Frequently asked
-            </span>
-            <h2 className="mt-3 font-display text-2xl font-semibold md:text-3xl">
-              Questions developers ask us first.
-            </h2>
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-5 px-6 py-12">
+          <div>
+            <span className="font-mono text-[11px] uppercase tracking-widest text-primary">Need answers?</span>
+            <h2 className="mt-2 font-display text-2xl font-semibold">Read the living FAQ.</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Usage, evidence, Preview, and what is planned next.</p>
           </div>
-          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface/50">
-            {faqs.map((f, i) => (
-              <FaqItem key={f.q} q={f.q} a={f.a} defaultOpen={i === 0} />
-            ))}
-          </div>
+          <Link to="/faq" className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent">Open FAQ <ArrowRight className="h-4 w-4" /></Link>
         </div>
       </section>
 
@@ -442,8 +392,7 @@ function PricingPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              to="/app/runs/$runId"
-              params={{ runId: "run_9f2c" }}
+              to="/sample-report"
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
             >
               <FileSearch className="h-4 w-4" />
@@ -460,36 +409,5 @@ function PricingPage() {
         </div>
       </footer>
     </div>
-  );
-}
-
-function FaqItem({
-  q,
-  a,
-  defaultOpen,
-}: {
-  q: string;
-  a: string;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(!!defaultOpen);
-  return (
-    <details
-      open={open}
-      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
-      className="group"
-    >
-      <summary className="flex cursor-pointer items-center justify-between gap-4 px-5 py-4 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
-        <span>{q}</span>
-        <ChevronDown
-          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </summary>
-      <div className="px-5 pb-4 text-sm leading-relaxed text-muted-foreground">
-        {a}
-      </div>
-    </details>
   );
 }

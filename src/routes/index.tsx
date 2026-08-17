@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { BrowserFrame } from "@/components/browser-frame";
+import { LaunchConsoleLink } from "@/components/launch-console-link";
 
 export const Route = createFileRoute("/")({
   component: Landing,
@@ -52,17 +53,12 @@ function Landing() {
             </Link>
             <Link
               to="/auth"
+              search={{ mode: "signin", returnTo: "/app" }}
               className="hidden rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground md:inline-flex"
             >
-              Sign in
+              Already a user? Sign in
             </Link>
-            <Link
-              to="/app"
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              Launch console
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            <LaunchConsoleLink className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90" />
           </div>
         </div>
       </header>
@@ -94,14 +90,14 @@ function Landing() {
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
                 to="/auth"
+                search={{ mode: "signup", returnTo: "/app" }}
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow transition-transform hover:-translate-y-px"
               >
                 <Play className="h-4 w-4" />
                 Run your first scan
               </Link>
               <Link
-                to="/app/runs/$runId"
-                params={{ runId: "run_9f2c" }}
+                to="/sample-report"
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
               >
                 <FileSearch className="h-4 w-4" />
