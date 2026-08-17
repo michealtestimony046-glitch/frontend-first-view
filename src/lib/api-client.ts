@@ -305,6 +305,7 @@ export interface V2Scenario {
   expectedOutcome: string;
   priority: number;
   status: V2CaseStatus;
+  caseStatus?: V2CaseStatus | null;
   steps?: unknown;
   locators?: unknown;
   result?: unknown;
@@ -353,6 +354,7 @@ export interface RunReport {
   finalVideo?: string | null;
   rawVideo?: string | null;
   artifactStatus?: ArtifactStatus;
+  v2Plan?: V2TestPlan | null;
   evidenceLog?: string | null;
   auditLog?: string | null;
   homepage?: string | null;

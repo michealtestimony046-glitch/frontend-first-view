@@ -18,7 +18,14 @@ import {
   Terminal,
   XCircle,
 } from "lucide-react";
-import { runsApi, type RunError, type RunReport } from "@/lib/api-client";
+import {
+  runsApi,
+  type RunError,
+  type RunReport,
+  type V2PolicyDecision,
+  type V2Scenario,
+  type V2TestPlan,
+} from "@/lib/api-client";
 
 export const Route = createFileRoute("/app/runs/$runId")({
   head: ({ params }) => ({
@@ -50,6 +57,15 @@ function reportSummary(r: RunReport) {
     hardErrorCount: 0,
     bugCount: 0,
   };
+  if (r.v2Plan) {
+    const outcomes = r.v2Plan.scenarios.map((scenario) => scenario.caseStatus ?? scenario.status);
+    return {
+      passed: outcomes.filter((status) => status === "PASSED").length,
+      failed: outcomes.filter((status) => status === "FAILED" || status === "BLOCKED").length,
+      bugs: r.bugs ?? s.bugCount,
+      scenarios: r.v2Plan.scenarios.length,
+    };
+  }
   return {
     passed: r.passed ?? s.assertionsPassed,
     failed: r.failed ?? s.assertionsFailed,
@@ -258,6 +274,8 @@ function RunDetailPage() {
         </div>
 
         {videoUrl ? <EvidenceVideo report={report} url={videoUrl} /> : <EvidenceStatus report={report} />}
+        <ExecutionStatusNotice report={report} />
+        {report.v2Plan && <V2PlanResults plan={report.v2Plan} />}
 
         <div className="mt-8 -mx-4 overflow-x-auto border-b border-border md:mx-0">
           <div className="flex min-w-max items-center gap-1 px-4 md:min-w-0 md:px-0">
@@ -297,6 +315,119 @@ function RunDetailPage() {
       </div>
     </div>
   );
+}
+
+function ExecutionStatusNotice({ report }: { report: RunReport }) {
+  if (!report.v2Plan) return null;
+  const videoStatus = report.artifactStatus?.video?.status ?? "not_available";
+  const message = report.incomplete
+    ? "Execution in progress"
+    : report.status === "COMPLETED" && videoStatus !== "ready"
+      ? "Execution complete; processing report"
+      : videoStatus === "failed"
+        ? "Raw evidence preserved"
+        : videoStatus !== "ready"
+          ? "Video processing"
+          : "Execution complete";
+  const complete = message === "Execution complete";
+  return (
+    <div className="mt-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+      <span className={`h-1.5 w-1.5 rounded-full ${complete ? "bg-success" : "animate-pulse bg-primary"}`} />
+      <span className={complete ? "text-success" : "text-muted-foreground"}>{message}</span>
+      <span className="text-border">·</span>
+      <span>V2 adaptive run</span>
+    </div>
+  );
+}
+
+function V2PlanResults({ plan }: { plan: V2TestPlan }) {
+  const allowed = plan.policyDecisions.filter((decision) => decision.status === "ALLOWED" || decision.status === "APPROVED").length;
+  const blocked = plan.policyDecisions.filter((decision) => decision.status === "BLOCKED" || decision.status === "REJECTED").length;
+  return (
+    <section className="mt-8 surface-card overflow-hidden">
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-primary">V2 application-aware plan</p>
+            <h2 className="mt-1 font-display text-lg font-semibold">{plan.name}</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider">
+            <PlanBadge label={plan.mode.replaceAll("_", " ")} tone="neutral" />
+            <PlanBadge label={plan.status} tone={plan.status === "COMPLETED" ? "success" : "neutral"} />
+            {plan.estimatedUnits != null && <PlanBadge label={`${plan.estimatedUnits} units est.`} tone="neutral" />}
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {plan.scenarios.length} planned scenario{plan.scenarios.length === 1 ? "" : "s"} · {allowed} policy decision{allowed === 1 ? "" : "s"} allowed · {blocked} blocked
+        </p>
+      </div>
+      <div className="grid gap-6 p-5 lg:grid-cols-[1.25fr_1fr]">
+        <div>
+          <h3 className="font-display text-sm font-semibold">Scenario outcomes</h3>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            {plan.scenarios.map((scenario) => <V2ScenarioRow key={scenario.id} scenario={scenario} />)}
+          </div>
+        </div>
+        <div>
+          <h3 className="font-display text-sm font-semibold">Policy decisions</h3>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            {plan.policyDecisions.length ? plan.policyDecisions.map((decision) => <V2PolicyRow key={decision.id} decision={decision} />) : (
+              <p className="py-4 text-xs text-muted-foreground">No policy decisions were attached to this plan.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function V2ScenarioRow({ scenario }: { scenario: V2Scenario }) {
+  const outcome = scenario.caseStatus ?? scenario.status;
+  return (
+    <div className="py-4">
+      <div className="flex flex-wrap items-start gap-2">
+        <OutcomeBadge value={outcome} />
+        <span className="text-sm font-medium">{scenario.name}</span>
+        <span className="ml-auto font-mono text-[10px] text-muted-foreground">priority {scenario.priority}</span>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground"><strong className="font-medium text-foreground/80">Intent:</strong> {scenario.intent}</p>
+      <p className="mt-1 text-xs text-muted-foreground"><strong className="font-medium text-foreground/80">Expected:</strong> {scenario.expectedOutcome}</p>
+      <p className="mt-1 text-xs text-muted-foreground"><strong className="font-medium text-foreground/80">Actual:</strong> {describeScenarioResult(scenario.result)}</p>
+    </div>
+  );
+}
+
+function V2PolicyRow({ decision }: { decision: V2PolicyDecision }) {
+  const tone = decision.status === "ALLOWED" || decision.status === "APPROVED" ? "success" : decision.status === "BLOCKED" || decision.status === "REJECTED" ? "danger" : "neutral";
+  return (
+    <div className="py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <PlanBadge label={decision.tier} tone="neutral" />
+        <PlanBadge label={decision.status} tone={tone} />
+        <span className="font-mono text-[10px] text-muted-foreground">{decision.actionKey}</span>
+      </div>
+      {decision.reason && <p className="mt-1 text-xs text-muted-foreground">{decision.reason}</p>}
+    </div>
+  );
+}
+
+function describeScenarioResult(result: unknown) {
+  if (!result || typeof result !== "object") return "No terminal result recorded";
+  const record = result as Record<string, unknown>;
+  if (typeof record.actual === "string" && record.actual.trim()) return record.actual;
+  if (typeof record.message === "string" && record.message.trim()) return record.message;
+  if (typeof record.url === "string" && record.url.trim()) return `Rendered ${record.url}`;
+  return "Terminal result recorded without a textual detail";
+}
+
+function OutcomeBadge({ value }: { value: string }) {
+  const tone = value === "PASSED" ? "success" : value === "FAILED" || value === "BLOCKED" ? "danger" : "neutral";
+  return <PlanBadge label={value.replaceAll("_", " ")} tone={tone} />;
+}
+
+function PlanBadge({ label, tone }: { label: string; tone: "success" | "danger" | "neutral" }) {
+  const classes = tone === "success" ? "bg-success/15 text-success" : tone === "danger" ? "bg-destructive/15 text-destructive" : "bg-surface-2 text-muted-foreground";
+  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${classes}`}>{label}</span>;
 }
 
 function EvidenceStatus({ report }: { report: RunReport }) {
