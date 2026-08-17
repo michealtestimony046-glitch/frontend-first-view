@@ -31,6 +31,7 @@ export interface LiveIssue {
   lastSeen: string;
   message: string;
   reportId: string;
+  projectId: string;
 }
 
 export type LiveAuditCategory = "console_warning" | "network_noise" | "visual_shift";
@@ -126,6 +127,7 @@ const issueFrom = (run: LiveRun, report: RunReport, raw: unknown, index: number)
     lastSeen: formatDate(timestamp),
     message,
     reportId: run.id,
+    projectId: run.projectId,
   };
 };
 
