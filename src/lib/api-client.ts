@@ -8,12 +8,24 @@ const API_BASE_URL = (
 ).replace(/\/$/, "");
 const TOKEN_KEY = "matrix_qa_auth_token_v2";
 const AUTH_EVENT = "matrix-qa-auth-changed";
+const CLIENT_WORKSPACE_STATE_KEYS = [
+  "matrix_qa_active_organization",
+  "matrix_qa_active_workspace",
+  "matrix_qa_active_project",
+] as const;
+
+export const clearClientWorkspaceContext = (): void => {
+  if (typeof window !== "undefined") {
+    CLIENT_WORKSPACE_STATE_KEYS.forEach((key) => localStorage.removeItem(key));
+  }
+};
 
 export const getAuthToken = (): string | null =>
   typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
 
 export const setAuthToken = (token: string): void => {
   if (typeof window !== "undefined") {
+    clearClientWorkspaceContext();
     localStorage.setItem(TOKEN_KEY, token);
     window.dispatchEvent(new Event(AUTH_EVENT));
   }
@@ -22,6 +34,7 @@ export const setAuthToken = (token: string): void => {
 export const clearAuthToken = (): void => {
   if (typeof window !== "undefined") {
     localStorage.removeItem(TOKEN_KEY);
+    clearClientWorkspaceContext();
     window.dispatchEvent(new Event(AUTH_EVENT));
   }
 };
