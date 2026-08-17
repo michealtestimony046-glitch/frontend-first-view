@@ -93,7 +93,7 @@ export interface VerifyEmailRequest {
   code: string;
 }
 export interface AuthResponse {
-  user: { id: string; email: string; fullName?: string | null };
+  user: { id: string; email: string; fullName?: string | null; isStaff?: boolean };
   accessToken: string;
 }
 export interface CurrentUserResponse {
@@ -101,6 +101,7 @@ export interface CurrentUserResponse {
   email: string;
   fullName?: string | null;
   avatarUrl?: string | null;
+  isStaff?: boolean;
   createdAt?: string;
 }
 export interface LoginRequest {
@@ -392,6 +393,73 @@ export const creditsApi = {
   getLedger: (organizationId: string): Promise<CreditsLedgerEntry[]> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/ledger`, { requiresAuth: true }),
   getRequests: (organizationId: string): Promise<AllocationExtensionRequest[]> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/requests`, { requiresAuth: true }),
   requestExtension: (organizationId: string, workspaceId: string, data: { requestedUnits: number; reason: string }): Promise<AllocationExtensionRequest> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/workspaces/${encodeURIComponent(workspaceId)}/requests`, { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
+};
+
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  metadata?: Record<string, unknown> | null;
+  readAt?: string | null;
+  createdAt: string;
+}
+
+export const notificationsApi = {
+  list: (): Promise<NotificationItem[]> => apiRequest('/notifications', { requiresAuth: true }),
+  unreadCount: (): Promise<{ unreadCount: number }> => apiRequest('/notifications/unread-count', { requiresAuth: true }),
+  markRead: (id: string) => apiRequest<{ updated: boolean }>(`/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH', requiresAuth: true }),
+  markAllRead: () => apiRequest<{ updatedCount: number }>('/notifications/read', { method: 'DELETE', requiresAuth: true }),
+};
+
+export interface AdminAllocationRequest {
+  id: string;
+  requestedUnits: number;
+  reason: string;
+  status: string;
+  staffNote?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  organization: { id: string; name: string };
+  workspace: { id: string; name: string };
+  requestedBy: { id: string; email: string; fullName?: string | null };
+}
+
+export interface StaffNotificationRecipient {
+  id: string;
+  email: string;
+  label?: string | null;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AdminTelemetrySummary {
+  version: { public: string; build: string };
+  totals: number;
+  sums: Record<string, number | null>;
+  averages: Record<string, number | null>;
+  recent: Array<Record<string, unknown>>;
+}
+
+export interface WorkerHealth {
+  healthy: boolean;
+  activeRuns: number;
+  staleRuns: number;
+  statusCounts: Array<{ status: string; _count: { _all: number } }>;
+  latestRun?: { id: string; status: string; createdAt: string; finishedAt?: string | null; lastHeartbeatAt?: string | null } | null;
+  checkedAt: string;
+}
+
+export const adminApi = {
+  listAllocationRequests: (status?: string): Promise<AdminAllocationRequest[]> => apiRequest(`/admin/allocation-requests${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
+  reviewAllocationRequest: (id: string, data: { status: 'APPROVED' | 'DECLINED'; staffNote?: string }) => apiRequest<AdminAllocationRequest>(`/admin/allocation-requests/${encodeURIComponent(id)}/review`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  listRecipients: (): Promise<StaffNotificationRecipient[]> => apiRequest('/admin/notification-recipients', { requiresAuth: true }),
+  saveRecipient: (data: { email: string; label?: string }) => apiRequest<StaffNotificationRecipient>('/admin/notification-recipients', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  disableRecipient: (id: string) => apiRequest<StaffNotificationRecipient>(`/admin/notification-recipients/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
+  broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
+  workerHealth: (): Promise<WorkerHealth> => apiRequest('/admin/worker-health', { requiresAuth: true }),
 };
 
 export const usersApi = {
