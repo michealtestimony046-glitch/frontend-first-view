@@ -7,6 +7,7 @@ import {
   type Workspace,
 } from "@/lib/api-client";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
 
 const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
 const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/app/settings/organization")({
 });
 
 function OrganizationSettingsPage() {
+  const { user } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -38,6 +40,7 @@ function OrganizationSettingsPage() {
     () => organizations.find((organization) => organization.id === organizationId) ?? null,
     [organizations, organizationId],
   );
+  const ownsOrganization = organizations.some((organization) => organization.ownerId === user?.id);
 
   const loadOrganizations = async () => {
     setLoadingOrganizations(true);
@@ -90,6 +93,10 @@ function OrganizationSettingsPage() {
 
   const createOrganization = async (event: FormEvent) => {
     event.preventDefault();
+    if (ownsOrganization) {
+      setError("v1 allows one organization per account. Use your existing organization for now.");
+      return;
+    }
     const name = organizationName.trim();
     if (!name) return;
     setCreatingOrganization(true);
@@ -228,7 +235,7 @@ function OrganizationSettingsPage() {
               ))
             )}
           </div>
-          <form onSubmit={createOrganization} className="border-t border-border p-4">
+          {ownsOrganization ? <p className="border-t border-border px-4 py-3 text-xs leading-5 text-muted-foreground">v1 allows one organization per account. Use the existing organization for now.</p> : <form onSubmit={createOrganization} className="border-t border-border p-4">
             <label className="block text-xs font-medium text-muted-foreground">Create organization</label>
             <div className="mt-1.5 flex gap-2">
               <input
@@ -241,7 +248,7 @@ function OrganizationSettingsPage() {
                 {creatingOrganization ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Create
               </button>
             </div>
-          </form>
+          </form>}
         </section>
 
         <section className="surface-card overflow-hidden">

@@ -129,7 +129,7 @@ function useClickAway<T extends HTMLElement>(open: boolean, onClose: () => void)
 }
 
 function WorkspaceSwitcher() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -156,10 +156,16 @@ function WorkspaceSwitcher() {
   }, [isAuthenticated]);
 
   const active = organizations.find((o) => o.id === activeId) ?? organizations[0] ?? null;
+  const ownsOrganization = organizations.some((organization) => organization.ownerId === user?.id);
   const filtered = organizations.filter((o) => o.name.toLowerCase().includes(q.toLowerCase()));
 
   const createWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (ownsOrganization) {
+      setError("v1 allows one organization per account. Use your existing organization for now.");
+      setShowCreate(false);
+      return;
+    }
     const trimmed = name.trim();
     if (!trimmed) return;
     setCreating(true); setError(null);
@@ -191,7 +197,7 @@ function WorkspaceSwitcher() {
       </ul>
       {error && <p className="border-t border-border px-3 py-2 text-[11px] text-destructive">{error}</p>}
       <div className="border-t border-border p-1">
-        {!showCreate ? <button onClick={() => { setShowCreate(true); setError(null); }} className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs text-primary hover:bg-accent"><PlusCircle className="h-3.5 w-3.5" />Create new organization</button> : <form onSubmit={createWorkspace} className="p-2">
+        {!showCreate ? ownsOrganization ? <p className="px-2 py-2 text-[11px] leading-5 text-muted-foreground">v1 allows one organization per account. Use the existing organization for now.</p> : <button onClick={() => { setShowCreate(true); setError(null); }} className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs text-primary hover:bg-accent"><PlusCircle className="h-3.5 w-3.5" />Create new organization</button> : <form onSubmit={createWorkspace} className="p-2">
           <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Organization name</label>
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Acme QA Organization" maxLength={80} className="mb-2 w-full rounded-md border border-border bg-surface-2 px-2.5 py-2 text-sm outline-none focus:border-primary" />
           <div className="flex gap-2"><button type="button" onClick={() => setShowCreate(false)} className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent">Cancel</button><button type="submit" disabled={creating || !name.trim()} className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-2 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50">{creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Create</button></div>
