@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -19,6 +20,7 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppCreditsRouteImport } from './routes/app.credits'
 import { Route as AppIssuesRouteImport } from './routes/app.issues'
+import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
 import { Route as AppProjectsRouteImport } from './routes/app.projects'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppRunsRouteImport } from './routes/app.runs'
@@ -33,6 +35,11 @@ import { Route as AppSettingsOrganizationRouteImport } from './routes/app.settin
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -78,6 +85,11 @@ const AppCreditsRoute = AppCreditsRouteImport.update({
 const AppIssuesRoute = AppIssuesRouteImport.update({
   id: '/issues',
   path: '/issues',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProjectsRoute = AppProjectsRouteImport.update({
@@ -133,6 +145,7 @@ const AppSettingsOrganizationRoute = AppSettingsOrganizationRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/faq': typeof FaqRoute
@@ -141,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/issues': typeof AppIssuesRoute
+  '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
@@ -155,6 +169,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
@@ -162,6 +177,7 @@ export interface FileRoutesByTo {
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/issues': typeof AppIssuesRoute
+  '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
   '/app/reports': typeof AppReportsRoute
   '/app/settings': typeof AppSettingsRouteWithChildren
@@ -176,6 +192,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/faq': typeof FaqRoute
@@ -184,6 +201,7 @@ export interface FileRoutesById {
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/issues': typeof AppIssuesRoute
+  '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
@@ -200,6 +218,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/app'
     | '/auth'
     | '/faq'
@@ -208,6 +227,7 @@ export interface FileRouteTypes {
     | '/app/audit'
     | '/app/credits'
     | '/app/issues'
+    | '/app/notifications'
     | '/app/projects'
     | '/app/reports'
     | '/app/runs'
@@ -222,6 +242,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/auth'
     | '/faq'
     | '/pricing'
@@ -229,6 +250,7 @@ export interface FileRouteTypes {
     | '/app/audit'
     | '/app/credits'
     | '/app/issues'
+    | '/app/notifications'
     | '/app/projects'
     | '/app/reports'
     | '/app/settings'
@@ -242,6 +264,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/app'
     | '/auth'
     | '/faq'
@@ -250,6 +273,7 @@ export interface FileRouteTypes {
     | '/app/audit'
     | '/app/credits'
     | '/app/issues'
+    | '/app/notifications'
     | '/app/projects'
     | '/app/reports'
     | '/app/runs'
@@ -265,6 +289,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   FaqRoute: typeof FaqRoute
@@ -279,6 +304,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -342,6 +374,13 @@ declare module '@tanstack/react-router' {
       path: '/issues'
       fullPath: '/app/issues'
       preLoaderRoute: typeof AppIssuesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/notifications': {
+      id: '/app/notifications'
+      path: '/notifications'
+      fullPath: '/app/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/projects': {
@@ -448,6 +487,7 @@ interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppCreditsRoute: typeof AppCreditsRoute
   AppIssuesRoute: typeof AppIssuesRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
   AppProjectsRoute: typeof AppProjectsRoute
   AppReportsRoute: typeof AppReportsRoute
   AppRunsRoute: typeof AppRunsRouteWithChildren
@@ -459,6 +499,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppCreditsRoute: AppCreditsRoute,
   AppIssuesRoute: AppIssuesRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
   AppProjectsRoute: AppProjectsRoute,
   AppReportsRoute: AppReportsRoute,
   AppRunsRoute: AppRunsRouteWithChildren,
@@ -482,6 +523,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   FaqRoute: FaqRoute,

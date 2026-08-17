@@ -2,12 +2,12 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, FolderKanban, ListChecks, Bug, FileText, Settings, ScrollText,
   ChevronDown, ChevronUp, Bell, HelpCircle, Menu, X, MoreHorizontal, Check, Plus,
-  Search, Cog, LogOut, KeyRound, UserCircle, Loader2, PlusCircle, CircleDollarSign,
+  Search, Cog, LogOut, KeyRound, UserCircle, Loader2, PlusCircle, CircleDollarSign, ShieldCheck,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Logo, MatrixMark } from "./logo";
 import { useAuth } from "@/lib/auth-context";
-import { organizationsApi, type Organization } from "@/lib/api-client";
+import { organizationsApi, notificationsApi, type Organization } from "@/lib/api-client";
 
 type NavItem = { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean };
 const nav: NavItem[] = [
@@ -18,6 +18,7 @@ const nav: NavItem[] = [
   { label: "Audit Log", to: "/app/audit", icon: ScrollText },
   { label: "Reports", to: "/app/reports", icon: FileText },
   { label: "Credits", to: "/app/credits", icon: CircleDollarSign },
+  { label: "Notifications", to: "/app/notifications", icon: Bell },
   { label: "Settings", to: "/app/settings", icon: Settings },
 ];
 const mobileTabs: NavItem[] = [
@@ -63,12 +64,40 @@ export function AppShell({ children, title = "Overview" }: { children: ReactNode
 }
 
 function SidebarBody({ isActive, onNavigate, hideHeader }: { isActive: (item: NavItem) => boolean; onNavigate?: () => void; hideHeader?: boolean }) {
+  const { user } = useAuth();
   return <>
     {!hideHeader && <div className="flex h-14 items-center border-b border-border px-4"><Logo /></div>}
     <div className="px-3 pb-3 pt-4"><p className="mb-2 px-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Organization</p><WorkspaceSwitcher /></div>
-    <nav className="flex-1 space-y-0.5 overflow-y-auto px-2">{nav.map((item) => { const active = isActive(item); const Icon = item.icon; return <Link key={item.label} to={item.to} onClick={onNavigate} className={`relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${active ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`}>{active && <span className="absolute inset-y-1 left-0 w-0.5 rounded-r bg-primary" />}<Icon className="h-4 w-4" />{item.label}</Link>; })}</nav>
+    <nav className="flex-1 space-y-0.5 overflow-y-auto px-2">{nav.map((item) => <SidebarNavLink key={item.label} item={item} active={isActive(item)} onNavigate={onNavigate} />)}{user?.isStaff && <SidebarNavLink item={{ label: "Admin", to: "/admin", icon: ShieldCheck }} active={isActive({ label: "Admin", to: "/admin", icon: ShieldCheck })} onNavigate={onNavigate} />}</nav>
     <div className="border-t border-border p-3"><UserMenu onNavigate={onNavigate} /></div>
   </>;
+}
+
+function SidebarNavLink({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
+  const { isAuthenticated } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (item.label !== "Notifications" || !isAuthenticated) return;
+    let mounted = true;
+    const load = async () => {
+      try {
+        const result = await notificationsApi.unreadCount();
+        if (mounted) setUnreadCount(result.unreadCount);
+      } catch { /* the notification center will show the actionable error */ }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 30_000);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, [item.label, isAuthenticated]);
+
+  const Icon = item.icon;
+  return <Link to={item.to} onClick={onNavigate} className={`relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${active ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"}`}>
+    {active && <span className="absolute inset-y-1 left-0 w-0.5 rounded-r bg-primary" />}
+    <Icon className="h-4 w-4" />
+    <span className="flex-1">{item.label}</span>
+    {item.label === "Notifications" && unreadCount > 0 && <span className="min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-center font-mono text-[10px] font-semibold text-primary-foreground">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+  </Link>;
 }
 
 function useClickAway<T extends HTMLElement>(open: boolean, onClose: () => void) {

@@ -154,20 +154,10 @@ function AppDashboard() {
             <span className="hidden sm:inline">New Test Run</span>
             <span className="sm:hidden">New Run</span>
           </button>
-          <div className="relative hidden sm:block">
-            <button
-              aria-label="Notifications"
-              aria-expanded={utilityPanel === "notifications"}
-              onClick={() => setUtilityPanel((current) => current === "notifications" ? null : "notifications")}
-              className="inline-flex rounded-md border border-border bg-surface/60 p-2 text-muted-foreground hover:text-foreground"
-            >
-              <Bell className="h-4 w-4" />
-            </button>
-            {utilityPanel === "notifications" && <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-md border border-border bg-popover p-3 text-xs shadow-2xl">
-              <div className="font-medium text-foreground">No new notifications</div>
-              <p className="mt-1 leading-5 text-muted-foreground">Run status and report changes appear here when the backend has new activity.</p>
-            </div>}
-          </div>
+          <Link to="/app/notifications" aria-label="Notifications" className="relative inline-flex rounded-md border border-border bg-surface/60 p-2 text-muted-foreground hover:text-foreground">
+            <Bell className="h-4 w-4" />
+            <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-semibold text-primary-foreground">Live</span>
+          </Link>
           <div className="relative hidden sm:block">
             <button
               aria-label="Help"
