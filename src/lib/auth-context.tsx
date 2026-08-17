@@ -13,6 +13,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   logout: () => void;
+  logoutAll: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,9 +62,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const logout = () => clearAuthToken();
+  const logoutAll = async () => {
+    try {
+      await authApi.logoutAll();
+    } catch (error) {
+      console.error('Failed to revoke all sessions:', error);
+      clearAuthToken();
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, logout, logoutAll, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

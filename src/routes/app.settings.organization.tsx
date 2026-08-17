@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Building2, FolderKanban, Loader2, Plus, RefreshCw } from "lucide-react";
+import { Building2, FolderKanban, Loader2, Plus, RefreshCw, Pencil, Trash2 } from "lucide-react";
 import {
   organizationsApi,
   workspacesApi,
@@ -29,6 +29,10 @@ function OrganizationSettingsPage() {
   const [creatingOrganization, setCreatingOrganization] = useState(false);
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingOrganization, setEditingOrganization] = useState(false);
+  const [organizationEditName, setOrganizationEditName] = useState("");
+  const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
+  const [workspaceEditName, setWorkspaceEditName] = useState("");
 
   const activeOrganization = useMemo(
     () => organizations.find((organization) => organization.id === organizationId) ?? null,
@@ -104,6 +108,53 @@ function OrganizationSettingsPage() {
     }
   };
 
+  const renameOrganization = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!organizationId || !organizationEditName.trim()) return;
+    try {
+      const updated = await organizationsApi.rename(organizationId, organizationEditName.trim());
+      setOrganizations((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setEditingOrganization(false);
+    } catch (cause) {
+      setError(toMessage(cause, "Unable to rename organization."));
+    }
+  };
+
+  const deleteOrganization = async () => {
+    if (!organizationId || !window.confirm("Delete this organization and its workspaces? This cannot be undone.")) return;
+    try {
+      await organizationsApi.remove(organizationId);
+      localStorage.removeItem(ACTIVE_ORG_KEY);
+      localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+      await loadOrganizations();
+    } catch (cause) {
+      setError(toMessage(cause, "Unable to delete organization."));
+    }
+  };
+
+  const renameWorkspace = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingWorkspaceId || !workspaceEditName.trim()) return;
+    try {
+      const updated = await workspacesApi.rename(editingWorkspaceId, workspaceEditName.trim());
+      setWorkspaces((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setEditingWorkspaceId(null);
+    } catch (cause) {
+      setError(toMessage(cause, "Unable to rename workspace."));
+    }
+  };
+
+  const deleteWorkspace = async (workspaceId: string) => {
+    if (!window.confirm("Delete this workspace and its projects? This cannot be undone.")) return;
+    try {
+      await workspacesApi.remove(workspaceId);
+      if (localStorage.getItem(ACTIVE_WORKSPACE_KEY) === workspaceId) localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+      setWorkspaces((current) => current.filter((item) => item.id !== workspaceId));
+    } catch (cause) {
+      setError(toMessage(cause, "Unable to delete workspace."));
+    }
+  };
+
   const createWorkspace = async (event: FormEvent) => {
     event.preventDefault();
     const name = workspaceName.trim();
@@ -152,6 +203,8 @@ function OrganizationSettingsPage() {
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Select the organization whose workspaces you want to manage.</p>
           </header>
+          {activeOrganization && <div className="flex items-center justify-between border-b border-border px-4 py-3"><div><div className="text-sm font-medium">{activeOrganization.name}</div><div className="text-[11px] text-muted-foreground">{activeOrganization.members?.length ?? 0} member record(s)</div></div><div className="flex gap-1.5"><button type="button" onClick={() => { setOrganizationEditName(activeOrganization.name); setEditingOrganization((current) => !current); }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-accent" aria-label="Rename organization"><Pencil className="h-3.5 w-3.5" /></button><button type="button" onClick={() => void deleteOrganization()} className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10" aria-label="Delete organization"><Trash2 className="h-3.5 w-3.5" /></button></div></div>}
+          {editingOrganization && <form onSubmit={renameOrganization} className="flex gap-2 border-b border-border p-4"><input value={organizationEditName} onChange={(event) => setOrganizationEditName(event.target.value)} className="min-w-0 flex-1 rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><button className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save</button></form>}
           <div className="space-y-2 p-4">
             {loadingOrganizations ? (
               <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading organizations…</div>
@@ -209,13 +262,9 @@ function OrganizationSettingsPage() {
             ) : (
               <div className="space-y-2">
                 {workspaces.map((workspace) => (
-                  <div key={workspace.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-2/30 px-3 py-2.5">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{workspace.name}</div>
-                      <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{workspace.id.slice(0, 8)}…</div>
+                    <div key={workspace.id} className="rounded-md border border-border bg-surface-2/30 px-3 py-2.5">
+                      {editingWorkspaceId === workspace.id ? <form onSubmit={renameWorkspace} className="flex gap-2"><input value={workspaceEditName} onChange={(event) => setWorkspaceEditName(event.target.value)} className="min-w-0 flex-1 rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><button className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save</button></form> : <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="truncate text-sm font-medium">{workspace.name}</div><div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{workspace.id.slice(0, 8)}… · {workspace.projects?.length ?? 0} project(s)</div></div><div className="flex shrink-0 items-center gap-1.5"><Link to="/app/projects" className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">Open projects</Link><button type="button" onClick={() => { setEditingWorkspaceId(workspace.id); setWorkspaceEditName(workspace.name); }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-accent" aria-label={`Rename ${workspace.name}`}><Pencil className="h-3.5 w-3.5" /></button><button type="button" onClick={() => void deleteWorkspace(workspace.id)} className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10" aria-label={`Delete ${workspace.name}`}><Trash2 className="h-3.5 w-3.5" /></button></div></div>}
                     </div>
-                    <Link to="/app/projects" className="shrink-0 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">Open projects</Link>
-                  </div>
                 ))}
               </div>
             )}
