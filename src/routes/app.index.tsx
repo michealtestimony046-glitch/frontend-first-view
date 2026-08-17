@@ -599,7 +599,7 @@ function AppDashboard() {
                 <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
                   <div className="font-semibold">Preview pool exhausted</div>
                   <div className="mt-0.5 text-destructive/80">
-                    You've used {usage.used} / {usage.cap} runs. Request more allocation to keep scanning.
+                    You've used {usage.used} / {usage.cap} runs. Contact the Matrix QA team through your agreed internal channel to review additional Preview capacity.
                   </div>
                   <Link
                     to="/app/settings/billing"
