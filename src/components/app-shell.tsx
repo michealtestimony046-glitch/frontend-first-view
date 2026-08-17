@@ -208,14 +208,18 @@ function WorkspaceSwitcher() {
   </div>;
 }
 
+function PersonalAvatar({ user, className = "h-9 w-9", textClassName = "text-[11px]" }: { user: ReturnType<typeof useAuth>["user"]; className?: string; textClassName?: string }) {
+  const initials = (user?.fullName || user?.email || "MQ").split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  return user?.avatarUrl ? <img src={user.avatarUrl} alt="Profile avatar" className={`${className} shrink-0 rounded-full object-cover`} /> : <div className={`${className} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/70 to-primary/20 font-mono font-semibold text-primary-foreground ${textClassName}`}>{initials}</div>;
+}
+
 function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useClickAway<HTMLDivElement>(open, () => setOpen(false));
-  const initials = (user?.fullName || user?.email || "MQ").split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
   return <div ref={ref} className="relative">
     <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors hover:bg-accent">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/70 to-primary/20 font-mono text-[11px] font-semibold text-primary-foreground">{initials}</div>
+      <PersonalAvatar user={user} />
       <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium text-foreground">{user?.fullName || user?.email || "Matrix QA"}</div><div className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Member</div></div>
       {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
     </button>
