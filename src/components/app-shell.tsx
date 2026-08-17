@@ -51,7 +51,7 @@ export function AppShell({ children, title = "Overview" }: { children: ReactNode
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur md:hidden">
           <button onClick={() => setDrawerOpen(true)} aria-label="Open menu" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Menu className="h-5 w-5" /></button>
           <div className="flex min-w-0 flex-1 items-center gap-2"><MatrixMark size={22} /><span className="truncate font-display text-sm font-semibold">{title}</span></div>
-          <button aria-label="Notifications" className="relative rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Bell className="h-5 w-5" /><span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary" /></button>
+          <Link to="/app/notifications" aria-label="Notifications" className="relative rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Bell className="h-5 w-5" /><span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary" /></Link>
         </header>
         <main className="flex-1 pb-20 md:pb-0">{children}</main>
         <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur md:hidden"><ul className="grid grid-cols-5">
