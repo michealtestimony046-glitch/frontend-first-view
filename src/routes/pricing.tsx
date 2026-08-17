@@ -132,7 +132,7 @@ const faqs = [
   },
   {
     q: "How do I get more allocation?",
-    a: "Head to Billing inside the console and use “Request more allocation.” Tell us about your workload and we'll bump your pool manually during Preview.",
+    a: "Preview allocation changes are handled manually. Contact the Matrix QA team through your agreed internal channel with your expected workload, and we'll review additional capacity during Preview.",
   },
   {
     q: "Do you store the test data or credentials I use?",
