@@ -93,15 +93,20 @@ export interface VerifyEmailRequest {
   code: string;
 }
 export interface AuthResponse {
-  user: { id: string; email: string; fullName?: string | null; isStaff?: boolean };
+  user: { id: string; email: string; fullName?: string | null; isStaff?: boolean; staffRole?: StaffRole | null };
   accessToken: string;
 }
+export type StaffRole = "OWNER" | "OPERATIONS_ADMIN" | "OPERATOR" | "VIEWER";
+export type StaffMembershipStatus = "ACTIVE" | "DISABLED";
+export type StaffInvitationStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED" | "REVOKED";
+
 export interface CurrentUserResponse {
   id: string;
   email: string;
   fullName?: string | null;
   avatarUrl?: string | null;
   isStaff?: boolean;
+  staffRole?: StaffRole | null;
   createdAt?: string;
 }
 export interface LoginRequest {
@@ -451,6 +456,61 @@ export interface WorkerHealth {
   checkedAt: string;
 }
 
+export interface StaffUser {
+  id: string;
+  email: string;
+  fullName?: string | null;
+  isStaff: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface StaffMembership {
+  id: string;
+  userId: string;
+  role: StaffRole;
+  status: StaffMembershipStatus;
+  createdAt: string;
+  updatedAt: string;
+  disabledAt?: string | null;
+  user: StaffUser;
+  invitedBy?: StaffUser | null;
+  disabledBy?: StaffUser | null;
+}
+export interface StaffInvitation {
+  id: string;
+  email: string;
+  proposedName?: string | null;
+  role: StaffRole;
+  status: StaffInvitationStatus;
+  expiresAt: string;
+  createdAt: string;
+  acceptedAt?: string | null;
+  declinedAt?: string | null;
+  revokedAt?: string | null;
+  inviter?: StaffUser | null;
+}
+export interface StaffAuditEvent {
+  id: string;
+  eventType: string;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+  actor?: StaffUser | null;
+  targetUser?: StaffUser | null;
+}
+export interface StaffManagementData {
+  staff: StaffMembership[];
+  invitations: StaffInvitation[];
+  audit: StaffAuditEvent[];
+}
+export interface StaffInvitationPreview {
+  id: string;
+  email: string;
+  proposedName?: string | null;
+  role: StaffRole;
+  inviterName: string;
+  expiresAt: string;
+}
+
 export const adminApi = {
   listAllocationRequests: (status?: string): Promise<AdminAllocationRequest[]> => apiRequest(`/admin/allocation-requests${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
   reviewAllocationRequest: (id: string, data: { status: 'APPROVED' | 'DECLINED'; staffNote?: string }) => apiRequest<AdminAllocationRequest>(`/admin/allocation-requests/${encodeURIComponent(id)}/review`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
@@ -460,6 +520,20 @@ export const adminApi = {
   broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
   workerHealth: (): Promise<WorkerHealth> => apiRequest('/admin/worker-health', { requiresAuth: true }),
+  listStaff: (): Promise<StaffManagementData> => apiRequest('/admin/staff', { requiresAuth: true }),
+  inviteStaff: (data: { emails: string[]; proposedName?: string; role?: StaffRole; internalNote?: string }) => apiRequest<{ results: Array<{ email: string; status: string; invitationId?: string; message?: string }> }>('/admin/staff/invitations', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  resendStaffInvitation: (id: string) => apiRequest<{ id: string; status: StaffInvitationStatus; expiresAt: string }>(`/admin/staff/invitations/${encodeURIComponent(id)}/resend`, { method: 'POST', requiresAuth: true }),
+  revokeStaffInvitation: (id: string) => apiRequest<{ id: string; status: StaffInvitationStatus }>(`/admin/staff/invitations/${encodeURIComponent(id)}/revoke`, { method: 'POST', requiresAuth: true }),
+  changeStaffRole: (userId: string, role: StaffRole) => apiRequest<StaffMembership>(`/admin/staff/${encodeURIComponent(userId)}/role`, { method: 'PATCH', body: JSON.stringify({ role }), requiresAuth: true }),
+  disableStaff: (userId: string) => apiRequest<StaffMembership>(`/admin/staff/${encodeURIComponent(userId)}/disable`, { method: 'POST', requiresAuth: true }),
+  enableStaff: (userId: string) => apiRequest<StaffMembership>(`/admin/staff/${encodeURIComponent(userId)}/enable`, { method: 'POST', requiresAuth: true }),
+  revokeStaffSessions: (userId: string) => apiRequest<{ message: string }>(`/admin/staff/${encodeURIComponent(userId)}/revoke-sessions`, { method: 'POST', requiresAuth: true }),
+};
+
+export const staffInvitationApi = {
+  preview: (token: string): Promise<StaffInvitationPreview> => apiRequest(`/staff-invitations/${encodeURIComponent(token)}`),
+  accept: (token: string, data: { password?: string; fullName?: string }) => apiRequest<{ message: string; email: string; existingAccount: boolean }>(`/staff-invitations/${encodeURIComponent(token)}/accept`, { method: 'POST', body: JSON.stringify(data) }),
+  decline: (token: string) => apiRequest<{ message: string }>(`/staff-invitations/${encodeURIComponent(token)}/decline`, { method: 'POST' }),
 };
 
 export const usersApi = {
