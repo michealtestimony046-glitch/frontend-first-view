@@ -503,12 +503,14 @@ export interface StaffManagementData {
   audit: StaffAuditEvent[];
 }
 export interface StaffInvitationPreview {
-  id: string;
-  email: string;
+  valid: boolean;
+  message?: string;
+  id?: string;
+  email?: string;
   proposedName?: string | null;
-  role: StaffRole;
-  inviterName: string;
-  expiresAt: string;
+  role?: StaffRole;
+  inviterName?: string;
+  expiresAt?: string;
 }
 
 export const adminApi = {
