@@ -36,7 +36,29 @@ function useIsActive() {
 
 export function AppShell({ children, title = "Overview" }: { children: ReactNode; title?: string }) {
   const isActive = useIsActive();
+  const { isAuthenticated } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnreadCount(0);
+      return;
+    }
+    let mounted = true;
+    const load = async () => {
+      try {
+        const result = await notificationsApi.unreadCount();
+        if (mounted) setUnreadCount(result.unreadCount);
+      } catch {
+        if (mounted) setUnreadCount(0);
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 30_000);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, [isAuthenticated]);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface/70 backdrop-blur md:flex"><SidebarBody isActive={isActive} /></aside>
@@ -51,7 +73,7 @@ export function AppShell({ children, title = "Overview" }: { children: ReactNode
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur md:hidden">
           <button onClick={() => setDrawerOpen(true)} aria-label="Open menu" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Menu className="h-5 w-5" /></button>
           <div className="flex min-w-0 flex-1 items-center gap-2"><MatrixMark size={22} /><span className="truncate font-display text-sm font-semibold">{title}</span></div>
-          <Link to="/app/notifications" aria-label="Notifications" className="relative rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Bell className="h-5 w-5" /><span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary" /></Link>
+          <Link to="/app/notifications" aria-label="Notifications" className="relative rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Bell className="h-5 w-5" />{unreadCount > 0 && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary" />}</Link>
         </header>
         <main className="flex-1 pb-20 md:pb-0">{children}</main>
         <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur md:hidden"><ul className="grid grid-cols-5">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Activity, Check, CircleAlert, Database, Loader2, Mail, Radio, RefreshCw, Send, ShieldCheck, X } from "lucide-react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { adminApi, type AdminAllocationRequest, type AdminTelemetrySummary, type StaffNotificationRecipient, type WorkerHealth } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
@@ -14,7 +14,6 @@ type AdminTab = "queue" | "notifications" | "telemetry";
 
 function AdminPage() {
   const { user, isLoading } = useAuth();
-  const navigate = useNavigate();
   const [tab, setTab] = useState<AdminTab>("queue");
   const [requests, setRequests] = useState<AdminAllocationRequest[]>([]);
   const [recipients, setRecipients] = useState<StaffNotificationRecipient[]>([]);
@@ -29,12 +28,6 @@ function AdminPage() {
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [broadcastAudience, setBroadcastAudience] = useState<"ALL_USERS" | "STAFF">("ALL_USERS");
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isLoading) return;
-    if (!user) { void navigate({ to: "/auth" }); return; }
-    if (!user.isStaff) void navigate({ to: "/app" });
-  }, [isLoading, navigate, user]);
 
   const load = async () => {
     setLoading(true);
@@ -104,7 +97,9 @@ function AdminPage() {
     finally { setBusyId(null); }
   };
 
-  if (isLoading || !user || !user.isStaff) return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking staff access…</div>;
+  if (isLoading) return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking staff access…</div>;
+  if (!user) return <AdminAccessGate title="Staff sign-in required" message="The Matrix QA admin console is restricted to staff accounts." action={<Link to="/auth" search={{ mode: "signin", returnTo: "/admin" }} className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Sign in as staff</Link>} />;
+  if (!user.isStaff) return <AdminAccessGate title="Staff access required" message="Your account is signed in, but it is not enabled for Matrix QA staff operations." action={<Link to="/app" className="inline-flex items-center rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground">Return to console</Link>} />;
 
   return <AppShell title="Admin Console"><div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
     <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-primary"><ShieldCheck className="h-4 w-4" /> Matrix QA staff</div><h1 className="mt-2 font-display text-2xl font-semibold">Admin console</h1><p className="mt-1 text-sm text-muted-foreground">Private-alpha operations, allocation decisions, notifications, and cost telemetry.</p></div><button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent"><RefreshCw className="h-3.5 w-3.5" /> Refresh</button></div>
@@ -113,6 +108,8 @@ function AdminPage() {
     {loading ? <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading staff data…</div> : tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : <TelemetryTab telemetry={telemetry} health={health} />}
   </div></AppShell>;
 }
+
+function AdminAccessGate({ title, message, action }: { title: string; message: string; action: React.ReactNode }) { return <div className="flex min-h-screen items-center justify-center bg-background px-6 text-center"><div className="max-w-md"><ShieldCheck className="mx-auto h-8 w-8 text-primary" /><h1 className="mt-4 font-display text-xl font-semibold">{title}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{message}</p><div className="mt-5">{action}</div></div></div>; }
 
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) { return <button type="button" onClick={onClick} className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-xs font-medium ${active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{children}</button>; }
 
