@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Camera,
+  Check,
   CheckCircle2,
+  Copy,
   ChevronRight,
   Clock,
   Download,
@@ -66,6 +68,11 @@ function RunDetailPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const markdown = useMemo(
+    () => (report ? buildReportMarkdown(report, runId) : ""),
+    [report, runId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +106,36 @@ function RunDetailPage() {
   const screenshots = report.screenshots ?? [];
   const selectedShot = screenshots[selected];
   const videoUrl = report.finalVideo ?? report.rawVideo ?? null;
+
+  const copyMarkdown = async () => {
+    try {
+      await navigator.clipboard.writeText(markdown);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = markdown;
+      textarea.setAttribute("readonly", "true");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  };
+
+  const downloadMarkdown = () => {
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `matrixqa-run-${report.id ?? report.runId ?? runId}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(href);
+  };
 
   return (
     <div>
@@ -145,16 +182,33 @@ function RunDetailPage() {
               )}
             </div>
           </div>
-          {videoUrl && (
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noreferrer"
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={copyMarkdown}
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-1.5 text-xs hover:bg-accent"
             >
-              <Download className="h-3.5 w-3.5" /> Open evidence video
-            </a>
-          )}
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copied" : "Copy markdown"}
+            </button>
+            <button
+              type="button"
+              onClick={downloadMarkdown}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-1.5 text-xs hover:bg-accent"
+            >
+              <Download className="h-3.5 w-3.5" /> Download
+            </button>
+            {videoUrl && (
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-1.5 text-xs hover:bg-accent"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open evidence video
+              </a>
+            )}
+          </div>
         </div>
 
         {report.errorMessage && (
@@ -588,6 +642,55 @@ function DetailStatusPill({ status }: { status: string }) {
     </span>
   );
 }
+function buildReportMarkdown(report: RunReport, runId: string) {
+  const id = report.id ?? report.runId ?? runId;
+  const summary = reportSummary(report);
+  const lines = [
+    `# Matrix QA run ${id}`,
+    "",
+    `- Status: ${report.status}`,
+    `- Target URL: ${report.targetUrl ?? "—"}`,
+    `- Started: ${report.startedAt ? new Date(report.startedAt).toISOString() : "—"}`,
+    `- Duration: ${duration(report.durationSec)}`,
+    `- Scenarios: ${summary.passed}/${summary.scenarios} passed`,
+    `- Bugs captured: ${summary.bugs}`,
+    `- Screenshots: ${(report.screenshots ?? []).length}`,
+    `- Events: ${(report.events ?? []).length}`,
+    `- Evidence video: ${report.finalVideo || report.rawVideo ? "available in the console" : "not available"}`,
+  ];
+
+  if (report.errorMessage) {
+    lines.push("", `> Diagnostic: ${report.errorMessage}`);
+  }
+
+  const errors = report.errors ?? [];
+  lines.push("", "## Hard errors");
+  if (!errors.length) {
+    lines.push("", "No hard errors captured.");
+  } else {
+    for (const error of errors) {
+      lines.push(``, `- [${msToClock(error.timestamp)}] ${error.subtype}: ${error.message}`);
+    }
+  }
+
+  const assertions = report.assertions ?? [];
+  lines.push("", "## Assertions");
+  if (!assertions.length) {
+    lines.push("", "No assertions returned.");
+  } else {
+    for (const assertion of assertions) {
+      lines.push(
+        ``,
+        `- [${assertion.status}] ${assertion.name} (${msToClock(assertion.timestamp)})`,
+        `  - Expected: ${String(assertion.expected)}`,
+        `  - Actual: ${String(assertion.actual)}`,
+      );
+    }
+  }
+
+  return lines.join("\\n");
+}
+
 function eventLabel(e: {
   type: string;
   target?: string;
