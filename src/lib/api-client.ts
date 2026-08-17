@@ -346,6 +346,54 @@ export const workspacesApi = {
   remove: (id: string) => apiRequest<Workspace>(`/workspaces/${encodeURIComponent(id)}`, { method: "DELETE", requiresAuth: true }),
 };
 
+export interface CreditsSummary {
+  symbol: string;
+  unitsPerInternalCredit: number;
+  message: string;
+  allocatedUnits: number;
+  bonusUnits: number;
+  reservedUnits: number;
+  settledUnits: number;
+  refundedUnits: number;
+  usedUnits: number;
+  availableUnits: number;
+  monthlyCeilingUnits: number;
+  periodStart: string;
+  periodEnd: string;
+  usagePercent: number;
+  warningLevel: 0 | 70 | 85 | 100;
+}
+
+export interface CreditsLedgerEntry {
+  id: string;
+  workspaceId?: string | null;
+  runId?: string | null;
+  entryType: string;
+  units: number;
+  internalCredits: number;
+  reason: string;
+  expiresAt?: string | null;
+  createdAt: string;
+}
+
+export interface AllocationExtensionRequest {
+  id: string;
+  workspaceId: string;
+  requestedUnits: number;
+  reason: string;
+  status: string;
+  staffNote?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+}
+
+export const creditsApi = {
+  getSummary: (organizationId: string): Promise<CreditsSummary> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/summary`, { requiresAuth: true }),
+  getLedger: (organizationId: string): Promise<CreditsLedgerEntry[]> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/ledger`, { requiresAuth: true }),
+  getRequests: (organizationId: string): Promise<AllocationExtensionRequest[]> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/requests`, { requiresAuth: true }),
+  requestExtension: (organizationId: string, workspaceId: string, data: { requestedUnits: number; reason: string }): Promise<AllocationExtensionRequest> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/workspaces/${encodeURIComponent(workspaceId)}/requests`, { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
+};
+
 export const usersApi = {
   getProfile: (): Promise<CurrentUserResponse> => apiRequest("/users/me", { requiresAuth: true }),
   updateProfile: (data: { fullName: string }): Promise<CurrentUserResponse> =>

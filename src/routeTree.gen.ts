@@ -17,6 +17,7 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as SampleReportRouteImport } from './routes/sample-report'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
+import { Route as AppCreditsRouteImport } from './routes/app.credits'
 import { Route as AppIssuesRouteImport } from './routes/app.issues'
 import { Route as AppProjectsRouteImport } from './routes/app.projects'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
@@ -67,6 +68,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCreditsRoute = AppCreditsRouteImport.update({
+  id: '/credits',
+  path: '/credits',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIssuesRoute = AppIssuesRouteImport.update({
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/sample-report': typeof SampleReportRoute
   '/app/audit': typeof AppAuditRoute
+  '/app/credits': typeof AppCreditsRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/projects': typeof AppProjectsRoute
   '/app/reports': typeof AppReportsRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/sample-report': typeof SampleReportRoute
   '/app/audit': typeof AppAuditRoute
+  '/app/credits': typeof AppCreditsRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/projects': typeof AppProjectsRoute
   '/app/reports': typeof AppReportsRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/sample-report': typeof SampleReportRoute
   '/app/audit': typeof AppAuditRoute
+  '/app/credits': typeof AppCreditsRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/projects': typeof AppProjectsRoute
   '/app/reports': typeof AppReportsRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/sample-report'
     | '/app/audit'
+    | '/app/credits'
     | '/app/issues'
     | '/app/projects'
     | '/app/reports'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/sample-report'
     | '/app/audit'
+    | '/app/credits'
     | '/app/issues'
     | '/app/projects'
     | '/app/reports'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/sample-report'
     | '/app/audit'
+    | '/app/credits'
     | '/app/issues'
     | '/app/projects'
     | '/app/reports'
@@ -316,6 +328,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/app/audit'
       preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/credits': {
+      id: '/app/credits'
+      path: '/credits'
+      fullPath: '/app/credits'
+      preLoaderRoute: typeof AppCreditsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/issues': {
@@ -427,6 +446,7 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
+  AppCreditsRoute: typeof AppCreditsRoute
   AppIssuesRoute: typeof AppIssuesRoute
   AppProjectsRoute: typeof AppProjectsRoute
   AppReportsRoute: typeof AppReportsRoute
@@ -437,6 +457,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
+  AppCreditsRoute: AppCreditsRoute,
   AppIssuesRoute: AppIssuesRoute,
   AppProjectsRoute: AppProjectsRoute,
   AppReportsRoute: AppReportsRoute,
