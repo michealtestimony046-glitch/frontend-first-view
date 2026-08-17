@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowRight, Github, Mail, Terminal, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { authApi, organizationsApi } from "@/lib/api-client";
+import { authApi } from "@/lib/api-client";
 import { useMutation } from "@/hooks/use-api";
 
 const PENDING_WORKSPACE_KEY = "matrix_qa_pending_workspace";
@@ -24,13 +24,12 @@ function AuthPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
-  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const navigate = useNavigate();
 
   const [loginMutate, loginState] = useMutation(authApi.login);
   const [signupMutate, signupState] = useMutation(authApi.signup);
   const [verifyMutate, verifyState] = useMutation(authApi.verifyEmail);
-  const isLoading = loginState.loading || signupState.loading || verifyState.loading || creatingWorkspace;
+  const isLoading = loginState.loading || signupState.loading || verifyState.loading;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -61,7 +60,7 @@ function AuthPage() {
         return;
       }
       localStorage.setItem(PENDING_WORKSPACE_KEY, cleanWorkspace);
-      const response = await signupMutate({ email: email.trim().toLowerCase(), password, fullName: fullName.trim() });
+      const response = await signupMutate({ email: email.trim().toLowerCase(), password, fullName: fullName.trim(), workspaceName: cleanWorkspace });
       setVerificationEmail(response.email || email.trim().toLowerCase());
       setVerificationCode("");
       setVerificationStep(true);
@@ -84,15 +83,11 @@ function AuthPage() {
         setTimeout(() => navigate({ to: "/app" }), 250);
         return;
       }
-      setCreatingWorkspace(true);
-      await organizationsApi.create({ name: pendingWorkspace });
       localStorage.removeItem(PENDING_WORKSPACE_KEY);
-      setSuccessMessage("Email verified. Your workspace is ready.");
+      setSuccessMessage("Email verified. Your organization is ready. Create a workspace to begin.");
       setTimeout(() => navigate({ to: "/app" }), 250);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "We could not complete verification and workspace setup. Please try again.");
-    } finally {
-      setCreatingWorkspace(false);
     }
   };
 
