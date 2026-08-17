@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { z } from "zod";
 import { ArrowRight, Github, Mail, Terminal, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
@@ -16,8 +16,13 @@ const authSearchSchema = z.object({
 export const Route = createFileRoute("/auth")({
   validateSearch: authSearchSchema,
   head: () => ({ meta: [{ title: "Sign in · Matrix QA" }, { name: "description", content: "Sign in to the Matrix QA console." }, { name: "robots", content: "noindex" }] }),
-  component: AuthPage,
+  component: AuthRoute,
 });
+
+function AuthRoute() {
+  const location = useLocation();
+  return location.pathname === "/auth" ? <AuthPage /> : <Outlet />;
+}
 
 function AuthPage() {
   const search = Route.useSearch();
