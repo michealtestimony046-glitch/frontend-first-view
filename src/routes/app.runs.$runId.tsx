@@ -105,7 +105,12 @@ function RunDetailPage() {
   const s = reportSummary(report);
   const screenshots = report.screenshots ?? [];
   const selectedShot = screenshots[selected];
-  const videoUrl = report.finalVideo ?? report.rawVideo ?? null;
+  const videoStatus = report.artifactStatus?.video?.status ?? (report.finalVideo || report.rawVideo ? "ready" : "not_available");
+  const videoUrl = videoStatus === "ready"
+    ? report.finalVideo ?? report.rawVideo ?? null
+    : videoStatus === "raw_only"
+      ? report.rawVideo ?? null
+      : null;
 
   const copyMarkdown = async () => {
     try {
@@ -245,7 +250,7 @@ function RunDetailPage() {
           />
         </div>
 
-        {videoUrl && <EvidenceVideo report={report} url={videoUrl} />}
+        {videoUrl ? <EvidenceVideo report={report} url={videoUrl} /> : <EvidenceStatus report={report} />}
 
         <div className="mt-8 -mx-4 overflow-x-auto border-b border-border md:mx-0">
           <div className="flex min-w-max items-center gap-1 px-4 md:min-w-0 md:px-0">
@@ -282,6 +287,24 @@ function RunDetailPage() {
           {tab === "network" && <EventsTab report={report} />}
           {tab === "scenarios" && <AssertionsTab report={report} />}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function EvidenceStatus({ report }: { report: RunReport }) {
+  const status = report.artifactStatus?.video?.status ?? "not_available";
+  const message = status === "failed"
+    ? "Video evidence could not be prepared for this run."
+    : status === "raw_only"
+      ? "The raw browser recording is available, but the processed replay is not ready."
+      : "No video artifact is available for this run.";
+  return (
+    <div className="mt-8 flex items-start gap-3 rounded-md border border-warning/40 bg-warning/10 p-4 text-sm">
+      <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+      <div>
+        <div className="font-medium text-foreground">Evidence video unavailable</div>
+        <p className="mt-1 text-muted-foreground">{message} The browser run itself is {report.status === "COMPLETED" ? "complete" : report.status.toLowerCase()} and its screenshots, events, assertions, and report remain available.</p>
       </div>
     </div>
   );
@@ -656,7 +679,7 @@ function buildReportMarkdown(report: RunReport, runId: string) {
     `- Bugs captured: ${summary.bugs}`,
     `- Screenshots: ${(report.screenshots ?? []).length}`,
     `- Events: ${(report.events ?? []).length}`,
-    `- Evidence video: ${report.finalVideo || report.rawVideo ? "available in the console" : "not available"}`,
+    `- Evidence video: ${report.artifactStatus?.video?.status === "ready" ? "processed video available" : report.artifactStatus?.video?.status === "raw_only" ? "raw recording available; processed video unavailable" : "not available"}`,
   ];
 
   if (report.errorMessage) {
