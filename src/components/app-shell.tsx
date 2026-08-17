@@ -13,6 +13,7 @@ type NavItem = { label: string; to: string; icon: typeof LayoutDashboard; exact?
 const nav: NavItem[] = [
   { label: "Overview", to: "/app", icon: LayoutDashboard, exact: true },
   { label: "Projects", to: "/app/projects", icon: FolderKanban },
+  { label: "Discovery", to: "/app/discovery", icon: Search },
   { label: "Test Runs", to: "/app/runs", icon: ListChecks },
   { label: "Issues", to: "/app/issues", icon: Bug },
   { label: "Audit Log", to: "/app/audit", icon: ScrollText },
@@ -24,8 +25,8 @@ const nav: NavItem[] = [
 const mobileTabs: NavItem[] = [
   { label: "Overview", to: "/app", icon: LayoutDashboard, exact: true },
   { label: "Projects", to: "/app/projects", icon: FolderKanban },
+  { label: "Discovery", to: "/app/discovery", icon: Search },
   { label: "Runs", to: "/app/runs", icon: ListChecks },
-  { label: "Issues", to: "/app/issues", icon: Bug },
 ];
 const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
 
