@@ -6,7 +6,7 @@ import {
   type Organization,
   type Workspace,
 } from "@/lib/api-client";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
 const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
