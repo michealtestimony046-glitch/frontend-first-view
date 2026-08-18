@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { Activity, BrainCircuit, Check, Plus, Settings2 } from "lucide-react";
-import type { AdminAiProviderConfig } from "@/lib/api-client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Crown, Loader2, Plus, RefreshCw, Settings2, Trash2 } from "lucide-react";
+import { adminApi, type AdminAiModelCatalogResponse, type AdminAiProviderConfig } from "@/lib/api-client";
 
 type Provider = AdminAiProviderConfig["provider"];
 type UseCase = AdminAiProviderConfig["useCase"];
@@ -9,8 +9,21 @@ type SavePayload = Partial<AdminAiProviderConfig> & Pick<AdminAiProviderConfig, 
 type Props = {
   configs: AdminAiProviderConfig[];
   busyId: string | null;
-  onSave: (data: SavePayload) => void;
-  onHealthCheck: (config: AdminAiProviderConfig) => void;
+  onSave: (data: SavePayload) => Promise<void> | void;
+  onHealthCheck: (config: AdminAiProviderConfig) => Promise<void> | void;
+  onRemove: (config: AdminAiProviderConfig) => Promise<void> | void;
+};
+
+type Draft = SavePayload & {
+  baseUrl: string;
+  enabled: boolean;
+  priority: number;
+  timeoutMs: number;
+  maxOutputTokens: number;
+  temperature: number;
+  estimatedInputUsdPerMillion: number;
+  estimatedOutputUsdPerMillion: number;
+  matrixUnitSurcharge: number;
 };
 
 const useCases: UseCase[] = ["DISCOVERY", "PLANNING", "BROWSER_AGENT", "VISION", "RECOVERY"];
@@ -23,19 +36,44 @@ const providers: Array<{ value: Provider; label: string }> = [
   { value: "openai_compatible", label: "Other OpenAI-compatible" },
 ];
 
-const blankDraft = (): SavePayload & { baseUrl: string; enabled: boolean; priority: number; timeoutMs: number; maxOutputTokens: number; temperature: number; estimatedInputUsdPerMillion: number; estimatedOutputUsdPerMillion: number; matrixUnitSurcharge: number } => ({
+const defaultSecretRefs: Record<Provider, string> = {
+  groq: "GROQ_API_KEY",
+  openai: "OPENAI_API_KEY",
+  gemini: "GEMINI_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+  openai_compatible: "AI_COMPATIBLE_API_KEY",
+};
+
+const useCaseLabels: Record<UseCase, string> = {
+  DISCOVERY: "Discovery",
+  PLANNING: "Planning",
+  BROWSER_AGENT: "Browser Agent",
+  VISION: "Vision",
+  RECOVERY: "Recovery",
+};
+
+const useCaseDescriptions: Record<UseCase, string> = {
+  DISCOVERY: "Maps pages, features, and deterministic safe actions.",
+  PLANNING: "Builds the ordered journey graph before execution.",
+  BROWSER_AGENT: "Chooses the next approved Playwright tool call.",
+  VISION: "Verifies visual state from screenshots when configured.",
+  RECOVERY: "Advises bounded recovery and bug-intelligence enrichment.",
+};
+
+const blankDraft = (useCase: UseCase = "DISCOVERY", priority = 1): Draft => ({
   provider: "groq",
-  model: "openai/gpt-oss-20b",
-  useCase: "DISCOVERY",
+  model: "",
+  useCase,
   secretRef: "GROQ_API_KEY",
   baseUrl: "",
   enabled: false,
-  priority: 1,
+  priority,
   timeoutMs: 20000,
   maxOutputTokens: 2000,
   temperature: 0,
-  estimatedInputUsdPerMillion: 0.075,
-  estimatedOutputUsdPerMillion: 0.3,
+  estimatedInputUsdPerMillion: 0,
+  estimatedOutputUsdPerMillion: 0,
   matrixUnitSurcharge: 1,
 });
 
@@ -47,10 +85,27 @@ function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : "Not checked";
 }
 
-export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck }: Props) {
-  const [draft, setDraft] = useState(blankDraft);
+function sortedConfigs(configs: AdminAiProviderConfig[]) {
+  return [...configs].sort((left, right) => left.priority - right.priority || left.updatedAt.localeCompare(right.updatedAt));
+}
+
+function compatibilityClass(status: AdminAiModelCatalogResponse["models"][number]["compatibility"]["status"]) {
+  if (status === "INCOMPATIBLE") return "border-destructive/40 bg-destructive/10 text-destructive";
+  if (status === "WARNING") return "border-warning/40 bg-warning/10 text-warning";
+  if (status === "COMPATIBLE") return "border-primary/30 bg-primary/10 text-primary";
+  return "border-border bg-surface-2/30 text-muted-foreground";
+}
+
+export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRemove }: Props) {
+  const [draft, setDraft] = useState<Draft>(() => blankDraft());
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<AdminAiModelCatalogResponse | null>(null);
+  const [catalogBusy, setCatalogBusy] = useState(false);
+  const [catalogError, setCatalogError] = useState("");
+
   const editing = useMemo(() => configs.find((item) => item.id === editingId) || null, [configs, editingId]);
+  const useCaseConfigs = useMemo(() => sortedConfigs(configs.filter((item) => item.useCase === draft.useCase)), [configs, draft.useCase]);
+  const selectedCatalogModel = catalog?.models.find((item) => item.id === draft.model);
 
   useEffect(() => {
     if (!editing) return;
@@ -69,29 +124,130 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck }: Pro
       estimatedOutputUsdPerMillion: editing.estimatedOutputUsdPerMillion,
       matrixUnitSurcharge: editing.matrixUnitSurcharge,
     });
+    setCatalog(null);
+    setCatalogError("");
   }, [editing]);
 
-  const set = <K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) => setDraft((current) => ({ ...current, [key]: value }));
-  const reset = () => { setEditingId(null); setDraft(blankDraft()); };
+  const loadCatalog = useCallback(async (refresh = false) => {
+    if (!draft.secretRef || !/^[A-Z][A-Z0-9_]{1,127}$/.test(draft.secretRef)) {
+      setCatalogError("Enter a valid deployment secret reference before fetching models.");
+      return;
+    }
+    if (draft.provider === "openai_compatible" && !draft.baseUrl.trim()) {
+      setCatalogError("Enter the HTTPS base URL for the compatible provider before fetching models.");
+      return;
+    }
+    setCatalogBusy(true);
+    setCatalogError("");
+    try {
+      const response = await adminApi.listAiModelCatalog({ provider: draft.provider, secretRef: draft.secretRef, baseUrl: draft.baseUrl.trim() || undefined, useCase: draft.useCase, refresh });
+      setCatalog(response);
+    } catch (cause) {
+      setCatalogError(cause instanceof Error ? cause.message : "Unable to fetch the live model catalog.");
+    } finally {
+      setCatalogBusy(false);
+    }
+  }, [draft.baseUrl, draft.provider, draft.secretRef, draft.useCase]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadCatalog(false); }, 350);
+    return () => window.clearTimeout(timer);
+  }, [loadCatalog]);
+
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }));
+  const reset = (useCase: UseCase = "DISCOVERY", priority = 1) => {
+    setEditingId(null);
+    setDraft(blankDraft(useCase, priority));
+    setCatalog(null);
+    setCatalogError("");
+  };
+
+  const changeProvider = (provider: Provider) => {
+    const currentDefault = defaultSecretRefs[draft.provider];
+    setDraft((current) => ({
+      ...current,
+      provider,
+      secretRef: current.secretRef === currentDefault ? defaultSecretRefs[provider] : current.secretRef,
+      baseUrl: provider === "openai_compatible" ? current.baseUrl : "",
+      model: "",
+    }));
+    setCatalog(null);
+  };
+
+  const changeUseCase = (useCase: UseCase) => {
+    setDraft((current) => ({ ...current, useCase, priority: configs.filter((item) => item.useCase === useCase).length + 1, model: "" }));
+    setCatalog(null);
+  };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!draft.model.trim()) {
+      setCatalogError("Choose a live model or type a model ID manually before saving.");
+      return;
+    }
+    await onSave({ ...draft, model: draft.model.trim(), secretRef: draft.secretRef.trim(), baseUrl: draft.baseUrl.trim() || undefined });
+  };
+
+  const reorder = async (items: AdminAiProviderConfig[]) => {
+    for (const [index, item] of items.entries()) {
+      if (item.priority !== index + 1) {
+        await onSave({
+          provider: item.provider,
+          model: item.model,
+          useCase: item.useCase,
+          secretRef: item.secretRef,
+          baseUrl: item.baseUrl || undefined,
+          enabled: item.enabled,
+          priority: index + 1,
+          timeoutMs: item.timeoutMs,
+          maxOutputTokens: item.maxOutputTokens,
+          temperature: item.temperature,
+          estimatedInputUsdPerMillion: item.estimatedInputUsdPerMillion,
+          estimatedOutputUsdPerMillion: item.estimatedOutputUsdPerMillion,
+          matrixUnitSurcharge: item.matrixUnitSurcharge,
+        });
+      }
+    }
+  };
+
+  const promote = async (config: AdminAiProviderConfig) => {
+    const items = sortedConfigs(configs.filter((item) => item.useCase === config.useCase));
+    const promoted = [config, ...items.filter((item) => item.id !== config.id)];
+    await reorder(promoted);
+  };
+
+  const move = async (config: AdminAiProviderConfig, direction: "up" | "down") => {
+    const items = sortedConfigs(configs.filter((item) => item.useCase === config.useCase));
+    const index = items.findIndex((item) => item.id === config.id);
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (index < 0 || target < 0 || target >= items.length) return;
+    [items[index], items[target]] = [items[target], items[index]];
+    await reorder(items);
+  };
 
   return <div className="mt-6 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
     <section className="surface-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><div className="flex items-center gap-2"><BrainCircuit className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">AI model configurations</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Add one or more provider/model rows for each V2 use case. Lower priority numbers are tried first.</p></div>
-        <button type="button" onClick={reset} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent"><Plus className="h-3.5 w-3.5" /> Add another</button>
+        <div><div className="flex items-center gap-2"><Crown className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Primary model and fallback chain</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Configure one primary model and up to three ordered fallbacks for each V2 use case. The browser never receives provider keys.</p></div>
+        <button type="button" onClick={() => reset(draft.useCase, useCaseConfigs.length + 1)} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent"><Plus className="h-3.5 w-3.5" /> Add fallback</button>
       </div>
-      <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">Keys stay in deployment secrets. This form stores only the environment-variable name, such as <code>GROQ_API_KEY</code>. Official GitHub Models inference was retired; use <strong>Other OpenAI-compatible</strong> with a current GitHub/Azure-compatible endpoint if your organization has one.</div>
-      <form className="mt-5 grid gap-3" onSubmit={(event) => { event.preventDefault(); onSave({ ...draft, model: draft.model.trim(), secretRef: draft.secretRef.trim(), baseUrl: draft.baseUrl?.trim() || undefined }); }}>
-        <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs text-muted-foreground">Use case<select value={draft.useCase} onChange={(event) => set("useCase", event.target.value as UseCase)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{useCases.map((item) => <option key={item}>{item}</option>)}</select></label><label className="grid gap-1 text-xs text-muted-foreground">Provider<select value={draft.provider} onChange={(event) => set("provider", event.target.value as Provider)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{providers.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>
-        <label className="grid gap-1 text-xs text-muted-foreground">Model<input required value={draft.model} onChange={(event) => set("model", event.target.value)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label>
+      <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">GitHub Models inference was retired. GitHub is not an inference provider here; use <strong>Other OpenAI-compatible</strong> only when you have a current compatible endpoint. Keys remain deployment secrets such as <code>GROQ_API_KEY</code>.</div>
+      <form className="mt-5 grid gap-3" onSubmit={(event) => { void submit(event); }}>
+        <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs text-muted-foreground">Use case<select value={draft.useCase} onChange={(event) => changeUseCase(event.target.value as UseCase)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{useCases.map((item) => <option key={item} value={item}>{useCaseLabels[item]}</option>)}</select></label><label className="grid gap-1 text-xs text-muted-foreground">Provider<select value={draft.provider} onChange={(event) => changeProvider(event.target.value as Provider)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{providers.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>
+        <p className="text-[11px] text-muted-foreground">{useCaseDescriptions[draft.useCase]}</p>
+        <div className="grid gap-2"><label className="grid gap-1 text-xs text-muted-foreground">Live model catalog or manual model ID<input required list={`ai-model-options-${draft.useCase}`} value={draft.model} onChange={(event) => set("model", event.target.value)} placeholder="Choose a live model or type an ID" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><datalist id={`ai-model-options-${draft.useCase}`}>{catalog?.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</datalist></label><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => { void loadCatalog(true); }} disabled={catalogBusy} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium hover:bg-accent disabled:opacity-50">{catalogBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Refresh models</button>{catalog && <span className="text-[11px] text-muted-foreground">{catalog.cached ? "Cached" : "Live"} catalog · {formatDate(catalog.fetchedAt)}{catalog.stale ? " · stale" : ""}</span>}</div></div>
+        {catalogError && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-destructive">{catalogError}</div>}
+        {catalog?.warnings.map((warning) => <div key={warning} className="rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" />{warning}</div>)}
+        {selectedCatalogModel && <div className={`rounded-md border p-2 text-[11px] ${compatibilityClass(selectedCatalogModel.compatibility.status)}`}><strong>{selectedCatalogModel.name}</strong> · {selectedCatalogModel.status.toLowerCase()} · {selectedCatalogModel.contextLength ? `${selectedCatalogModel.contextLength.toLocaleString()} context` : "context unknown"}{selectedCatalogModel.compatibility.reasons.length > 0 && <span> · {selectedCatalogModel.compatibility.reasons.join(" ")}</span>}</div>}
+        {draft.model && !selectedCatalogModel && <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" />Manual / unverified model ID. Run a health check after saving before activating it.</div>}
         <label className="grid gap-1 text-xs text-muted-foreground">Deployment secret reference<input required pattern="[A-Z][A-Z0-9_]{1,127}" value={draft.secretRef} onChange={(event) => set("secretRef", event.target.value.toUpperCase())} placeholder="ANTHROPIC_API_KEY" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><span className="text-[11px]">Never paste the actual API key here.</span></label>
-        <label className="grid gap-1 text-xs text-muted-foreground">Custom HTTPS base URL <span className="font-normal">(required for Other OpenAI-compatible)</span><input type="url" required={draft.provider === "openai_compatible"} value={draft.baseUrl} onChange={(event) => set("baseUrl", event.target.value)} placeholder={draft.provider === "openai_compatible" ? "https://your-provider.example/v1" : "Leave blank for the provider default"} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label>
-        <div className="grid gap-3 sm:grid-cols-3"><label className="grid gap-1 text-xs text-muted-foreground">Priority<input type="number" min={1} max={100} value={draft.priority} onChange={(event) => set("priority", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Timeout ms<input type="number" min={1000} max={120000} value={draft.timeoutMs} onChange={(event) => set("timeoutMs", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Max output tokens<input type="number" min={16} max={8192} value={draft.maxOutputTokens} onChange={(event) => set("maxOutputTokens", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div>
+        <label className="grid gap-1 text-xs text-muted-foreground">Custom HTTPS base URL <span className="font-normal">(required for Other OpenAI-compatible)</span><input type="url" required={draft.provider === "openai_compatible"} value={draft.baseUrl} onChange={(event) => set("baseUrl", event.target.value)} placeholder={draft.provider === "openai_compatible" ? "https://your-provider.example/v1" : "Leave blank for provider default"} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label>
+        <div className="grid gap-3 sm:grid-cols-3"><label className="grid gap-1 text-xs text-muted-foreground">Chain position<input type="number" min={1} max={100} value={draft.priority} onChange={(event) => set("priority", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Timeout ms<input type="number" min={1000} max={120000} value={draft.timeoutMs} onChange={(event) => set("timeoutMs", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Max output tokens<input type="number" min={16} max={8192} value={draft.maxOutputTokens} onChange={(event) => set("maxOutputTokens", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div>
         <div className="grid gap-3 sm:grid-cols-4"><label className="grid gap-1 text-xs text-muted-foreground">Temperature<input type="number" min={0} max={1} step={0.05} value={draft.temperature} onChange={(event) => set("temperature", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Input USD / 1M<input type="number" min={0} step={0.000001} value={draft.estimatedInputUsdPerMillion} onChange={(event) => set("estimatedInputUsdPerMillion", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Output USD / 1M<input type="number" min={0} step={0.000001} value={draft.estimatedOutputUsdPerMillion} onChange={(event) => set("estimatedOutputUsdPerMillion", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Matrix units<input type="number" min={0} max={100} value={draft.matrixUnitSurcharge} onChange={(event) => set("matrixUnitSurcharge", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.enabled} onChange={(event) => set("enabled", event.target.checked)} /> Activate this configuration for new work</label>
-        <div className="flex flex-wrap gap-2"><button disabled={busyId === `ai-provider-${draft.useCase}`} className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"><Check className="h-3.5 w-3.5" /> {editingId ? "Save new version" : "Save configuration"}</button>{editingId && <button type="button" onClick={reset} className="rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent">Cancel edit</button>}</div>
+        <div className="flex flex-wrap gap-2"><button disabled={busyId === `ai-provider-${draft.useCase}`} className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"><Check className="h-3.5 w-3.5" /> {editingId ? "Save configuration" : draft.priority === 1 ? "Save primary" : "Save fallback"}</button>{editingId && <button type="button" onClick={() => reset(draft.useCase, useCaseConfigs.length + 1)} className="rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent">Cancel edit</button>}</div>
       </form>
     </section>
-    <section className="surface-card p-5"><div className="flex items-center gap-2"><Settings2 className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Configured providers</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Vision and Recovery can be configured and billed like every other use case. Changes affect new scans/plans/runs; running jobs keep their snapshot.</p><div className="mt-4 space-y-2">{configs.length === 0 ? <p className="text-sm text-muted-foreground">No database-managed provider configurations yet. Deployment fallback is active where configured.</p> : configs.map((config) => <article key={config.id} className={`rounded-md border p-3 ${config.enabled ? "border-primary/40" : "border-border/60"}`}><div className="flex items-start justify-between gap-3"><div><div className="text-sm font-medium">{providerLabel(config.provider)} / {config.model}</div><div className="text-[11px] text-muted-foreground">{config.useCase} · priority {config.priority} · v{config.configVersion} · {config.enabled ? "Active" : "Disabled"}</div></div><div className="flex gap-2"><button type="button" onClick={() => { setEditingId(config.id); }} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">Edit</button><button type="button" onClick={() => onHealthCheck(config)} disabled={busyId === `ai-health-${config.id}`} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50">Health check</button></div></div><div className="mt-2 text-[11px] text-muted-foreground">Secret ref: {config.secretRef} · {config.baseUrl || "provider default endpoint"}</div><div className="mt-1 text-[11px] text-muted-foreground">Health: {config.lastHealthStatus || "Not checked"} · checked {formatDate(config.lastHealthCheckedAt)}</div>{config.lastHealthError && <div className="mt-1 text-[11px] text-destructive">{config.lastHealthError}</div>}</article>)}</div></section>
+    <section className="surface-card p-5"><div className="flex items-center gap-2"><Settings2 className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Configuration chains</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Primary is position 1. Fallbacks run in order for transient provider failures, unavailable models, and bounded recovery events. Matrix QA policy remains authoritative.</p><div className="mt-4 space-y-4">{useCases.map((useCase) => { const items = sortedConfigs(configs.filter((item) => item.useCase === useCase)); return <section key={useCase} className="border-t border-border/70 pt-3 first:border-t-0 first:pt-0"><div className="flex items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{useCaseLabels[useCase]}</h3><p className="text-[11px] text-muted-foreground">{useCaseDescriptions[useCase]}</p></div><button type="button" onClick={() => reset(useCase, items.length + 1)} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent"><Plus className="h-3 w-3" /> {items.length ? "Add fallback" : "Add primary"}</button></div>{items.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">No model configured.</p> : <div className="mt-2 space-y-2">{items.map((config, index) => <article key={config.id} className={`border p-3 ${index === 0 ? "border-primary/40 bg-primary/5" : "border-border/70"}`}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex items-center gap-2 text-sm font-medium">{index === 0 ? <Crown className="h-3.5 w-3.5 text-primary" /> : <span className="text-[10px] font-mono text-muted-foreground">F{index}</span>}<span className="truncate">{index === 0 ? "Primary" : `Fallback ${index}`} · {providerLabel(config.provider)}</span></div><div className="mt-1 truncate text-[11px] text-muted-foreground">{config.model} · v{config.configVersion} · {config.enabled ? "Active" : "Disabled"}</div></div><div className="flex shrink-0 flex-wrap justify-end gap-1"><button type="button" onClick={() => setEditingId(config.id)} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">Edit</button>{index > 0 && <button type="button" onClick={() => { void promote(config); }} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">Promote</button>}<button type="button" aria-label="Move up" disabled={index === 0} onClick={() => { void move(config, "up"); }} className="rounded-md border border-border p-1 hover:bg-accent disabled:opacity-30"><ArrowUp className="h-3 w-3" /></button><button type="button" aria-label="Move down" disabled={index === items.length - 1} onClick={() => { void move(config, "down"); }} className="rounded-md border border-border p-1 hover:bg-accent disabled:opacity-30"><ArrowDown className="h-3 w-3" /></button><button type="button" aria-label="Remove configuration" onClick={() => { void onRemove(config); }} disabled={busyId === `ai-remove-${config.id}`} className="rounded-md border border-destructive/40 p-1 text-destructive hover:bg-destructive/10 disabled:opacity-50"><Trash2 className="h-3 w-3" /></button></div></div><div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground"><span>{config.secretRef}</span><span>{config.baseUrl || "provider default endpoint"}</span><span>Health: {config.lastHealthStatus || "Not checked"}</span><span>{formatDate(config.lastHealthCheckedAt)}</span></div>{config.lastHealthError && <div className="mt-1 text-[11px] text-destructive">{config.lastHealthError}</div>}<div className="mt-2 flex items-center justify-between gap-2"><span className={`text-[11px] font-medium ${config.enabled ? "text-primary" : "text-muted-foreground"}`}>{config.enabled ? "Eligible for new work" : "Disabled"}</span><div className="flex gap-1"><button type="button" onClick={() => { void onSave({ provider: config.provider, model: config.model, useCase: config.useCase, secretRef: config.secretRef, baseUrl: config.baseUrl || undefined, enabled: !config.enabled, priority: index + 1, timeoutMs: config.timeoutMs, maxOutputTokens: config.maxOutputTokens, temperature: config.temperature, estimatedInputUsdPerMillion: config.estimatedInputUsdPerMillion, estimatedOutputUsdPerMillion: config.estimatedOutputUsdPerMillion, matrixUnitSurcharge: config.matrixUnitSurcharge }); }} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">{config.enabled ? "Disable" : "Enable"}</button><button type="button" onClick={() => { void onHealthCheck(config); }} disabled={busyId === `ai-health-${config.id}`} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50">{busyId === `ai-health-${config.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : "Health check"}</button></div></div></article>)}</div>}</section>; })}</div></section>
   </div>;
 }
