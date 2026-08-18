@@ -15,10 +15,12 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as QaFixtureRouteImport } from './routes/qa-fixture'
 import { Route as SampleReportRouteImport } from './routes/sample-report'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppCreditsRouteImport } from './routes/app.credits'
+import { Route as AppDiscoveryRouteImport } from './routes/app.discovery'
 import { Route as AppIssuesRouteImport } from './routes/app.issues'
 import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
 import { Route as AppProjectsRouteImport } from './routes/app.projects'
@@ -64,6 +66,11 @@ const PricingRoute = PricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QaFixtureRoute = QaFixtureRouteImport.update({
+  id: '/qa-fixture',
+  path: '/qa-fixture',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SampleReportRoute = SampleReportRouteImport.update({
   id: '/sample-report',
   path: '/sample-report',
@@ -82,6 +89,11 @@ const AppAuditRoute = AppAuditRouteImport.update({
 const AppCreditsRoute = AppCreditsRouteImport.update({
   id: '/credits',
   path: '/credits',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDiscoveryRoute = AppDiscoveryRouteImport.update({
+  id: '/discovery',
+  path: '/discovery',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIssuesRoute = AppIssuesRouteImport.update({
@@ -162,9 +174,11 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
+  '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
+  '/app/discovery': typeof AppDiscoveryRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
@@ -187,9 +201,11 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
+  '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
+  '/app/discovery': typeof AppDiscoveryRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
@@ -213,9 +229,11 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
+  '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
+  '/app/discovery': typeof AppDiscoveryRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
@@ -241,9 +259,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/faq'
     | '/pricing'
+    | '/qa-fixture'
     | '/sample-report'
     | '/app/audit'
     | '/app/credits'
+    | '/app/discovery'
     | '/app/issues'
     | '/app/notifications'
     | '/app/projects'
@@ -266,9 +286,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/faq'
     | '/pricing'
+    | '/qa-fixture'
     | '/sample-report'
     | '/app/audit'
     | '/app/credits'
+    | '/app/discovery'
     | '/app/issues'
     | '/app/notifications'
     | '/app/projects'
@@ -291,9 +313,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/faq'
     | '/pricing'
+    | '/qa-fixture'
     | '/sample-report'
     | '/app/audit'
     | '/app/credits'
+    | '/app/discovery'
     | '/app/issues'
     | '/app/notifications'
     | '/app/projects'
@@ -318,6 +342,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   FaqRoute: typeof FaqRoute
   PricingRoute: typeof PricingRoute
+  QaFixtureRoute: typeof QaFixtureRoute
   SampleReportRoute: typeof SampleReportRoute
   StaffInvitationsAcceptRoute: typeof StaffInvitationsAcceptRoute
   StaffInvitationsDeclineRoute: typeof StaffInvitationsDeclineRoute
@@ -367,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/qa-fixture': {
+      id: '/qa-fixture'
+      path: '/qa-fixture'
+      fullPath: '/qa-fixture'
+      preLoaderRoute: typeof QaFixtureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sample-report': {
       id: '/sample-report'
       path: '/sample-report'
@@ -393,6 +425,13 @@ declare module '@tanstack/react-router' {
       path: '/credits'
       fullPath: '/app/credits'
       preLoaderRoute: typeof AppCreditsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/discovery': {
+      id: '/app/discovery'
+      path: '/discovery'
+      fullPath: '/app/discovery'
+      preLoaderRoute: typeof AppDiscoveryRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/issues': {
@@ -526,6 +565,7 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppCreditsRoute: typeof AppCreditsRoute
+  AppDiscoveryRoute: typeof AppDiscoveryRoute
   AppIssuesRoute: typeof AppIssuesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppProjectsRoute: typeof AppProjectsRoute
@@ -538,6 +578,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppCreditsRoute: AppCreditsRoute,
+  AppDiscoveryRoute: AppDiscoveryRoute,
   AppIssuesRoute: AppIssuesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppProjectsRoute: AppProjectsRoute,
@@ -568,6 +609,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   FaqRoute: FaqRoute,
   PricingRoute: PricingRoute,
+  QaFixtureRoute: QaFixtureRoute,
   SampleReportRoute: SampleReportRoute,
   StaffInvitationsAcceptRoute: StaffInvitationsAcceptRoute,
   StaffInvitationsDeclineRoute: StaffInvitationsDeclineRoute,
