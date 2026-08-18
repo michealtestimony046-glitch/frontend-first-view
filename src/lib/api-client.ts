@@ -256,6 +256,13 @@ export interface ArtifactStatus {
 }
 
 export type V2EnvironmentKind = "PREVIEW" | "STAGING" | "PRODUCTION";
+export type V2MissionAccessMode = "ANONYMOUS" | "TEST_ACCOUNT" | "BROWSER_HANDOFF";
+export interface V2MissionSpec {
+  version: "mission-v1";
+  goal: string;
+  accessMode: V2MissionAccessMode;
+  riskPolicy: "SAFE_ADAPTIVE";
+}
 export type V2ScanStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
 export type V2PlannerMode = "QUICK_SMOKE" | "STANDARD_ADAPTIVE" | "DEEP_MATRIX";
 export type V2PlanStatus = "DRAFT" | "READY" | "AWAITING_APPROVAL" | "APPROVED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
@@ -296,6 +303,7 @@ export interface V2ApplicationScan {
   summary?: (Record<string, unknown> & { aiEnrichment?: V2AiEnrichment }) | null;
   projectMap?: {
     targetOrigin?: string;
+    mission?: V2MissionSpec;
     features?: string[];
     scannedPages?: Array<{ url: string; route: string; title: string; features?: string[]; authSignals?: Record<string, boolean> }>;
     actions?: Array<{ key: string; text: string; tag: string; tier: V2PolicyTier; reason: string; locatorCandidates?: Array<Record<string, string>> }>;
@@ -339,7 +347,10 @@ export interface V2TestPlan {
   version: string;
   estimatedUnits?: number | null;
   reservedUnits?: number | null;
-  projectMap?: { billingBreakdown?: { baseScenarioUnits: number; aiDiscoveryUnits: number; estimatedUnits: number; accounting?: string } } | null;
+    projectMap?: {
+    mission?: V2MissionSpec;
+    billingBreakdown?: { baseScenarioUnits: number; aiDiscoveryUnits: number; estimatedUnits: number; accounting?: string }
+  } | null;
   createdAt?: string;
   updatedAt?: string;
   scenarios: V2Scenario[];
@@ -780,10 +791,10 @@ export const usersApi = {
 export const v2Api = {
   listEnvironments: (projectId: string): Promise<V2Environment[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
   createEnvironment: (data: { organizationId: string; workspaceId: string; projectId: string; name: string; kind?: V2EnvironmentKind; baseUrl: string }): Promise<V2Environment> => apiRequest('/environments', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string; missionGoal?: string; accessMode?: V2MissionAccessMode } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
   getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
-  createPlanFromScan: (scanId: string, data: { name: string; mode?: V2PlannerMode }): Promise<V2TestPlan> => apiRequest(`/scans/${encodeURIComponent(scanId)}/plans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  createPlanFromScan: (scanId: string, data: { name: string; mode?: V2PlannerMode; missionGoal?: string; accessMode?: V2MissionAccessMode }): Promise<V2TestPlan> => apiRequest(`/scans/${encodeURIComponent(scanId)}/plans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   getPlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}`, { requiresAuth: true }),
   approvePlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}/approve`, { method: 'POST', requiresAuth: true }),
   runPlan: (planId: string, data: TriggerRunRequest = {}): Promise<TriggerRunResponse & { planId?: string }> => apiRequest(`/plans/${encodeURIComponent(planId)}/run`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
