@@ -572,7 +572,7 @@ export interface AdminAiUsageSummary {
 
 export interface AdminAiProviderConfig {
   id: string;
-  provider: "groq" | "openai" | "gemini" | "openrouter" | "anthropic" | "openai_compatible";
+  provider: "groq" | "openai" | "gemini" | "openrouter" | "anthropic" | "zai" | "openai_compatible";
   model: string;
   useCase: "DISCOVERY" | "PLANNING" | "BROWSER_AGENT" | "VISION" | "RECOVERY";
   enabled: boolean;
@@ -615,6 +615,7 @@ export interface AdminAiModelCatalogResponse {
   provider: AdminAiProviderConfig["provider"];
   useCase?: AdminAiProviderConfig["useCase"];
   endpoint: string;
+  source: "LIVE" | "CURATED";
   fetchedAt: string;
   cached: boolean;
   stale: boolean;
