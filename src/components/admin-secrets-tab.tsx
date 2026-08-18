@@ -106,6 +106,14 @@ function parseImport(raw: string, source: ImportSource): ImportPreview {
   return source === "JSON" ? parseJson(raw) : parseEnv(raw);
 }
 
+function ImportPreviewBox({ preview, busy, disabled, onImport }: { preview: ImportPreview; busy: boolean; disabled: boolean; onImport: () => void }) {
+  if (preview.entries.length === 0 && preview.errors.length === 0) return null;
+  return <div className="mt-3 rounded-md border border-border/60 p-3">
+    {preview.entries.length > 0 && <><div className="text-xs font-semibold">Ready to import</div><div className="mt-2 grid gap-1 sm:grid-cols-2">{preview.entries.map((entry) => <div key={entry.name} className="font-mono text-[11px] text-muted-foreground">{entry.name} <span className="font-sans text-success">· value present</span></div>)}</div><button type="button" onClick={onImport} disabled={busy || disabled} className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">{busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Import {preview.entries.length} secret{preview.entries.length === 1 ? "" : "s"}</button></>}
+    {preview.errors.length > 0 && <div className={`${preview.entries.length > 0 ? "mt-3 " : ""}rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning`}><div className="font-semibold">Not imported</div>{preview.errors.map((issue, index) => <div key={`${issue.name}-${index}`} className="mt-1">{issue.name}: {issue.message}</div>)}</div>}
+  </div>;
+}
+
 export function AdminSecretsTab({ secrets, role, busyId, onSaved, onDeleted, setMessage, setError }: Props) {
   const canManage = role === "OWNER" || role === "OPERATIONS_ADMIN";
   const canDelete = role === "OWNER";
@@ -114,9 +122,10 @@ export function AdminSecretsTab({ secrets, role, busyId, onSaved, onDeleted, set
   const [description, setDescription] = React.useState("");
   const [showValue, setShowValue] = useState(false);
   const [localBusy, setLocalBusy] = useState<string | null>(null);
-  const [fileName, setFileName] = useState("");
-  const [fileSource, setFileSource] = useState<ImportSource | null>(null);
-  const [preview, setPreview] = useState<ImportPreview>({ entries: [], errors: [] });
+  const [jsonText, setJsonText] = useState("");
+  const [jsonPreview, setJsonPreview] = useState<ImportPreview>({ entries: [], errors: [] });
+  const [envFileName, setEnvFileName] = useState("");
+  const [envPreview, setEnvPreview] = useState<ImportPreview>({ entries: [], errors: [] });
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -142,36 +151,51 @@ export function AdminSecretsTab({ secrets, role, busyId, onSaved, onDeleted, set
     }
   };
 
-  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const previewJson = () => {
+    setError(""); setMessage("");
+    if (!jsonText.trim()) {
+      setJsonPreview({ entries: [], errors: [{ name: "JSON", message: "Paste a JSON object or array first." }] });
+      setError("Paste a JSON object or array first.");
+      return;
+    }
+    try {
+      const parsed = parseImport(jsonText, "JSON");
+      setJsonPreview(parsed);
+      setMessage(`${parsed.entries.length} secret${parsed.entries.length === 1 ? "" : "s"} ready to import from pasted JSON. Values remain masked.`);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Unable to parse JSON.";
+      setJsonPreview({ entries: [], errors: [{ name: "JSON", message }] });
+      setError(message);
+    }
+  };
+
+  const handleEnvFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
     setError(""); setMessage(""); setLocalBusy("parse");
     try {
-      const source: ImportSource = file.name.toLowerCase().endsWith(".json") ? "JSON" : "ENV";
-      const parsed = parseImport(await file.text(), source);
-      setFileName(file.name);
-      setFileSource(source);
-      setPreview(parsed);
+      const parsed = parseImport(await file.text(), "ENV");
+      setEnvFileName(file.name);
+      setEnvPreview(parsed);
       setMessage(`${parsed.entries.length} secret${parsed.entries.length === 1 ? "" : "s"} ready to import from ${file.name}. Values remain masked.`);
     } catch (cause) {
-      setFileName(file.name);
-      setFileSource(null);
-      setPreview({ entries: [], errors: [{ name: file.name, message: cause instanceof Error ? cause.message : "Unable to parse file." }] });
-      setError(cause instanceof Error ? cause.message : "Unable to parse file.");
+      const message = cause instanceof Error ? cause.message : "Unable to parse .env file.";
+      setEnvFileName(file.name);
+      setEnvPreview({ entries: [], errors: [{ name: file.name, message }] });
+      setError(message);
     } finally {
       setLocalBusy(null);
     }
   };
 
-  const importSecrets = async () => {
-    if (!fileSource || preview.entries.length === 0) return;
-    setError(""); setMessage(""); setLocalBusy("import");
+  const importSecrets = async (source: ImportSource, currentPreview: ImportPreview, onComplete: () => void) => {
+    if (currentPreview.entries.length === 0) return;
+    setError(""); setMessage(""); setLocalBusy(`${source.toLowerCase()}-import`);
     try {
-      const result: ManagedSecretImportResult = await adminApi.importManagedSecrets({ source: fileSource, entries: preview.entries });
+      const result: ManagedSecretImportResult = await adminApi.importManagedSecrets({ source, entries: currentPreview.entries });
       result.secrets.forEach(onSaved);
-      setPreview({ entries: [], errors: [] });
-      setFileName(""); setFileSource(null);
+      onComplete();
       const summary = `${result.imported} imported, ${result.rotated} rotated, ${result.rejected} rejected.`;
       setMessage(`Secret import complete: ${summary} Values were encrypted and are never returned.`);
       if (result.errors.length > 0) setError(result.errors.map((item) => `${item.name}: ${item.message}`).join(" "));
@@ -209,18 +233,23 @@ export function AdminSecretsTab({ secrets, role, busyId, onSaved, onDeleted, set
 
   return <div className="mt-6 space-y-5">
     <section className="surface-card p-5">
-      <div className="flex items-center gap-2"><Upload className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Import secrets</h2></div>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">Import a JSON object/array or a standard `.env` file. The file is parsed in this browser; only validated name/value pairs are sent over the authenticated request. Values are never shown in the preview or returned by the API.</p>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent">
-          <FileJson className="h-3.5 w-3.5" /> Choose JSON or .env
-          <input type="file" accept=".json,.env,application/json,text/plain" onChange={(event) => { void handleFile(event); }} className="sr-only" />
-        </label>
-        {fileName && <span className="text-xs text-muted-foreground">{fileName} · {preview.entries.length} valid entries</span>}
+      <div className="flex items-center gap-2"><Upload className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Import JSON or `.env` separately</h2></div>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">Paste JSON directly into the first box, or choose a `.env` file in the second box. Both previews show names only; validated values are sent through the authenticated request and are never returned.</p>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-md border border-border/60 p-4">
+          <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold">Paste JSON</h3><p className="mt-1 text-[11px] text-muted-foreground">Object map, array, or an object with a secrets property.</p></div><FileJson className="h-4 w-4 text-primary" /></div>
+          <textarea value={jsonText} onChange={(event) => { setJsonText(event.target.value); setJsonPreview({ entries: [], errors: [] }); }} placeholder={'{\n  "ZAI_API_KEY": "paste-value-here"\n}'} spellCheck={false} className="mt-3 min-h-36 w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 font-mono text-xs text-foreground" />
+          <button type="button" onClick={previewJson} disabled={!jsonText.trim() || localBusy !== null || Boolean(busyId)} className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-50"><FileJson className="h-3.5 w-3.5" /> Preview pasted JSON</button>
+          <ImportPreviewBox preview={jsonPreview} busy={localBusy === "json-import"} disabled={Boolean(busyId)} onImport={() => { void importSecrets("JSON", jsonPreview, () => { setJsonText(""); setJsonPreview({ entries: [], errors: [] }); }); }} />
+        </div>
+        <div className="rounded-md border border-border/60 p-4">
+          <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold">Import `.env` file</h3><p className="mt-1 text-[11px] text-muted-foreground">Comments, `export KEY=value`, and quoted values are supported.</p></div><Upload className="h-4 w-4 text-primary" /></div>
+          <label className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent"><Upload className="h-3.5 w-3.5" /> Choose `.env` file<input type="file" accept=".env,text/plain" onChange={(event) => { void handleEnvFile(event); }} className="sr-only" /></label>
+          {envFileName && <div className="mt-2 text-xs text-muted-foreground">{envFileName} · {envPreview.entries.length} valid entr{envPreview.entries.length === 1 ? "y" : "ies"}</div>}
+          <ImportPreviewBox preview={envPreview} busy={localBusy === "env-import"} disabled={Boolean(busyId)} onImport={() => { void importSecrets("ENV", envPreview, () => { setEnvFileName(""); setEnvPreview({ entries: [], errors: [] }); }); }} />
+        </div>
       </div>
-      {preview.entries.length > 0 && <div className="mt-4 rounded-md border border-border/60 p-3"><div className="text-xs font-semibold">Ready to import</div><div className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">{preview.entries.map((entry) => <div key={entry.name} className="font-mono text-[11px] text-muted-foreground">{entry.name} <span className="font-sans text-success">· value present</span></div>)}</div><button type="button" onClick={() => { void importSecrets(); }} disabled={localBusy === "import" || Boolean(busyId)} className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">{localBusy === "import" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Import {preview.entries.length} secret{preview.entries.length === 1 ? "" : "s"}</button></div>}
-      {preview.errors.length > 0 && <div className="mt-3 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning"><div className="font-semibold">Not imported</div>{preview.errors.map((issue, index) => <div key={`${issue.name}-${index}`} className="mt-1">{issue.name}: {issue.message}</div>)}</div>}
-      <p className="mt-3 text-[11px] text-muted-foreground">Existing names are rotated and receive a new vault version. Duplicate names in one file keep the first occurrence.</p>
+      <p className="mt-3 text-[11px] text-muted-foreground">Existing names are rotated and receive a new vault version. Duplicate names in one source keep the first occurrence.</p>
     </section>
 
     <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
