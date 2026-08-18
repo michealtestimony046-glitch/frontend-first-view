@@ -332,6 +332,7 @@ export interface V2TestPlan {
   version: string;
   estimatedUnits?: number | null;
   reservedUnits?: number | null;
+  projectMap?: { billingBreakdown?: { baseScenarioUnits: number; aiDiscoveryUnits: number; estimatedUnits: number; accounting?: string } } | null;
   createdAt?: string;
   updatedAt?: string;
   scenarios: V2Scenario[];
@@ -544,12 +545,31 @@ export interface StaffNotificationRecipient {
   updatedAt?: string;
 }
 
+export interface AdminAiUsageSummary {
+  totals: {
+    events: number;
+    degradedEvents: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+    billableMatrixUnits: number;
+    latencyMs: number;
+    averageLatencyMs: number;
+  };
+  providers: Array<{ provider: string; model: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
+  organizations: Array<{ organizationId: string; organizationName: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
+  recent: Array<{ id: string; organizationId: string; projectId?: string | null; scanId?: string | null; provider: string; model: string; inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number; latencyMs: number; degraded: boolean; createdAt: string }>;
+}
+
 export interface AdminTelemetrySummary {
   version: { public: string; build: string };
   totals: number;
   sums: Record<string, number | null>;
   averages: Record<string, number | null>;
   recent: Array<Record<string, unknown>>;
+  aiUsage?: AdminAiUsageSummary;
+  creditUsage?: { reservedUnits: number; reservedInternalCredits: number; settledUnits: number; settledInternalCredits: number; refundedUnits: number; refundedInternalCredits: number };
 }
 
 export interface WorkerHealth {
