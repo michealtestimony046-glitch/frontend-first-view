@@ -43,6 +43,13 @@ interface RequestOptions extends RequestInit {
   requiresAuth?: boolean;
 }
 
+export class ApiRequestError extends Error {
+  constructor(message: string, public readonly status: number, public readonly endpoint: string) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 const getErrorMessage = (data: unknown, status: number): string => {
   if (typeof data === "object" && data !== null && "message" in data) {
     const m = (data as { message?: unknown }).message;
@@ -76,7 +83,7 @@ export const apiRequest = async <T>(endpoint: string, options: RequestOptions = 
   try {
     const response = await fetch(url, { ...fetchOptions, headers });
     if (!response.ok) {
-      throw new Error(getErrorMessage(await response.json().catch(() => ({})), response.status));
+      throw new ApiRequestError(getErrorMessage(await response.json().catch(() => ({})), response.status), response.status, endpoint);
     }
     if (response.status === 204) return {} as T;
     return await response.json();

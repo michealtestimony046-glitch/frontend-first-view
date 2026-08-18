@@ -3,8 +3,8 @@
  * Manages user authentication state across the entire application.
  */
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { authApi, getAuthToken, clearAuthToken, clearClientWorkspaceContext } from './api-client';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ApiRequestError, authApi, getAuthToken, clearAuthToken, clearClientWorkspaceContext } from './api-client';
 
 const AUTH_EVENT = 'matrix-qa-auth-changed';
 
@@ -22,8 +22,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<Awaited<ReturnType<typeof authApi.getCurrentUser>> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const refreshInFlight = useRef(false);
 
   const refreshUser = async () => {
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     const blockAppWhileLoading = !user;
     if (blockAppWhileLoading) setIsLoading(true);
     try {
@@ -37,9 +40,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
     } catch (error) {
       console.error('Failed to fetch current user:', error);
-      clearAuthToken();
-      setUser(null);
+      const invalidSession = error instanceof ApiRequestError && (error.status === 401 || error.status === 403);
+      if (invalidSession) {
+        clearAuthToken();
+        setUser(null);
+      }
+      // Keep the existing user/session during transient network, timeout, 5xx, and parser failures.
     } finally {
+      refreshInFlight.current = false;
       if (blockAppWhileLoading) setIsLoading(false);
     }
   };
