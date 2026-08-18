@@ -263,6 +263,21 @@ export interface V2MissionSpec {
   accessMode: V2MissionAccessMode;
   riskPolicy: "SAFE_ADAPTIVE";
 }
+export interface V2CoverageFrontierItem {
+  id: string;
+  kind: "ROUTE" | "ACTION";
+  route: string;
+  actionKey?: string;
+  label: string;
+  tier: V2PolicyTier;
+  priority: number;
+  status: "UNTESTED" | "BLOCKED";
+  reason: string;
+}
+export interface V2CoverageFrontier {
+  items?: V2CoverageFrontierItem[];
+  counts: { total: number; untested: number; blocked: number };
+}
 export type V2ScanStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
 export type V2PlannerMode = "QUICK_SMOKE" | "STANDARD_ADAPTIVE" | "DEEP_MATRIX";
 export type V2PlanStatus = "DRAFT" | "READY" | "AWAITING_APPROVAL" | "APPROVED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
@@ -304,6 +319,7 @@ export interface V2ApplicationScan {
   projectMap?: {
     targetOrigin?: string;
     mission?: V2MissionSpec;
+    coverageFrontier?: V2CoverageFrontier;
     features?: string[];
     scannedPages?: Array<{ url: string; route: string; title: string; features?: string[]; authSignals?: Record<string, boolean> }>;
     actions?: Array<{ key: string; text: string; tag: string; tier: V2PolicyTier; reason: string; locatorCandidates?: Array<Record<string, string>> }>;
@@ -349,6 +365,7 @@ export interface V2TestPlan {
   reservedUnits?: number | null;
     projectMap?: {
     mission?: V2MissionSpec;
+    coverageFrontier?: V2CoverageFrontier;
     billingBreakdown?: { baseScenarioUnits: number; aiDiscoveryUnits: number; estimatedUnits: number; accounting?: string }
   } | null;
   createdAt?: string;
