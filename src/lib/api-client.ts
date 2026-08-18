@@ -268,6 +268,16 @@ export interface V2Environment {
   createdAt?: string;
   updatedAt?: string;
 }
+export interface V2AiEnrichment {
+  enabled: boolean;
+  degraded: boolean;
+  provider?: string;
+  model?: string;
+  latencyMs?: number;
+  usage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+  reason?: string;
+}
+
 export interface V2ApplicationScan {
   id: string;
   projectId: string;
@@ -276,15 +286,17 @@ export interface V2ApplicationScan {
   targetUrl: string;
   startedAt?: string | null;
   finishedAt?: string | null;
-  summary?: Record<string, unknown> | null;
+  summary?: (Record<string, unknown> & { aiEnrichment?: V2AiEnrichment }) | null;
   projectMap?: {
     targetOrigin?: string;
     features?: string[];
     scannedPages?: Array<{ url: string; route: string; title: string; features?: string[]; authSignals?: Record<string, boolean> }>;
     actions?: Array<{ key: string; text: string; tag: string; tier: V2PolicyTier; reason: string; locatorCandidates?: Array<Record<string, string>> }>;
     riskSummary?: { safe: number; caution: number; dangerous: number };
-    httpErrors?: Array<{ status: number; url: string }>;
+         httpErrors?: Array<{ status: number; url: string }>;
+     aiEnrichment?: V2AiEnrichment;
   } | null;
+
   errorMessage?: string | null;
   createdAt?: string;
 }
