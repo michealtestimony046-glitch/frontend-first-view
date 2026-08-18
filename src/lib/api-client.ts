@@ -623,6 +623,20 @@ export interface AdminAiModelCatalogResponse {
   warnings: string[];
 }
 
+export interface ManagedSecretMetadata {
+  id: string;
+  name: string;
+  description?: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string | null;
+  lastHealthStatus?: string | null;
+  lastHealthError?: string | null;
+  lastHealthCheckedAt?: string | null;
+  source: "MANAGED" | "DEPLOYMENT" | "MISSING";
+}
+
 export interface AdminTelemetrySummary {
   version: { public: string; build: string };
   totals: number;
@@ -646,6 +660,7 @@ export interface StaffUser {
   id: string;
   email: string;
   fullName?: string | null;
+  avatarUrl?: string | null;
   isStaff: boolean;
   createdAt: string;
   updatedAt: string;
@@ -703,6 +718,9 @@ export const adminApi = {
   listAllocationRequests: (status?: string): Promise<AdminAllocationRequest[]> => apiRequest(`/admin/allocation-requests${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
   reviewAllocationRequest: (id: string, data: { status: 'APPROVED' | 'DECLINED'; staffNote?: string }) => apiRequest<AdminAllocationRequest>(`/admin/allocation-requests/${encodeURIComponent(id)}/review`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listRecipients: (): Promise<StaffNotificationRecipient[]> => apiRequest('/admin/notification-recipients', { requiresAuth: true }),
+  listManagedSecrets: (): Promise<ManagedSecretMetadata[]> => apiRequest('/admin/secrets', { requiresAuth: true }),
+  saveManagedSecret: (data: { name: string; value: string; description?: string }): Promise<ManagedSecretMetadata> => apiRequest('/admin/secrets', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  deleteManagedSecret: (name: string): Promise<{ name: string; deleted: boolean }> => apiRequest('/admin/secrets', { method: 'DELETE', body: JSON.stringify({ name }), requiresAuth: true }),
   saveRecipient: (data: { email: string; label?: string }) => apiRequest<StaffNotificationRecipient>('/admin/notification-recipients', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   disableRecipient: (id: string) => apiRequest<StaffNotificationRecipient>(`/admin/notification-recipients/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
   broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),

@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { Activity, BrainCircuit, Check, CircleAlert, CircleDollarSign, Database, Loader2, Mail, Radio, RefreshCw, Send, ShieldCheck, X } from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { adminApi, type AdminAiProviderConfig, type AdminAllocationRequest, type AdminTelemetrySummary, type StaffManagementData, type StaffNotificationRecipient, type WorkerHealth } from "@/lib/api-client";
+import { adminApi, type AdminAiProviderConfig, type AdminAllocationRequest, type AdminTelemetrySummary, type ManagedSecretMetadata, type StaffManagementData, type StaffNotificationRecipient, type WorkerHealth } from "@/lib/api-client";
 import { StaffManagementPanel } from "@/components/staff-management-panel";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
 import { AdminAiModelsTab } from "@/components/admin-ai-models-tab";
+import { AdminSecretsTab } from "@/components/admin-secrets-tab";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin Console · Matrix QA" }, { name: "robots", content: "noindex" }] }),
   component: AdminPage,
 });
 
-type AdminTab = "queue" | "notifications" | "telemetry" | "ai_models" | "staff";
+type AdminTab = "queue" | "notifications" | "telemetry" | "ai_models" | "secrets" | "staff";
 
 function AdminPage() {
   const { user, isLoading } = useAuth();
@@ -21,6 +22,7 @@ function AdminPage() {
   const [recipients, setRecipients] = useState<StaffNotificationRecipient[]>([]);
   const [telemetry, setTelemetry] = useState<AdminTelemetrySummary | null>(null);
   const [aiProviders, setAiProviders] = useState<AdminAiProviderConfig[]>([]);
+  const [secrets, setSecrets] = useState<ManagedSecretMetadata[]>([]);
   const [health, setHealth] = useState<WorkerHealth | null>(null);
   const [staffData, setStaffData] = useState<StaffManagementData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,12 +40,13 @@ function AdminPage() {
     setError("");
     try {
       const canManageStaff = user?.staffRole === "OWNER" || user?.staffRole === "OPERATIONS_ADMIN";
-      const [requestData, recipientData, telemetryData, aiProviderData, healthData, staffManagementData] = await Promise.all([
+      const [requestData, recipientData, telemetryData, aiProviderData, healthData, managedSecretData, staffManagementData] = await Promise.all([
         adminApi.listAllocationRequests("PENDING"),
         adminApi.listRecipients(),
         adminApi.telemetry(),
         adminApi.listAiProviderConfigs(),
         adminApi.workerHealth(),
+        canManageStaff ? adminApi.listManagedSecrets() : Promise.resolve([]),
         canManageStaff ? adminApi.listStaff() : Promise.resolve(null),
       ]);
       setRequests(requestData);
@@ -51,6 +54,7 @@ function AdminPage() {
       setTelemetry(telemetryData);
       setAiProviders(aiProviderData);
       setHealth(healthData);
+      setSecrets(managedSecretData);
       setStaffData(staffManagementData);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load staff console data.");
@@ -125,6 +129,12 @@ function AdminPage() {
     finally { setBusyId(null); }
   };
 
+  const saveManagedSecret = (secret: ManagedSecretMetadata) => {
+    setSecrets((current) => [...current.filter((item) => item.name !== secret.name), secret].sort((a, b) => a.name.localeCompare(b.name)));
+  };
+
+  const deleteManagedSecret = (name: string) => setSecrets((current) => current.filter((item) => item.name !== name));
+
   const sendBroadcast = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusyId("broadcast"); setError(""); setMessage("");
@@ -143,8 +153,8 @@ function AdminPage() {
   return <AppShell title="Admin Console"><div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
     <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-primary"><ShieldCheck className="h-4 w-4" /> Matrix QA staff</div><h1 className="mt-2 font-display text-2xl font-semibold">Admin console</h1><p className="mt-1 text-sm text-muted-foreground">Private-alpha operations, allocation decisions, notifications, and cost telemetry.</p></div><button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent"><RefreshCw className="h-3.5 w-3.5" /> Refresh</button></div>
     {error && <div className="mt-5 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}{message && <div className="mt-5 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-primary">{message}</div>}
-    <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border"><TabButton active={tab === "queue"} onClick={() => setTab("queue")}>Allocation queue {requests.length > 0 && <span className="ml-1 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">{requests.length}</span>}</TabButton><TabButton active={tab === "notifications"} onClick={() => setTab("notifications")}>Notifications</TabButton><TabButton active={tab === "telemetry"} onClick={() => setTab("telemetry")}>Telemetry</TabButton><TabButton active={tab === "ai_models"} onClick={() => setTab("ai_models")}>AI Models</TabButton>{(user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") && <TabButton active={tab === "staff"} onClick={() => setTab("staff")}>Staff Management</TabButton>}</div>
-    {loading ? <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading staff data…</div> : tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : tab === "telemetry" ? <TelemetryTab telemetry={telemetry} health={health} /> : tab === "ai_models" ? <AdminAiModelsTab configs={aiProviders} busyId={busyId} onSave={saveAiProvider} onHealthCheck={healthCheckAiProvider} onRemove={removeAiProvider} /> : staffData ? <StaffManagementPanel data={staffData} role={user.staffRole} onChanged={load} setMessage={setMessage} setError={setError} /> : <div className="mt-6 surface-card p-6 text-sm text-muted-foreground">Staff management is available to owners and operations administrators.</div>}
+    <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border"><TabButton active={tab === "queue"} onClick={() => setTab("queue")}>Allocation queue {requests.length > 0 && <span className="ml-1 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">{requests.length}</span>}</TabButton><TabButton active={tab === "notifications"} onClick={() => setTab("notifications")}>Notifications</TabButton><TabButton active={tab === "telemetry"} onClick={() => setTab("telemetry")}>Telemetry</TabButton><TabButton active={tab === "ai_models"} onClick={() => setTab("ai_models")}>AI Models</TabButton>{(user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") && <><TabButton active={tab === "secrets"} onClick={() => setTab("secrets")}>Secrets</TabButton><TabButton active={tab === "staff"} onClick={() => setTab("staff")}>Staff Management</TabButton></>}</div>
+    {loading ? <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading staff data…</div> : tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : tab === "telemetry" ? <TelemetryTab telemetry={telemetry} health={health} /> : tab === "ai_models" ? <AdminAiModelsTab configs={aiProviders} busyId={busyId} managedSecretNames={secrets.map((secret) => secret.name)} onSave={saveAiProvider} onHealthCheck={healthCheckAiProvider} onRemove={removeAiProvider} /> : tab === "secrets" && (user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") ? <AdminSecretsTab secrets={secrets} role={user.staffRole} busyId={busyId} onSaved={saveManagedSecret} onDeleted={deleteManagedSecret} setMessage={setMessage} setError={setError} /> : staffData ? <StaffManagementPanel data={staffData} role={user.staffRole} onChanged={load} setMessage={setMessage} setError={setError} /> : <div className="mt-6 surface-card p-6 text-sm text-muted-foreground">Staff management is available to owners and operations administrators.</div>}
   </div></AppShell>;
 }
 
