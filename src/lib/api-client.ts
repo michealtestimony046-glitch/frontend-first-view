@@ -274,7 +274,7 @@ export interface V2AiEnrichment {
   provider?: string;
   model?: string;
   latencyMs?: number;
-  usage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+  usage?: { inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd?: number };
   reason?: string;
 }
 
