@@ -594,6 +594,34 @@ export interface AdminAiProviderConfig {
   updatedAt: string;
 }
 
+export interface AdminAiModelCatalogItem {
+  id: string;
+  name: string;
+  provider: AdminAiProviderConfig["provider"];
+  status: "ACTIVE" | "PREVIEW" | "UNKNOWN";
+  deprecated: boolean;
+  expiresAt?: string | null;
+  contextLength?: number | null;
+  maxOutputTokens?: number | null;
+  inputPriceUsdPerMillion?: number | null;
+  outputPriceUsdPerMillion?: number | null;
+  inputModalities?: string[];
+  outputModalities?: string[];
+  supportedParameters?: string[];
+  compatibility: { status: "COMPATIBLE" | "WARNING" | "UNKNOWN" | "INCOMPATIBLE"; reasons: string[] };
+}
+
+export interface AdminAiModelCatalogResponse {
+  provider: AdminAiProviderConfig["provider"];
+  useCase?: AdminAiProviderConfig["useCase"];
+  endpoint: string;
+  fetchedAt: string;
+  cached: boolean;
+  stale: boolean;
+  models: AdminAiModelCatalogItem[];
+  warnings: string[];
+}
+
 export interface AdminTelemetrySummary {
   version: { public: string; build: string };
   totals: number;
@@ -679,8 +707,16 @@ export const adminApi = {
   broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
   listAiProviderConfigs: (): Promise<AdminAiProviderConfig[]> => apiRequest('/admin/ai-provider-configs', { requiresAuth: true }),
+  listAiModelCatalog: (params: { provider: AdminAiProviderConfig["provider"]; secretRef: string; baseUrl?: string; useCase?: AdminAiProviderConfig["useCase"]; refresh?: boolean }): Promise<AdminAiModelCatalogResponse> => {
+    const search = new URLSearchParams({ provider: params.provider, secretRef: params.secretRef });
+    if (params.baseUrl) search.set("baseUrl", params.baseUrl);
+    if (params.useCase) search.set("useCase", params.useCase);
+    if (params.refresh) search.set("refresh", "true");
+    return apiRequest(`/admin/ai-provider-configs/catalog?${search.toString()}`, { requiresAuth: true });
+  },
   saveAiProviderConfig: (data: Partial<AdminAiProviderConfig> & Pick<AdminAiProviderConfig, 'provider' | 'model' | 'useCase' | 'secretRef'>): Promise<AdminAiProviderConfig> => apiRequest('/admin/ai-provider-configs', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   healthCheckAiProviderConfig: (id: string): Promise<AdminAiProviderConfig> => apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}/health-check`, { method: 'POST', requiresAuth: true }),
+  deleteAiProviderConfig: (id: string): Promise<{ id: string; deleted: boolean }> => apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
   workerHealth: (): Promise<WorkerHealth> => apiRequest('/admin/worker-health', { requiresAuth: true }),
   listStaff: (): Promise<StaffManagementData> => apiRequest('/admin/staff', { requiresAuth: true }),
   inviteStaff: (data: { emails: string[]; proposedName?: string; role?: StaffRole; internalNote?: string }) => apiRequest<{ results: Array<{ email: string; status: string; invitationId?: string; message?: string }> }>('/admin/staff/invitations', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
