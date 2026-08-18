@@ -565,18 +565,20 @@ export interface AdminAiUsageSummary {
     averageLatencyMs: number;
   };
   providers: Array<{ provider: string; model: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
+  useCases: Array<{ useCase: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
   organizations: Array<{ organizationId: string; organizationName: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
   recent: Array<{ id: string; organizationId: string; projectId?: string | null; scanId?: string | null; provider: string; model: string; inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number; latencyMs: number; degraded: boolean; createdAt: string }>;
 }
 
 export interface AdminAiProviderConfig {
   id: string;
-  provider: "groq" | "openai" | "gemini" | "openai_compatible";
+  provider: "groq" | "openai" | "gemini" | "openrouter" | "anthropic" | "openai_compatible";
   model: string;
   useCase: "DISCOVERY" | "PLANNING" | "BROWSER_AGENT" | "VISION" | "RECOVERY";
   enabled: boolean;
   priority: number;
   secretRef: string;
+  baseUrl?: string | null;
   timeoutMs: number;
   maxOutputTokens: number;
   temperature: number;
