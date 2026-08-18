@@ -33,6 +33,7 @@ const providers: Array<{ value: Provider; label: string }> = [
   { value: "gemini", label: "Gemini" },
   { value: "openrouter", label: "OpenRouter" },
   { value: "anthropic", label: "Claude / Anthropic" },
+  { value: "zai", label: "Z.ai (GLM)" },
   { value: "openai_compatible", label: "Other OpenAI-compatible" },
 ];
 
@@ -42,6 +43,7 @@ const defaultSecretRefs: Record<Provider, string> = {
   gemini: "GEMINI_API_KEY",
   openrouter: "OPENROUTER_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
+  zai: "ZAI_API_KEY",
   openai_compatible: "AI_COMPATIBLE_API_KEY",
 };
 
@@ -156,6 +158,15 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
   }, [loadCatalog]);
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }));
+  const selectModel = (modelId: string) => {
+    const catalogModel = catalog?.models.find((model) => model.id === modelId);
+    setDraft((current) => ({
+      ...current,
+      model: modelId,
+      estimatedInputUsdPerMillion: catalogModel?.inputPriceUsdPerMillion ?? current.estimatedInputUsdPerMillion,
+      estimatedOutputUsdPerMillion: catalogModel?.outputPriceUsdPerMillion ?? current.estimatedOutputUsdPerMillion,
+    }));
+  };
   const reset = (useCase: UseCase = "DISCOVERY", priority = 1) => {
     setEditingId(null);
     setDraft(blankDraft(useCase, priority));
@@ -233,10 +244,11 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
         <button type="button" onClick={() => reset(draft.useCase, useCaseConfigs.length + 1)} disabled={!canAddChainItem} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-50"><Plus className="h-3.5 w-3.5" /> {useCaseConfigs.length ? "Add fallback" : "Add primary"}</button>
       </div>
       <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">GitHub Models inference was retired. GitHub is not an inference provider here; use <strong>Other OpenAI-compatible</strong> only when you have a current compatible endpoint. Keys remain deployment secrets such as <code>GROQ_API_KEY</code>.</div>
+      {draft.provider === "zai" && <div className="mt-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs leading-5 text-warning"><strong>Z.ai direct API:</strong> the model list is curated from published Z.ai API models because no public catalog endpoint is documented. Use <code>ZAI_API_KEY</code> for backend API access; do not paste a GLM Coding Plan credential unless its server-side use is approved by Z.ai.</div>}
       <form className="mt-5 grid gap-3" onSubmit={(event) => { void submit(event); }}>
         <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs text-muted-foreground">Use case<select value={draft.useCase} onChange={(event) => changeUseCase(event.target.value as UseCase)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{useCases.map((item) => <option key={item} value={item}>{useCaseLabels[item]}</option>)}</select></label><label className="grid gap-1 text-xs text-muted-foreground">Provider<select value={draft.provider} onChange={(event) => changeProvider(event.target.value as Provider)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{providers.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>
         <p className="text-[11px] text-muted-foreground">{useCaseDescriptions[draft.useCase]}</p>
-        <div className="grid gap-2"><label className="grid gap-1 text-xs text-muted-foreground">Live model catalog or manual model ID<input required list={`ai-model-options-${draft.useCase}`} value={draft.model} onChange={(event) => set("model", event.target.value)} placeholder="Choose a live model or type an ID" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><datalist id={`ai-model-options-${draft.useCase}`}>{catalog?.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</datalist></label><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => { void loadCatalog(true); }} disabled={catalogBusy} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium hover:bg-accent disabled:opacity-50">{catalogBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Refresh models</button>{catalog && <span className="text-[11px] text-muted-foreground">{catalog.cached ? "Cached" : "Live"} catalog · {formatDate(catalog.fetchedAt)}{catalog.stale ? " · stale" : ""}</span>}</div></div>
+        <div className="grid gap-2"><label className="grid gap-1 text-xs text-muted-foreground">Live model catalog or manual model ID<input required list={`ai-model-options-${draft.useCase}`} value={draft.model} onChange={(event) => selectModel(event.target.value)} placeholder="Choose a live model or type an ID" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><datalist id={`ai-model-options-${draft.useCase}`}>{catalog?.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</datalist></label><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => { void loadCatalog(true); }} disabled={catalogBusy} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium hover:bg-accent disabled:opacity-50">{catalogBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Refresh models</button>{catalog && <span className="text-[11px] text-muted-foreground">{catalog.source === "CURATED" ? "Curated" : catalog.cached ? "Cached" : "Live"} catalog · {formatDate(catalog.fetchedAt)}{catalog.stale ? " · stale" : ""}</span>}</div></div>
         {catalogError && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-destructive">{catalogError}</div>}
         {catalog?.warnings.map((warning) => <div key={warning} className="rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" />{warning}</div>)}
         {selectedCatalogModel && <div className={`rounded-md border p-2 text-[11px] ${compatibilityClass(selectedCatalogModel.compatibility.status)}`}><strong>{selectedCatalogModel.name}</strong> · {selectedCatalogModel.status.toLowerCase()} · {selectedCatalogModel.contextLength ? `${selectedCatalogModel.contextLength.toLocaleString()} context` : "context unknown"}{selectedCatalogModel.compatibility.reasons.length > 0 && <span> · {selectedCatalogModel.compatibility.reasons.join(" ")}</span>}</div>}
