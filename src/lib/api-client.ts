@@ -562,6 +562,29 @@ export interface AdminAiUsageSummary {
   recent: Array<{ id: string; organizationId: string; projectId?: string | null; scanId?: string | null; provider: string; model: string; inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number; latencyMs: number; degraded: boolean; createdAt: string }>;
 }
 
+export interface AdminAiProviderConfig {
+  id: string;
+  provider: "groq" | "openai" | "gemini" | "openai_compatible";
+  model: string;
+  useCase: "DISCOVERY" | "PLANNING" | "BROWSER_AGENT" | "VISION" | "RECOVERY";
+  enabled: boolean;
+  priority: number;
+  secretRef: string;
+  timeoutMs: number;
+  maxOutputTokens: number;
+  temperature: number;
+  estimatedInputUsdPerMillion: number;
+  estimatedOutputUsdPerMillion: number;
+  matrixUnitSurcharge: number;
+  configVersion: number;
+  lastHealthStatus?: string | null;
+  lastHealthError?: string | null;
+  lastHealthCheckedAt?: string | null;
+  updatedById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminTelemetrySummary {
   version: { public: string; build: string };
   totals: number;
@@ -646,6 +669,9 @@ export const adminApi = {
   disableRecipient: (id: string) => apiRequest<StaffNotificationRecipient>(`/admin/notification-recipients/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
   broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
+  listAiProviderConfigs: (): Promise<AdminAiProviderConfig[]> => apiRequest('/admin/ai-provider-configs', { requiresAuth: true }),
+  saveAiProviderConfig: (data: Partial<AdminAiProviderConfig> & Pick<AdminAiProviderConfig, 'provider' | 'model' | 'useCase' | 'secretRef'>): Promise<AdminAiProviderConfig> => apiRequest('/admin/ai-provider-configs', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  healthCheckAiProviderConfig: (id: string): Promise<AdminAiProviderConfig> => apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}/health-check`, { method: 'POST', requiresAuth: true }),
   workerHealth: (): Promise<WorkerHealth> => apiRequest('/admin/worker-health', { requiresAuth: true }),
   listStaff: (): Promise<StaffManagementData> => apiRequest('/admin/staff', { requiresAuth: true }),
   inviteStaff: (data: { emails: string[]; proposedName?: string; role?: StaffRole; internalNote?: string }) => apiRequest<{ results: Array<{ email: string; status: string; invitationId?: string; message?: string }> }>('/admin/staff/invitations', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
