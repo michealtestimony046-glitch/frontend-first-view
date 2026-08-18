@@ -21,8 +21,14 @@ type Props = {
 
 const sleep = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
+function normalizeTargetUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
 export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }: Props) {
-  const [targetUrl, setTargetUrl] = useState(initialTargetUrl || project.defaultTargetUrl || project.targetUrl || "");
+  const [targetUrl, setTargetUrl] = useState(() => normalizeTargetUrl(initialTargetUrl || project.defaultTargetUrl || project.targetUrl || ""));
   const [environments, setEnvironments] = useState<V2Environment[]>([]);
   const [environmentId, setEnvironmentId] = useState("");
   const [mode, setMode] = useState<V2PlannerMode>("QUICK_SMOKE");
@@ -50,7 +56,8 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
 
   const prepare = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!targetUrl.trim() && !environmentId) {
+    const normalizedTargetUrl = normalizeTargetUrl(targetUrl);
+    if (!normalizedTargetUrl && !environmentId) {
       setError("Enter a target URL or choose an environment before starting fresh discovery.");
       return;
     }
@@ -59,7 +66,7 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
     setScan(null);
     setPhase("scanning");
     try {
-      const createdScan = await v2Api.startScan(project.id, environmentId ? { environmentId } : { targetUrl: targetUrl.trim() });
+      const createdScan = await v2Api.startScan(project.id, environmentId ? { environmentId } : { targetUrl: normalizedTargetUrl });
       setScan(createdScan);
       let current = createdScan;
       while (current.status === "PENDING" || current.status === "RUNNING") {
@@ -87,7 +94,7 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
     setPhase("starting");
     try {
       const approved = plan.status === "APPROVED" ? plan : await v2Api.approvePlan(plan.id);
-      const response = await v2Api.runPlan(approved.id, { targetUrl: targetUrl.trim() || undefined });
+      const response = await v2Api.runPlan(approved.id, { targetUrl: normalizeTargetUrl(targetUrl) || undefined });
       onStarted(response);
     } catch (cause) {
       setPhase("ready");
@@ -104,7 +111,7 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
         <button type="button" onClick={onClose} disabled={busy} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-40" aria-label="Close"><XCircle className="h-4 w-4" /></button>
       </header>
       <form onSubmit={(event) => { void prepare(event); }} className="space-y-4 p-5">
-        <label className="block"><span className="mb-1.5 block text-xs font-medium">Target URL</span><input value={targetUrl} onChange={(event) => setTargetUrl(event.target.value)} disabled={busy || Boolean(environmentId)} placeholder="https://your-app.com" className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 font-mono text-sm outline-none focus:border-primary disabled:opacity-60" /></label>
+        <label className="block"><span className="mb-1.5 block text-xs font-medium">Target URL</span><input value={targetUrl} onChange={(event) => setTargetUrl(event.target.value)} disabled={busy || Boolean(environmentId)} placeholder="https://your-app.com" className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 font-mono text-sm outline-none focus:border-primary disabled:opacity-60" />{targetUrl.trim() && !/^https?:\/\//i.test(targetUrl.trim()) && <span className="mt-1 block text-[11px] text-muted-foreground">A protocol is missing; Matrix QA will use <code>https://</code> for this host.</span>}</label>
         {environments.length > 0 && <label className="block"><span className="mb-1.5 block text-xs font-medium">Environment <span className="font-normal text-muted-foreground">(optional)</span></span><select value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="">Use the project target</option>{environments.map((environment) => <option key={environment.id} value={environment.id}>{environment.name} · {environment.kind}</option>)}</select></label>}
         <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-medium">Plan mode</span><select value={mode} onChange={(event) => setMode(event.target.value as V2PlannerMode)} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="QUICK_SMOKE">Quick smoke</option><option value="STANDARD_ADAPTIVE">Standard adaptive</option><option value="DEEP_MATRIX">Deep matrix</option></select></label><label className="block"><span className="mb-1.5 block text-xs font-medium">Plan name</span><input value={planName} onChange={(event) => setPlanName(event.target.value)} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary" /></label></div>
         {phase === "idle" && <p className="rounded-md border border-border/60 bg-surface-2/30 p-3 text-xs leading-5 text-muted-foreground">Click <strong className="text-foreground">Prepare estimate</strong> to create a fresh map and a run-specific plan. This does not start the browser or reserve units.</p>}
