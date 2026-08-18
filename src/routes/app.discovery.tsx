@@ -153,7 +153,10 @@ function DiscoveryPage() {
   };
 
   const map = selectedScan?.projectMap;
-  const safeToExecute = Boolean(plan && plan.status === "APPROVED" && plan.policyDecisions.length > 0 && plan.policyDecisions.every((decision) => decision.tier === "SAFE" && decision.status === "ALLOWED"));
+  const safeToExecute = Boolean(plan && plan.status === "APPROVED" && plan.policyDecisions.length > 0 && plan.policyDecisions.every((decision) =>
+    (decision.tier === "SAFE" && decision.status === "ALLOWED") ||
+    (decision.tier === "CAUTION" && decision.status === "APPROVED")
+  ));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
@@ -237,4 +240,4 @@ function PlanReview({ plan, planName, setPlanName, mode, setMode, planning, gene
 function Metric({ label, value }: { label: string; value: string | number }) { return <div className="bg-surface px-4 py-3"><div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div><div className="mt-1 font-display text-xl font-semibold">{value}</div></div>; }
 function RiskRow({ icon: Icon, label, value, tone }: { icon: typeof ShieldCheck; label: string; value: number; tone: string }) { return <div className="flex items-center justify-between text-xs"><span className={`flex items-center gap-1.5 ${tone}`}><Icon className="h-3.5 w-3.5" />{label}</span><span className="font-mono text-foreground">{value}</span></div>; }
 function PlanStatus({ status }: { status: V2PlanStatus }) { const styles: Record<V2PlanStatus, string> = { DRAFT: "bg-muted text-muted-foreground border-border", READY: "bg-primary/10 text-primary border-primary/20", AWAITING_APPROVAL: "bg-warning/15 text-warning border-warning/30", APPROVED: "bg-success/15 text-success border-success/30", RUNNING: "bg-primary/15 text-primary border-primary/30", COMPLETED: "bg-success/15 text-success border-success/30", FAILED: "bg-destructive/15 text-destructive border-destructive/30", CANCELLED: "bg-muted text-muted-foreground border-border" }; return <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${styles[status]}`}>{status.replaceAll("_", " ")}</span>; }
-function DecisionPill({ decision }: { decision: V2PolicyDecision }) { const safe = decision.tier === "SAFE" && decision.status === "ALLOWED"; const blocked = decision.status === "BLOCKED" || decision.status === "NEEDS_HUMAN_REVIEW" || decision.status === "PENDING"; return <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${safe ? "border-success/30 bg-success/10 text-success" : blocked ? "border-warning/30 bg-warning/10 text-warning" : "border-primary/30 bg-primary/10 text-primary"}`}>{decision.tier} · {decision.status.replaceAll("_", " ")}</span>; }
+function DecisionPill({ decision }: { decision: V2PolicyDecision }) { const safe = (decision.tier === "SAFE" && decision.status === "ALLOWED") || (decision.tier === "CAUTION" && decision.status === "APPROVED"); const blocked = decision.status === "BLOCKED" || decision.status === "NEEDS_HUMAN_REVIEW" || decision.status === "PENDING"; return <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${safe ? "border-success/30 bg-success/10 text-success" : blocked ? "border-warning/30 bg-warning/10 text-warning" : "border-primary/30 bg-primary/10 text-primary"}`}>{decision.tier} · {decision.status.replaceAll("_", " ")}</span>; }
