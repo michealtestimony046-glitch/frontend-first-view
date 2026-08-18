@@ -637,6 +637,15 @@ export interface ManagedSecretMetadata {
   source: "MANAGED" | "DEPLOYMENT" | "MISSING";
 }
 
+export interface ManagedSecretImportResult {
+  source: "JSON" | "ENV";
+  imported: number;
+  rotated: number;
+  rejected: number;
+  secrets: ManagedSecretMetadata[];
+  errors: Array<{ name: string; message: string }>;
+}
+
 export interface AdminTelemetrySummary {
   version: { public: string; build: string };
   totals: number;
@@ -720,6 +729,7 @@ export const adminApi = {
   listRecipients: (): Promise<StaffNotificationRecipient[]> => apiRequest('/admin/notification-recipients', { requiresAuth: true }),
   listManagedSecrets: (): Promise<ManagedSecretMetadata[]> => apiRequest('/admin/secrets', { requiresAuth: true }),
   saveManagedSecret: (data: { name: string; value: string; description?: string }): Promise<ManagedSecretMetadata> => apiRequest('/admin/secrets', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  importManagedSecrets: (data: { source: "JSON" | "ENV"; entries: Array<{ name: string; value: string; description?: string }> }): Promise<ManagedSecretImportResult> => apiRequest('/admin/secrets/import', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   deleteManagedSecret: (name: string): Promise<{ name: string; deleted: boolean }> => apiRequest('/admin/secrets', { method: 'DELETE', body: JSON.stringify({ name }), requiresAuth: true }),
   saveRecipient: (data: { email: string; label?: string }) => apiRequest<StaffNotificationRecipient>('/admin/notification-recipients', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   disableRecipient: (id: string) => apiRequest<StaffNotificationRecipient>(`/admin/notification-recipients/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
