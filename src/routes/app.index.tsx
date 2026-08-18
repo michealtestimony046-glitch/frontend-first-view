@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
 import {
   Activity,
   AlertTriangle,
@@ -10,7 +9,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Download,
-  Globe,
   HelpCircle,
   Play,
   RotateCw,
@@ -27,7 +25,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { runsApi, type RunReport, type RunStatus } from "@/lib/api-client";
+import type { RunReport, RunStatus, TriggerRunResponse } from "@/lib/api-client";
+import { V2RunPreflight } from "@/components/v2-run-preflight";
 import {
   formatLiveDate,
   formatLiveDuration,
@@ -51,16 +50,9 @@ export const Route = createFileRoute("/app/")({
 
 function AppDashboard() {
   const live = useLivePortfolio();
-  const [url, setUrl] = useState("");
+  const [runTargetUrl, setRunTargetUrl] = useState("");
   const [showRunModal, setShowRunModal] = useState(false);
-
-  useEffect(() => {
-    if (!showRunModal || !live.activeProject) return;
-    setUrl((current) => current.trim() ? current : live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "");
-  }, [live.activeProject, showRunModal]);
   const [utilityPanel, setUtilityPanel] = useState<"notifications" | "help" | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [runError, setRunError] = useState<string | null>(null);
   const runs = live.runs;
   const issues = live.issues;
   const reports = live.reports;
@@ -119,23 +111,10 @@ function AppDashboard() {
     URL.revokeObjectURL(href);
   };
 
-  const handleStartRun = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRunError(null);
-    if (!live.activeProject) {
-      setRunError("Choose or create a project before starting a run.");
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const response = await runsApi.triggerRun(live.activeProject.id, { targetUrl: url.trim() });
-      setShowRunModal(false);
-      window.location.href = `/app/runs/${response.id}?projectId=${encodeURIComponent(live.activeProject.id)}`;
-    } catch (error) {
-      setRunError(error instanceof Error ? error.message : "Failed to start run. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleV2Started = (response: TriggerRunResponse & { planId?: string }) => {
+    if (!live.activeProject) return;
+    setShowRunModal(false);
+    window.location.href = `/app/runs/${response.id}?projectId=${encodeURIComponent(live.activeProject.id)}`;
   };
 
   return (
@@ -517,8 +496,7 @@ function AppDashboard() {
               <button
                 type="button"
                 onClick={() => {
-                  setRunError(null);
-                  setUrl(latestRun?.targetUrl ?? live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "");
+                  setRunTargetUrl(latestRun?.targetUrl ?? live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "");
                   setShowRunModal(true);
                 }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
@@ -532,111 +510,7 @@ function AppDashboard() {
       </div>
 
       {/* New Run modal */}
-      {showRunModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/70 p-4 backdrop-blur-sm sm:items-center">
-          <div className="surface-card w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border p-5">
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-primary">
-                  <Play className="h-4 w-4" />
-                </span>
-                <div>
-                  <h3 className="font-display text-base font-semibold">
-                    New Test Run
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Sequential login, signup, navigation, forms.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowRunModal(false)}
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                aria-label="Close"
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            </div>
-            <form
-              onSubmit={handleStartRun}
-              className="space-y-3 p-5"
-            >
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                  Target URL
-                </span>
-                <div className="relative">
-                  <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder={live.activeProject ? "https://your-app.com" : "Create or select a project first"}
-                    disabled={!live.activeProject}
-                    className="w-full rounded-md border border-border bg-surface-2/60 py-2.5 pl-9 pr-3 font-mono text-sm focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-                </div>
-              </label>
-              {!live.activeProject && (
-                <div className="rounded-md border border-border bg-surface-2/60 p-3 text-xs text-muted-foreground">
-                  No project is selected for this account. Create a project first; Matrix QA will not use a target from another workspace.
-                </div>
-              )}
-              <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
-                {["login", "signup", "navigation", "forms"].map((s) => (
-                  <span
-                    key={s}
-                    className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] text-foreground/80"
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-              {runError && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-                  {runError}
-                </div>
-              )}
-              {usage.atCap ? (
-                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-                  <div className="font-semibold">Preview pool exhausted</div>
-                  <div className="mt-0.5 text-destructive/80">
-                    You've used {usage.used} / {usage.cap} runs. Contact the Matrix QA team through your agreed internal channel to review additional Preview capacity.
-                  </div>
-                  <Link
-                    to="/app/settings/billing"
-                    onClick={() => setShowRunModal(false)}
-                    className="mt-2 inline-flex items-center gap-1 font-medium text-destructive underline"
-                  >
-                    Go to Billing →
-                  </Link>
-                </div>
-              ) : (
-                <div className="text-[11px] text-muted-foreground">
-                  {usage.used} / {usage.cap} runs used in this Preview pool.
-                </div>
-              )}
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowRunModal(false)}
-                  disabled={isSubmitting}
-                  className="rounded-md border border-border bg-surface/60 px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={usage.atCap || isSubmitting || !live.activeProject || !url.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-                >
-                  {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  <Play className="h-3.5 w-3.5" /> Start run
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {showRunModal && live.activeProject && <V2RunPreflight project={live.activeProject} initialTargetUrl={runTargetUrl} onClose={() => setShowRunModal(false)} onStarted={handleV2Started} />}
     </div>
   );
 }

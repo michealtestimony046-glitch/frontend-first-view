@@ -219,6 +219,19 @@ export function useLivePortfolio(): LivePortfolio {
         const storedProject = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_PROJECT_KEY) : null;
         const activeProject = projects.find((item) => item.id === storedProject) ?? projects[0] ?? null;
         if (activeProject && typeof window !== "undefined") localStorage.setItem(ACTIVE_PROJECT_KEY, activeProject.id);
+        if (cancelled) return;
+        setState((current) => ({
+          ...current,
+          organizations,
+          workspaces,
+          projects,
+          activeOrganization,
+          activeWorkspace,
+          activeProject,
+          loading: false,
+          error: null,
+        }));
+
         const groupedRuns = await Promise.all(projects.map(async (project) => {
           const items = await runsApi.list(project.id);
           return items.map((run) => ({ ...run, project }));
@@ -228,6 +241,14 @@ export function useLivePortfolio(): LivePortfolio {
           const right = safeDate(b.startedAt ?? b.createdAt)?.getTime() ?? 0;
           return right - left;
         });
+        if (cancelled) return;
+        setState((current) => ({
+          ...current,
+          runs,
+          issues: deriveIssues(runs, current.reports),
+          auditEntries: deriveAuditEntries(runs, current.reports),
+        }));
+
         const reportResults = await Promise.all(runs.slice(0, 24).map(async (run) => {
           try {
             return await runsApi.getReport(run.projectId, run.id);
@@ -237,20 +258,12 @@ export function useLivePortfolio(): LivePortfolio {
         }));
         const reports = reportResults.filter((report): report is RunReport => Boolean(report));
         if (cancelled) return;
-        setState({
-          organizations,
-          workspaces,
-          projects,
-          runs,
+        setState((current) => ({
+          ...current,
           reports,
           issues: deriveIssues(runs, reports),
           auditEntries: deriveAuditEntries(runs, reports),
-          activeOrganization,
-          activeWorkspace,
-          activeProject,
-          loading: false,
-          error: null,
-        });
+        }));
       } catch (cause) {
         if (!cancelled) setState((current) => ({ ...current, loading: false, error: toMessage(cause, "Unable to load live Matrix QA data.") }));
       }

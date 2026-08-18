@@ -578,6 +578,8 @@ export interface AdminAiProviderConfig {
   enabled: boolean;
   priority: number;
   secretRef: string;
+  secretSource?: "MANAGED" | "DEPLOYMENT" | "MISSING";
+  runtimeStatus?: "READY" | "DISABLED" | "MISSING_SECRET";
   baseUrl?: string | null;
   timeoutMs: number;
   maxOutputTokens: number;
@@ -778,7 +780,7 @@ export const usersApi = {
 export const v2Api = {
   listEnvironments: (projectId: string): Promise<V2Environment[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
   createEnvironment: (data: { organizationId: string; workspaceId: string; projectId: string; name: string; kind?: V2EnvironmentKind; baseUrl: string }): Promise<V2Environment> => apiRequest('/environments', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  startScan: (projectId: string, data: { environmentId?: string } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
   getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
   createPlanFromScan: (scanId: string, data: { name: string; mode?: V2PlannerMode }): Promise<V2TestPlan> => apiRequest(`/scans/${encodeURIComponent(scanId)}/plans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
@@ -817,24 +819,12 @@ export interface RunListItem {
   errorMessage?: string | null;
   hardErrorCount?: number;
   attemptCount?: number;
+  metadata?: Record<string, unknown> | null;
 }
 
 export const runsApi = {
   list: (projectId: string): Promise<RunListItem[]> =>
     apiRequest(`/projects/${encodeURIComponent(projectId)}/runs`, { requiresAuth: true }),
-  triggerRun: async (projectId: string, data: TriggerRunRequest): Promise<TriggerRunResponse> => {
-    const idempotencyKey =
-      data.idempotencyKey ||
-      (typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `frontend-${Date.now()}`);
-    return apiRequest(`/projects/${encodeURIComponent(projectId)}/runs`, {
-      method: "POST",
-      headers: { "Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ ...data, idempotencyKey }),
-      requiresAuth: true,
-    });
-  },
   getReport: async (projectId: string, runId: string): Promise<RunReport> => {
     const encodedProjectId = encodeURIComponent(projectId);
     const encodedRunId = encodeURIComponent(runId);
