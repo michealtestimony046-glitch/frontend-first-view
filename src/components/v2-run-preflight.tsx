@@ -6,6 +6,7 @@ import {
   type TriggerRunResponse,
   type V2ApplicationScan,
   type V2Environment,
+  type V2MissionAccessMode,
   type V2PlannerMode,
   type V2TestPlan,
 } from "@/lib/api-client";
@@ -29,6 +30,8 @@ function normalizeTargetUrl(value: string) {
 
 export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }: Props) {
   const [targetUrl, setTargetUrl] = useState(() => normalizeTargetUrl(initialTargetUrl || project.defaultTargetUrl || project.targetUrl || ""));
+  const [missionGoal, setMissionGoal] = useState("Test this website thoroughly.");
+  const [accessMode] = useState<V2MissionAccessMode>("ANONYMOUS");
   const [environments, setEnvironments] = useState<V2Environment[]>([]);
   const [environmentId, setEnvironmentId] = useState("");
   const [mode, setMode] = useState<V2PlannerMode>("QUICK_SMOKE");
@@ -66,7 +69,11 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
     setScan(null);
     setPhase("scanning");
     try {
-      const createdScan = await v2Api.startScan(project.id, environmentId ? { environmentId } : { targetUrl: normalizedTargetUrl });
+      const createdScan = await v2Api.startScan(project.id, {
+        ...(environmentId ? { environmentId } : { targetUrl: normalizedTargetUrl }),
+        missionGoal: missionGoal.trim() || "Test this website thoroughly.",
+        accessMode,
+      });
       setScan(createdScan);
       let current = createdScan;
       while (current.status === "PENDING" || current.status === "RUNNING") {
@@ -79,6 +86,8 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
       const createdPlan = await v2Api.createPlanFromScan(current.id, {
         name: planName.trim() || "Fresh adaptive smoke plan",
         mode,
+        missionGoal: missionGoal.trim() || "Test this website thoroughly.",
+        accessMode,
       });
       setPlan(createdPlan);
       setPhase("ready");
@@ -111,12 +120,13 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
         <button type="button" onClick={onClose} disabled={busy} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-40" aria-label="Close"><XCircle className="h-4 w-4" /></button>
       </header>
       <form onSubmit={(event) => { void prepare(event); }} className="space-y-4 p-5">
+        <label className="block"><span className="mb-1.5 block text-xs font-medium">What should Matrix QA investigate?</span><textarea value={missionGoal} onChange={(event) => setMissionGoal(event.target.value)} disabled={busy} rows={3} maxLength={2_000} className="w-full resize-y rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm leading-5 outline-none focus:border-primary disabled:opacity-60" placeholder="Test this website thoroughly." /><span className="mt-1 block text-[11px] text-muted-foreground">Describe the goal in your own words. Matrix QA will decide the safe coverage plan from live observations.</span></label>
         <label className="block"><span className="mb-1.5 block text-xs font-medium">Target URL</span><input value={targetUrl} onChange={(event) => setTargetUrl(event.target.value)} disabled={busy || Boolean(environmentId)} placeholder="https://your-app.com" className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 font-mono text-sm outline-none focus:border-primary disabled:opacity-60" />{targetUrl.trim() && !/^https?:\/\//i.test(targetUrl.trim()) && <span className="mt-1 block text-[11px] text-muted-foreground">A protocol is missing; Matrix QA will use <code>https://</code> for this host.</span>}</label>
         {environments.length > 0 && <label className="block"><span className="mb-1.5 block text-xs font-medium">Environment <span className="font-normal text-muted-foreground">(optional)</span></span><select value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="">Use the project target</option>{environments.map((environment) => <option key={environment.id} value={environment.id}>{environment.name} · {environment.kind}</option>)}</select></label>}
         <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-medium">Plan mode</span><select value={mode} onChange={(event) => setMode(event.target.value as V2PlannerMode)} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="QUICK_SMOKE">Quick smoke</option><option value="STANDARD_ADAPTIVE">Standard adaptive</option><option value="DEEP_MATRIX">Deep matrix</option></select></label><label className="block"><span className="mb-1.5 block text-xs font-medium">Plan name</span><input value={planName} onChange={(event) => setPlanName(event.target.value)} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary" /></label></div>
         {phase === "idle" && <p className="rounded-md border border-border/60 bg-surface-2/30 p-3 text-xs leading-5 text-muted-foreground">Click <strong className="text-foreground">Prepare estimate</strong> to create a fresh map and a run-specific plan. This does not start the browser or reserve units.</p>}
         {(phase === "scanning" || phase === "planning") && <div className="rounded-md border border-primary/30 bg-primary/5 p-4"><div className="flex items-center gap-2 text-sm font-medium text-primary"><Loader2 className="h-4 w-4 animate-spin" />{phase === "scanning" ? "Mapping the current application…" : "Building the run-specific plan…"}</div><div className="mt-3 grid gap-2 text-xs text-muted-foreground"><span className={scan?.status === "COMPLETED" ? "text-success" : ""}>01 · Fresh read-only discovery {scan?.status === "COMPLETED" ? "complete" : "in progress"}</span><span className={plan ? "text-success" : ""}>02 · AI enrichment and planning {plan ? "complete" : "waiting"}</span><span>03 · Estimate and policy review waiting</span></div></div>}
-        {phase === "ready" && plan && <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-4"><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-sm font-semibold text-primary"><CheckCircle2 className="h-4 w-4" /> Fresh plan ready</div><p className="mt-1 text-xs text-muted-foreground">{plan.scenarios.length} scenarios · {plan.mode.replaceAll("_", " ")}</p></div><div className="text-right"><div className="font-display text-2xl font-semibold">{estimate ?? "—"} ⟐</div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">estimated Matrix Units</div></div></div><div className="grid gap-1 border-t border-primary/20 pt-3 text-xs text-muted-foreground"><span>Scenario execution: {billing?.baseScenarioUnits ?? "—"} ⟐</span><span>Successful AI discovery: {billing?.aiDiscoveryUnits ?? 0} ⟐</span><span className="pt-1 text-[11px]">The estimate is shown before browser execution. Unused reserved units are refunded during settlement.</span></div>{blockedPolicies.length > 0 && <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /><span>{blockedPolicies.length} policy decision{blockedPolicies.length === 1 ? "" : "s"} require review before this plan can run. Open the advanced Discovery review to resolve them.</span></div>}</div>}
+        {phase === "ready" && plan && <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-4"><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-sm font-semibold text-primary"><CheckCircle2 className="h-4 w-4" /> Fresh plan ready</div><p className="mt-1 text-xs text-muted-foreground">{plan.scenarios.length} scenarios · {plan.mode.replaceAll("_", " ")}</p><p className="mt-2 max-w-md text-xs leading-5 text-foreground/80">Mission: {plan.projectMap?.mission?.goal ?? missionGoal}</p></div><div className="text-right"><div className="font-display text-2xl font-semibold">{estimate ?? "—"} ⟐</div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">estimated Matrix Units</div></div></div><div className="grid gap-1 border-t border-primary/20 pt-3 text-xs text-muted-foreground"><span>Scenario execution: {billing?.baseScenarioUnits ?? "—"} ⟐</span><span>Successful AI discovery: {billing?.aiDiscoveryUnits ?? 0} ⟐</span><span className="pt-1 text-[11px]">The estimate is shown before browser execution. Unused reserved units are refunded during settlement.</span></div>{blockedPolicies.length > 0 && <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /><span>{blockedPolicies.length} policy decision{blockedPolicies.length === 1 ? "" : "s"} require review before this plan can run. Open the advanced Discovery review to resolve them.</span></div>}</div>}
         {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">{error}</div>}
         <footer className="flex flex-wrap justify-end gap-2 border-t border-border pt-4"><button type="button" onClick={onClose} disabled={busy} className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-40">Cancel</button>{phase === "idle" || phase === "ready" ? <button type={phase === "idle" ? "submit" : "button"} onClick={phase === "ready" ? () => { void start(); } : undefined} disabled={phase === "idle" ? busy || !targetUrl.trim() && !environmentId : busy || !readyToStart} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40">{phase === "idle" ? <><Radar className="h-4 w-4" /> Prepare estimate</> : <><Play className="h-4 w-4" /> Start and reserve {estimate ?? "—"} ⟐</>}</button> : <span className="inline-flex items-center gap-2 rounded-md bg-primary/15 px-4 py-2 text-sm text-primary"><Loader2 className="h-4 w-4 animate-spin" />{phase === "starting" ? "Reserving and starting…" : "Preparing…"}</span>}</footer>
       </form>
