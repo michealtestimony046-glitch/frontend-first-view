@@ -7,7 +7,9 @@ import {
   runsApi,
   type Project,
   type RunListItem,
+  type TriggerRunResponse,
 } from "@/lib/api-client";
+import { V2RunPreflight } from "@/components/v2-run-preflight";
 
 const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
 const ACTIVE_PROJECT_KEY = "matrix_qa_active_project";
@@ -97,11 +99,11 @@ function RunsLayout() {
     );
   };
 
-  const handleRunCreated = (runId: string) => {
+  const handleRunCreated = (response: TriggerRunResponse & { planId?: string }) => {
     setShowRunDrawer(false);
     if (projectId)
       window.location.assign(
-        `/app/runs/${encodeURIComponent(runId)}?projectId=${encodeURIComponent(projectId)}`,
+        `/app/runs/${encodeURIComponent(response.id)}?projectId=${encodeURIComponent(projectId)}`,
       );
   };
 
@@ -162,13 +164,7 @@ function RunsLayout() {
           </p>
         </div>
       )}
-      {showRunDrawer && selectedProject && (
-        <NewRunDrawer
-          project={selectedProject}
-          onClose={() => setShowRunDrawer(false)}
-          onCreated={handleRunCreated}
-        />
-      )}
+      {showRunDrawer && selectedProject && <V2RunPreflight project={selectedProject} onClose={() => setShowRunDrawer(false)} onStarted={handleRunCreated} />}
     </div>
   );
 }
@@ -265,6 +261,9 @@ function RunRow({
   mobile?: boolean;
 }) {
   const href = `/app/runs/${encodeURIComponent(run.id)}?projectId=${encodeURIComponent(project.id)}`;
+  const metadata = run.metadata && typeof run.metadata === "object" ? run.metadata : null;
+  const isV2 = metadata?.v2 === true;
+  const estimatedUnits = typeof metadata?.estimatedUnits === "number" ? metadata.estimatedUnits : null;
   if (mobile)
     return (
       <li>
@@ -273,6 +272,7 @@ function RunRow({
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs text-muted-foreground">#{index + 1}</span>
               <StatusPill status={run.status} />
+              {isV2 && <span className="rounded-full bg-primary/15 px-2 py-0.5 font-mono text-[10px] text-primary">V2 · {estimatedUnits ?? "—"} ⟐ est.</span>}
             </div>
             <div className="mt-1 truncate font-mono text-xs text-foreground">{run.targetUrl}</div>
             <div className="mt-0.5 text-[11px] text-muted-foreground">
@@ -292,7 +292,7 @@ function RunRow({
       >
         <span className="font-mono text-xs text-muted-foreground">#{index + 1}</span>
         <span className="truncate font-mono text-xs text-foreground">{run.targetUrl}</span>
-        <StatusPill status={run.status} />
+        <div className="flex flex-wrap items-center gap-1.5"><StatusPill status={run.status} />{isV2 && <span className="rounded-full bg-primary/15 px-2 py-0.5 font-mono text-[10px] text-primary">V2 · {estimatedUnits ?? "—"} ⟐ est.</span>}</div>
         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <Chrome className="h-3.5 w-3.5" /> Chromium
         </span>
@@ -302,88 +302,6 @@ function RunRow({
         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
       </a>
     </li>
-  );
-}
-
-function NewRunDrawer({
-  project,
-  onClose,
-  onCreated,
-}: {
-  project: Project;
-  onClose: () => void;
-  onCreated: (runId: string) => void;
-}) {
-  const [targetUrl, setTargetUrl] = useState(project.defaultTargetUrl || project.targetUrl || "");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!targetUrl.trim()) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const run = await runsApi.triggerRun(project.id, { targetUrl: targetUrl.trim() });
-      onCreated(run.id);
-    } catch (cause) {
-      setError(toMessage(cause, "Unable to queue the test run."));
-      setSubmitting(false);
-    }
-  };
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-sm">
-      <div className="absolute inset-0" onClick={onClose} />
-      <form
-        onSubmit={submit}
-        className="relative flex w-full max-w-md flex-col border-l border-border bg-surface"
-      >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="font-display text-base font-semibold">New Test Run</h2>
-            <p className="text-xs text-muted-foreground">
-              Queue a real browser run for {project.name}.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex-1 space-y-4 p-5">
-          {error && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-              {error}
-            </div>
-          )}
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-foreground">Target URL</span>
-            <input
-              value={targetUrl}
-              onChange={(event) => setTargetUrl(event.target.value)}
-              disabled={submitting}
-              className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 font-mono text-sm outline-none focus:border-primary"
-            />
-          </label>
-          <div className="rounded-md border border-border/60 bg-surface-2/30 p-3 text-xs text-muted-foreground">
-            The backend returns a queue acknowledgement immediately. You can open the report while
-            the worker is still processing.
-          </div>
-        </div>
-        <div className="border-t border-border bg-surface-2/40 px-5 py-3">
-          <button
-            type="submit"
-            disabled={submitting || !targetUrl.trim()}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:opacity-40"
-          >
-            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}Queue test run
-          </button>
-        </div>
-      </form>
-    </div>
   );
 }
 
