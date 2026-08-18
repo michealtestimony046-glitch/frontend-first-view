@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Activity, BrainCircuit, Check, CircleAlert, CircleDollarSign, Database, Loader2, Mail, Radio, RefreshCw, Send, ShieldCheck, X } from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { adminApi, type AdminAllocationRequest, type AdminTelemetrySummary, type StaffManagementData, type StaffNotificationRecipient, type WorkerHealth } from "@/lib/api-client";
+import { adminApi, type AdminAiProviderConfig, type AdminAllocationRequest, type AdminTelemetrySummary, type StaffManagementData, type StaffNotificationRecipient, type WorkerHealth } from "@/lib/api-client";
 import { StaffManagementPanel } from "@/components/staff-management-panel";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
@@ -11,7 +11,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type AdminTab = "queue" | "notifications" | "telemetry" | "staff";
+type AdminTab = "queue" | "notifications" | "telemetry" | "ai_models" | "staff";
 
 function AdminPage() {
   const { user, isLoading } = useAuth();
@@ -19,6 +19,7 @@ function AdminPage() {
   const [requests, setRequests] = useState<AdminAllocationRequest[]>([]);
   const [recipients, setRecipients] = useState<StaffNotificationRecipient[]>([]);
   const [telemetry, setTelemetry] = useState<AdminTelemetrySummary | null>(null);
+  const [aiProviders, setAiProviders] = useState<AdminAiProviderConfig[]>([]);
   const [health, setHealth] = useState<WorkerHealth | null>(null);
   const [staffData, setStaffData] = useState<StaffManagementData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,16 +37,18 @@ function AdminPage() {
     setError("");
     try {
       const canManageStaff = user?.staffRole === "OWNER" || user?.staffRole === "OPERATIONS_ADMIN";
-      const [requestData, recipientData, telemetryData, healthData, staffManagementData] = await Promise.all([
+      const [requestData, recipientData, telemetryData, aiProviderData, healthData, staffManagementData] = await Promise.all([
         adminApi.listAllocationRequests("PENDING"),
         adminApi.listRecipients(),
         adminApi.telemetry(),
+        adminApi.listAiProviderConfigs(),
         adminApi.workerHealth(),
         canManageStaff ? adminApi.listStaff() : Promise.resolve(null),
       ]);
       setRequests(requestData);
       setRecipients(recipientData);
       setTelemetry(telemetryData);
+      setAiProviders(aiProviderData);
       setHealth(healthData);
       setStaffData(staffManagementData);
     } catch (cause) {
@@ -91,6 +94,26 @@ function AdminPage() {
     finally { setBusyId(null); }
   };
 
+  const saveAiProvider = async (data: Partial<AdminAiProviderConfig> & Pick<AdminAiProviderConfig, "provider" | "model" | "useCase" | "secretRef">) => {
+    setBusyId(`ai-provider-${data.useCase}`); setError(""); setMessage("");
+    try {
+      const saved = await adminApi.saveAiProviderConfig(data);
+      setAiProviders((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => a.useCase.localeCompare(b.useCase) || a.priority - b.priority));
+      setMessage(`${saved.provider} / ${saved.model} saved for ${saved.useCase}. New scans use it after activation.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save AI provider configuration."); }
+    finally { setBusyId(null); }
+  };
+
+  const healthCheckAiProvider = async (config: AdminAiProviderConfig) => {
+    setBusyId(`ai-health-${config.id}`); setError(""); setMessage("");
+    try {
+      const checked = await adminApi.healthCheckAiProviderConfig(config.id);
+      setAiProviders((current) => current.map((item) => item.id === checked.id ? checked : item));
+      setMessage(`${checked.provider} / ${checked.model}: ${checked.lastHealthStatus || "checked"}.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to check AI provider configuration."); }
+    finally { setBusyId(null); }
+  };
+
   const sendBroadcast = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusyId("broadcast"); setError(""); setMessage("");
@@ -109,14 +132,35 @@ function AdminPage() {
   return <AppShell title="Admin Console"><div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
     <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-primary"><ShieldCheck className="h-4 w-4" /> Matrix QA staff</div><h1 className="mt-2 font-display text-2xl font-semibold">Admin console</h1><p className="mt-1 text-sm text-muted-foreground">Private-alpha operations, allocation decisions, notifications, and cost telemetry.</p></div><button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent"><RefreshCw className="h-3.5 w-3.5" /> Refresh</button></div>
     {error && <div className="mt-5 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}{message && <div className="mt-5 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-primary">{message}</div>}
-    <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border"><TabButton active={tab === "queue"} onClick={() => setTab("queue")}>Allocation queue {requests.length > 0 && <span className="ml-1 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">{requests.length}</span>}</TabButton><TabButton active={tab === "notifications"} onClick={() => setTab("notifications")}>Notifications</TabButton><TabButton active={tab === "telemetry"} onClick={() => setTab("telemetry")}>Telemetry</TabButton>{(user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") && <TabButton active={tab === "staff"} onClick={() => setTab("staff")}>Staff Management</TabButton>}</div>
-    {loading ? <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading staff data…</div> : tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : tab === "telemetry" ? <TelemetryTab telemetry={telemetry} health={health} /> : staffData ? <StaffManagementPanel data={staffData} role={user.staffRole} onChanged={load} setMessage={setMessage} setError={setError} /> : <div className="mt-6 surface-card p-6 text-sm text-muted-foreground">Staff management is available to owners and operations administrators.</div>}
+    <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border"><TabButton active={tab === "queue"} onClick={() => setTab("queue")}>Allocation queue {requests.length > 0 && <span className="ml-1 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">{requests.length}</span>}</TabButton><TabButton active={tab === "notifications"} onClick={() => setTab("notifications")}>Notifications</TabButton><TabButton active={tab === "telemetry"} onClick={() => setTab("telemetry")}>Telemetry</TabButton><TabButton active={tab === "ai_models"} onClick={() => setTab("ai_models")}>AI Models</TabButton>{(user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") && <TabButton active={tab === "staff"} onClick={() => setTab("staff")}>Staff Management</TabButton>}</div>
+    {loading ? <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading staff data…</div> : tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : tab === "telemetry" ? <TelemetryTab telemetry={telemetry} health={health} /> : tab === "ai_models" ? <AiModelsTab configs={aiProviders} busyId={busyId} onSave={saveAiProvider} onHealthCheck={healthCheckAiProvider} /> : staffData ? <StaffManagementPanel data={staffData} role={user.staffRole} onChanged={load} setMessage={setMessage} setError={setError} /> : <div className="mt-6 surface-card p-6 text-sm text-muted-foreground">Staff management is available to owners and operations administrators.</div>}
   </div></AppShell>;
 }
 
 function AdminAccessGate({ title, message, action }: { title: string; message: string; action: React.ReactNode }) { return <div className="flex min-h-screen items-center justify-center bg-background px-6 text-center"><div className="max-w-md"><ShieldCheck className="mx-auto h-8 w-8 text-primary" /><h1 className="mt-4 font-display text-xl font-semibold">{title}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{message}</p><div className="mt-5">{action}</div></div></div>; }
 
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) { return <button type="button" onClick={onClick} className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-xs font-medium ${active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{children}</button>; }
+
+function AiModelsTab({ configs, busyId, onSave, onHealthCheck }: { configs: AdminAiProviderConfig[]; busyId: string | null; onSave: (data: Partial<AdminAiProviderConfig> & Pick<AdminAiProviderConfig, "provider" | "model" | "useCase" | "secretRef">) => void; onHealthCheck: (config: AdminAiProviderConfig) => void }) {
+  const [useCase, setUseCase] = useState<AdminAiProviderConfig["useCase"]>("DISCOVERY");
+  const active = configs.find((item) => item.useCase === useCase);
+  const [provider, setProvider] = useState<AdminAiProviderConfig["provider"]>("groq");
+  const [model, setModel] = useState("openai/gpt-oss-20b");
+  const [secretRef, setSecretRef] = useState("GROQ_API_KEY");
+  const [enabled, setEnabled] = useState(false);
+  const [priority, setPriority] = useState(1);
+  const [timeoutMs, setTimeoutMs] = useState(20000);
+  const [maxOutputTokens, setMaxOutputTokens] = useState(2000);
+  const [temperature, setTemperature] = useState(0);
+  const [matrixUnitSurcharge, setMatrixUnitSurcharge] = useState(1);
+
+  useEffect(() => {
+    if (!active) return;
+    setProvider(active.provider); setModel(active.model); setSecretRef(active.secretRef); setEnabled(active.enabled); setPriority(active.priority); setTimeoutMs(active.timeoutMs); setMaxOutputTokens(active.maxOutputTokens); setTemperature(active.temperature); setMatrixUnitSurcharge(active.matrixUnitSurcharge);
+  }, [active?.id]);
+
+  return <div className="mt-6 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]"><section className="surface-card p-5"><div className="flex items-center gap-2"><BrainCircuit className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">AI model configuration</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Choose the provider and model for each V2 use case. API keys stay in Render secrets; this form stores only the secret reference.</p><form className="mt-5 grid gap-3" onSubmit={(event) => { event.preventDefault(); onSave({ provider, model: model.trim(), useCase, secretRef: secretRef.trim(), enabled, priority, timeoutMs, maxOutputTokens, temperature, matrixUnitSurcharge }); }}><label className="grid gap-1 text-xs text-muted-foreground">Use case<select value={useCase} onChange={(event) => setUseCase(event.target.value as AdminAiProviderConfig["useCase"])} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground"><option>DISCOVERY</option><option>PLANNING</option><option>BROWSER_AGENT</option><option>VISION</option><option>RECOVERY</option></select></label><div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs text-muted-foreground">Provider<select value={provider} onChange={(event) => setProvider(event.target.value as AdminAiProviderConfig["provider"])} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground"><option value="groq">Groq</option><option value="openai">OpenAI</option><option value="gemini">Gemini</option><option value="openai_compatible">OpenAI-compatible</option></select></label><label className="grid gap-1 text-xs text-muted-foreground">Model<input value={model} onChange={(event) => setModel(event.target.value)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div><label className="grid gap-1 text-xs text-muted-foreground">Deployment secret reference<input value={secretRef} onChange={(event) => setSecretRef(event.target.value)} placeholder="GROQ_API_KEY" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><span className="text-[11px]">Never paste the actual API key here.</span></label><div className="grid gap-3 sm:grid-cols-3"><label className="grid gap-1 text-xs text-muted-foreground">Priority<input type="number" min={1} max={100} value={priority} onChange={(event) => setPriority(Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Timeout ms<input type="number" min={1000} max={120000} value={timeoutMs} onChange={(event) => setTimeoutMs(Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Max output tokens<input type="number" min={16} max={8192} value={maxOutputTokens} onChange={(event) => setMaxOutputTokens(Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div><div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs text-muted-foreground">Temperature<input type="number" min={0} max={1} step={0.05} value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Matrix surcharge units<input type="number" min={0} max={100} value={matrixUnitSurcharge} onChange={(event) => setMatrixUnitSurcharge(Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Activate this configuration for new work</label><button disabled={busyId === `ai-provider-${useCase}`} className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"><Check className="h-3.5 w-3.5" /> Save versioned configuration</button></form></section><section className="surface-card p-5"><div className="flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Configured providers</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Changing a configuration affects new scans/plans. Existing runs keep their configuration snapshot.</p><div className="mt-4 space-y-2">{configs.length === 0 ? <p className="text-sm text-muted-foreground">No database-managed provider configurations yet. The deployment environment fallback remains active.</p> : configs.map((config) => <div key={config.id} className="rounded-md border border-border/60 p-3"><div className="flex items-start justify-between gap-3"><div><div className="text-sm font-medium">{config.provider} / {config.model}</div><div className="text-[11px] text-muted-foreground">{config.useCase} · v{config.configVersion} · {config.enabled ? "Active" : "Disabled"}</div></div><button type="button" onClick={() => onHealthCheck(config)} disabled={busyId === `ai-health-${config.id}`} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50">Health check</button></div><div className="mt-2 text-[11px] text-muted-foreground">Secret ref: {config.secretRef} · Status: {config.lastHealthStatus || "Not checked"}{config.lastHealthError ? ` · ${config.lastHealthError}` : ""}</div></div>)}</div></section></div>;
+}
 
 function QueueTab({ requests, busyId, onReview }: { requests: AdminAllocationRequest[]; busyId: string | null; onReview: (request: AdminAllocationRequest, status: "APPROVED" | "DECLINED") => void }) { return <section className="mt-6 space-y-3">{requests.length === 0 ? <div className="surface-card p-8 text-sm text-muted-foreground">No pending allocation requests. New requests will appear here with the requester, organization, workspace, and requested Matrix Units.</div> : requests.map((request) => <article key={request.id} className="surface-card p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><h2 className="font-display text-base font-semibold">{request.requestedUnits} ⟐ requested</h2><span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-warning">{request.status}</span></div><p className="mt-1 text-xs text-muted-foreground">{request.organization.name} · {request.workspace.name} · {request.requestedBy.fullName || request.requestedBy.email}</p></div><div className="flex gap-2"><button disabled={busyId === request.id} type="button" onClick={() => onReview(request, "DECLINED")} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"><X className="h-3.5 w-3.5" /> Decline</button><button disabled={busyId === request.id} type="button" onClick={() => onReview(request, "APPROVED")} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"><Check className="h-3.5 w-3.5" /> Approve</button></div></div><p className="mt-4 border-l-2 border-primary/40 pl-3 text-sm leading-6 text-muted-foreground">{request.reason}</p><p className="mt-3 text-[11px] text-muted-foreground">Submitted {new Date(request.createdAt).toLocaleString()}</p></article>)}</section>; }
 
