@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ApiRequestError, authApi, getAuthToken, clearAuthToken, clearClientWorkspaceContext } from './api-client';
+import { ApiRequestError, authApi, getAuthToken, clearAuthToken, clearClientWorkspaceContext, type CurrentUserResponse } from './api-client';
 
 const AUTH_EVENT = 'matrix-qa-auth-changed';
 
@@ -15,6 +15,7 @@ interface AuthContextType {
   logout: () => void;
   logoutAll: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  applyUser: (nextUser: CurrentUserResponse) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -71,6 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => window.removeEventListener(AUTH_EVENT, handleAuthChanged);
   }, []);
 
+  const applyUser = (nextUser: CurrentUserResponse) => setUser(nextUser);
   const logout = () => clearAuthToken();
   const logoutAll = async () => {
     try {
@@ -82,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, logout, logoutAll, refreshUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, logout, logoutAll, refreshUser, applyUser }}>
       {children}
     </AuthContext.Provider>
   );

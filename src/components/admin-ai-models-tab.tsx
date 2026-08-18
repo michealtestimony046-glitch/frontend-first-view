@@ -12,6 +12,7 @@ type Props = {
   onSave: (data: SavePayload) => Promise<void> | void;
   onHealthCheck: (config: AdminAiProviderConfig) => Promise<void> | void;
   onRemove: (config: AdminAiProviderConfig) => Promise<void> | void;
+  managedSecretNames?: string[];
 };
 
 type Draft = SavePayload & {
@@ -98,7 +99,7 @@ function compatibilityClass(status: AdminAiModelCatalogResponse["models"][number
   return "border-border bg-surface-2/30 text-muted-foreground";
 }
 
-export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRemove }: Props) {
+export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRemove, managedSecretNames = [] }: Props) {
   const [draft, setDraft] = useState<Draft>(() => blankDraft());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<AdminAiModelCatalogResponse | null>(null);
@@ -197,6 +198,10 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
       setCatalogError("Choose a live model or type a model ID manually before saving.");
       return;
     }
+    if (!/^[A-Z][A-Z0-9_]{1,127}$/.test(draft.secretRef.trim())) {
+      setCatalogError("Use an exact secret reference name such as ZAI_API_KEY.");
+      return;
+    }
     await onSave({ ...draft, model: draft.model.trim(), secretRef: draft.secretRef.trim(), baseUrl: draft.baseUrl.trim() || undefined });
   };
 
@@ -253,7 +258,7 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
         {catalog?.warnings.map((warning) => <div key={warning} className="rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" />{warning}</div>)}
         {selectedCatalogModel && <div className={`rounded-md border p-2 text-[11px] ${compatibilityClass(selectedCatalogModel.compatibility.status)}`}><strong>{selectedCatalogModel.name}</strong> · {selectedCatalogModel.status.toLowerCase()} · {selectedCatalogModel.contextLength ? `${selectedCatalogModel.contextLength.toLocaleString()} context` : "context unknown"}{selectedCatalogModel.compatibility.reasons.length > 0 && <span> · {selectedCatalogModel.compatibility.reasons.join(" ")}</span>}</div>}
         {draft.model && !selectedCatalogModel && <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" />Manual / unverified model ID. Run a health check after saving before activating it.</div>}
-        <label className="grid gap-1 text-xs text-muted-foreground">Deployment secret reference<input required pattern="[A-Z][A-Z0-9_]{1,127}" value={draft.secretRef} onChange={(event) => set("secretRef", event.target.value.toUpperCase())} placeholder="ANTHROPIC_API_KEY" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><span className="text-[11px]">Never paste the actual API key here.</span></label>
+        <label className="grid gap-1 text-xs text-muted-foreground">Secret reference<input required list={`ai-secret-options-${draft.useCase}`} pattern="[A-Z][A-Z0-9_]{1,127}" value={draft.secretRef} onChange={(event) => set("secretRef", event.target.value.toUpperCase())} placeholder="ANTHROPIC_API_KEY" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><datalist id={`ai-secret-options-${draft.useCase}`}>{[...new Set([...managedSecretNames, ...Object.values(defaultSecretRefs)])].map((secret) => <option key={secret} value={secret}>{managedSecretNames.includes(secret) ? "Managed encrypted secret" : "Deployment fallback"}</option>)}</datalist><span className="text-[11px]">Choose a managed encrypted secret or use an exact deployment environment name. Never paste the actual API key here.</span></label>
         <label className="grid gap-1 text-xs text-muted-foreground">Custom HTTPS base URL <span className="font-normal">(required for Other OpenAI-compatible)</span><input type="url" required={draft.provider === "openai_compatible"} value={draft.baseUrl} onChange={(event) => set("baseUrl", event.target.value)} placeholder={draft.provider === "openai_compatible" ? "https://your-provider.example/v1" : "Leave blank for provider default"} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label>
         <div className="grid gap-3 sm:grid-cols-3"><label className="grid gap-1 text-xs text-muted-foreground">Chain position<input type="number" min={1} max={100} value={draft.priority} onChange={(event) => set("priority", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Timeout ms<input type="number" min={1000} max={120000} value={draft.timeoutMs} onChange={(event) => set("timeoutMs", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Max output tokens<input type="number" min={16} max={8192} value={draft.maxOutputTokens} onChange={(event) => set("maxOutputTokens", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div>
         <div className="grid gap-3 sm:grid-cols-4"><label className="grid gap-1 text-xs text-muted-foreground">Temperature<input type="number" min={0} max={1} step={0.05} value={draft.temperature} onChange={(event) => set("temperature", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Input USD / 1M<input type="number" min={0} step={0.000001} value={draft.estimatedInputUsdPerMillion} onChange={(event) => set("estimatedInputUsdPerMillion", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Output USD / 1M<input type="number" min={0} step={0.000001} value={draft.estimatedOutputUsdPerMillion} onChange={(event) => set("estimatedOutputUsdPerMillion", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Matrix units<input type="number" min={0} max={100} value={draft.matrixUnitSurcharge} onChange={(event) => set("matrixUnitSurcharge", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div>
