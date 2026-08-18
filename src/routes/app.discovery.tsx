@@ -4,6 +4,16 @@ import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, Globe2, Loader2,
 import { v2Api, type V2ApplicationScan, type V2Environment, type V2PlanStatus, type V2PlannerMode, type V2PolicyDecision, type V2TestPlan } from "@/lib/api-client";
 import { useLivePortfolio } from "@/lib/live-data";
 
+function normalizeTargetUrl(value: string | undefined) {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return "";
+  try {
+    return new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`).toString();
+  } catch {
+    return "";
+  }
+}
+
 export const Route = createFileRoute("/app/discovery")({
   head: () => ({
     meta: [
@@ -144,7 +154,7 @@ function DiscoveryPage() {
     setRunning(true);
     setError(null);
     try {
-      const response = await v2Api.runPlan(plan.id, {});
+      const response = await v2Api.runPlan(plan.id, { targetUrl: normalizeTargetUrl(selectedScan?.targetUrl) || undefined });
       window.location.href = `/app/runs/${response.id}?projectId=${encodeURIComponent(plan.projectId)}`;
     } catch (cause) {
       setRunning(false);
