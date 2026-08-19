@@ -366,6 +366,16 @@ export interface V2Scenario {
   locators?: unknown;
   result?: unknown;
 }
+export interface V2AiPlanSummary {
+  source?: string;
+  provider?: string;
+  model?: string;
+  configVersion?: number;
+  missionSummary?: string;
+  planningRationale?: string;
+  uncoveredAreas?: string[];
+}
+
 export interface V2TestPlan {
   id: string;
   projectId: string;
@@ -376,10 +386,18 @@ export interface V2TestPlan {
   version: string;
   estimatedUnits?: number | null;
   reservedUnits?: number | null;
-    projectMap?: {
+  plannerSource?: string | null;
+  plannerProvider?: string | null;
+  plannerModel?: string | null;
+  plannerConfigVersion?: number | null;
+  plannerRationale?: string | null;
+  plannerEvidence?: unknown;
+  plannerValidation?: { status?: string; scenarioCount?: number; candidateCount?: number; deterministicPolicyAuthority?: boolean } | null;
+  projectMap?: {
     mission?: V2MissionSpec;
     coverageFrontier?: V2CoverageFrontier;
-    billingBreakdown?: { baseScenarioUnits: number; aiDiscoveryUnits: number; estimatedUnits: number; accounting?: string }
+    aiPlan?: V2AiPlanSummary;
+    billingBreakdown?: { baseScenarioUnits: number; aiDiscoveryUnits: number; aiPlanningUnits?: number; aiTotalUnits?: number; estimatedUnits: number; accounting?: string }
   } | null;
   createdAt?: string;
   updatedAt?: string;
