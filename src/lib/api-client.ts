@@ -214,6 +214,9 @@ export interface RunAssertion {
   actual: unknown;
   status: "passed" | "failed" | string;
   timestamp: number;
+  source?: "AI" | "SYSTEM" | "POLICY" | "USER" | string;
+  observationId?: string;
+  evidenceRefs?: string[];
 }
 
 export interface RunChapter {
@@ -404,6 +407,44 @@ export interface BrowserHandoff {
   hasCredentials?: boolean;
 }
 
+export interface AiSummaryEvidenceRef {
+  id: string;
+  type: 'SCREENSHOT' | 'OBSERVATION' | 'EVENT' | 'NETWORK' | 'DOM';
+  label: string;
+}
+
+export interface AiLiveSummary {
+  source: 'AI';
+  generatedAt: string;
+  provider: string;
+  model: string;
+  configVersion: number;
+  headline: string;
+  currentObjective: string;
+  whatChanged: string[];
+  findingsSoFar: string[];
+  blockers: string[];
+  nextStep: string;
+  confidence: number;
+  evidenceRefs: AiSummaryEvidenceRef[];
+}
+
+export interface AiRunOverview {
+  source: 'AI';
+  generatedAt: string;
+  provider: string;
+  model: string;
+  configVersion: number;
+  headline: string;
+  whatWasTested: string[];
+  whatTheAgentDid: string[];
+  findings: Array<{ severity: string; title: string; explanation: string; evidence: AiSummaryEvidenceRef[] }>;
+  coverage: string;
+  blockers: string[];
+  recommendedNextSteps: string[];
+  scenarioVerdicts: Array<{ scenarioId: string; verdict: 'PASSED' | 'FAILED' | 'INCONCLUSIVE'; reason: string; evidence: AiSummaryEvidenceRef[] }>;
+}
+
 export interface RunReport {
   id?: string;
   runId?: string;
@@ -423,6 +464,9 @@ export interface RunReport {
   bugs?: number;
   scenarios?: number;
   summary?: RunSummary;
+  liveAiSummary?: AiLiveSummary | null;
+  aiOverview?: AiRunOverview | null;
+  aiSummaryBillableMatrixUnits?: number;
   events?: RunEvent[];
   assertions?: RunAssertion[];
   chapters?: RunChapter[];
@@ -916,7 +960,7 @@ export interface RunListItem {
 }
 
 export type RunMessageAuthorType = "USER" | "AGENT" | "SYSTEM";
-export type RunMessageKind = "MESSAGE" | "CONTROL" | "APPROVAL" | "STATUS";
+export type RunMessageKind = "MESSAGE" | "CONTROL" | "APPROVAL" | "STATUS" | "SUMMARY";
 export type RunConsoleControlAction = "PAUSE" | "RESUME" | "APPROVE" | "SKIP" | "STOP";
 
 export interface RunMessage {
@@ -928,6 +972,7 @@ export interface RunMessage {
   action?: string | null;
   body: string;
   metadata?: Record<string, unknown> | null;
+  idempotencyKey?: string | null;
   createdAt: string;
   expiresAt?: string | null;
 }
