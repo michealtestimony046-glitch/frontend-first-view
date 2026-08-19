@@ -854,7 +854,7 @@ export const projectsApi = {
     }),
 };
 
-export type RunStatus = "passed" | "failed" | "running" | "queued";
+export type RunStatus = "passed" | "passed_with_findings" | "partially_tested" | "blocked" | "failed" | "running" | "queued";
 
 export interface RunListItem {
   id: string;

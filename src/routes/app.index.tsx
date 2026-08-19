@@ -61,7 +61,10 @@ function AppDashboard() {
   const total = runs.length;
   const passed = runs.filter((run) => run.status === "COMPLETED").length;
   const failed = runs.filter((run) => run.status === "FAILED").length;
-  const warnings = runs.reduce((sum, run) => sum + reportWarnings(reportForRun(reports, run.id)), 0);
+  const warnings = runs.reduce((sum, run) => {
+    const outcomeWarning = ["PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED"].includes(run.status) ? 1 : 0;
+    return sum + outcomeWarning + reportWarnings(reportForRun(reports, run.id));
+  }, 0);
   const stats = { total, passed, failed, warnings };
   const trend = buildFailureTrend(runs);
   const latest = {
@@ -518,8 +521,11 @@ function AppDashboard() {
 function statusFromApi(value: string | undefined): RunStatus {
   const normalized = String(value ?? "PENDING").toLowerCase();
   if (normalized === "completed") return "passed";
+  if (normalized === "passed_with_findings") return "passed_with_findings";
+  if (normalized === "partially_tested") return "partially_tested";
+  if (normalized === "blocked") return "blocked";
   if (normalized === "failed") return "failed";
-  if (normalized === "running") return "running";
+  if (normalized === "running" || normalized === "executing") return "running";
   return "queued";
 }
 
@@ -689,6 +695,21 @@ export function StatusPill({ status }: { status: RunStatus }) {
       cls: "bg-success/15 text-success border-success/30",
       icon: CheckCircle2,
       label: "Passed",
+    },
+    passed_with_findings: {
+      cls: "bg-warning/15 text-warning border-warning/30",
+      icon: AlertTriangle,
+      label: "Passed with findings",
+    },
+    partially_tested: {
+      cls: "bg-warning/15 text-warning border-warning/30",
+      icon: AlertTriangle,
+      label: "Partially tested",
+    },
+    blocked: {
+      cls: "bg-warning/15 text-warning border-warning/30",
+      icon: XCircle,
+      label: "Blocked",
     },
     failed: {
       cls: "bg-destructive/15 text-destructive border-destructive/30",
