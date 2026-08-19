@@ -10,7 +10,7 @@ export const Route = createFileRoute("/app/reports")({
 
 function ReportsPage() {
   const live = useLivePortfolio();
-  const terminalRuns = live.runs.filter((run) => run.status === "COMPLETED" || run.status === "FAILED");
+  const terminalRuns = live.runs.filter((run) => ["COMPLETED", "PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED", "FAILED"].includes(run.status));
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [target, setTarget] = useState<"Cursor" | "Claude Code" | "GitHub" | "Raw">("Raw");
   const selectedRun = terminalRuns.find((run) => run.id === selectedRunId) ?? terminalRuns[0] ?? null;

@@ -115,7 +115,8 @@ function RunDetailPage() {
         if (cancelled) return;
         setReport(data);
         setHandoff(currentHandoff);
-        if (data.incomplete && data.status !== "COMPLETED" && data.status !== "FAILED") {
+        const terminalStatuses = ["COMPLETED", "PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED", "FAILED"];
+        if (data.incomplete && !terminalStatuses.includes(data.status)) {
           timer = window.setTimeout(loadReport, 5000);
         }
       } catch (e) {
