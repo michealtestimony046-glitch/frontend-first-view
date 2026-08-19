@@ -280,6 +280,15 @@ export interface V2CoverageFrontier {
 }
 export type V2ScanStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
 export type V2PlannerMode = "QUICK_SMOKE" | "STANDARD_ADAPTIVE" | "DEEP_MATRIX";
+
+export const normalizeV2PlannerMode = (value: string | null | undefined): V2PlannerMode => {
+  switch (String(value ?? "").trim().toUpperCase().replace(/[ -]+/g, "_")) {
+    case "STANDARD_ADAPTIVE": return "STANDARD_ADAPTIVE";
+    case "DEEP_MATRIX": return "DEEP_MATRIX";
+    case "QUICK_SMOKE": return "QUICK_SMOKE";
+    default: return "QUICK_SMOKE";
+  }
+};
 export type V2PlanStatus = "DRAFT" | "READY" | "AWAITING_APPROVAL" | "APPROVED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
 export type V2PolicyTier = "SAFE" | "CAUTION" | "DANGEROUS" | "UNKNOWN";
 export type V2PolicyStatus = "PENDING" | "ALLOWED" | "BLOCKED" | "APPROVED" | "REJECTED" | "NEEDS_HUMAN_REVIEW";
@@ -840,7 +849,10 @@ export const v2Api = {
   startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string; missionGoal?: string; accessMode?: V2MissionAccessMode } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
   getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
-  createPlanFromScan: (scanId: string, data: { name: string; mode?: V2PlannerMode; missionGoal?: string; accessMode?: V2MissionAccessMode }): Promise<V2TestPlan> => apiRequest(`/scans/${encodeURIComponent(scanId)}/plans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  createPlanFromScan: (scanId: string, data: { name: string; mode?: V2PlannerMode | string; missionGoal?: string; accessMode?: V2MissionAccessMode }): Promise<V2TestPlan> => {
+    const payload = { ...data, ...(data.mode ? { mode: normalizeV2PlannerMode(data.mode) } : {}) };
+    return apiRequest(`/scans/${encodeURIComponent(scanId)}/plans`, { method: 'POST', body: JSON.stringify(payload), requiresAuth: true });
+  },
   getPlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}`, { requiresAuth: true }),
   approvePlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}/approve`, { method: 'POST', requiresAuth: true }),
   runPlan: (planId: string, data: TriggerRunRequest = {}): Promise<TriggerRunResponse & { planId?: string }> => apiRequest(`/plans/${encodeURIComponent(planId)}/run`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
