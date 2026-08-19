@@ -844,15 +844,38 @@ export const usersApi = {
   removeAvatar: (): Promise<CurrentUserResponse> => apiRequest("/users/me/avatar", { method: "DELETE", requiresAuth: true }),
 };
 
+const sleepForPlanRetry = (milliseconds: number) => new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
+
+const isRetryablePlanGenerationError = (error: unknown): error is ApiRequestError =>
+  error instanceof ApiRequestError && error.status >= 500 && error.status < 600;
+
 export const v2Api = {
   listEnvironments: (projectId: string): Promise<V2Environment[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
   createEnvironment: (data: { organizationId: string; workspaceId: string; projectId: string; name: string; kind?: V2EnvironmentKind; baseUrl: string }): Promise<V2Environment> => apiRequest('/environments', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string; missionGoal?: string; accessMode?: V2MissionAccessMode } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
   getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
-  createPlanFromScan: (scanId: string, data: { name: string; mode?: V2PlannerMode | string; missionGoal?: string; accessMode?: V2MissionAccessMode }): Promise<V2TestPlan> => {
+  createPlanFromScan: async (scanId: string, data: { name: string; mode?: V2PlannerMode | string; missionGoal?: string; accessMode?: V2MissionAccessMode }): Promise<V2TestPlan> => {
     const payload = { ...data, ...(data.mode ? { mode: normalizeV2PlannerMode(data.mode) } : {}) };
-    return apiRequest(`/scans/${encodeURIComponent(scanId)}/plans`, { method: 'POST', body: JSON.stringify(payload), requiresAuth: true });
+    const request = () => apiRequest<V2TestPlan>(`/scans/${encodeURIComponent(scanId)}/plans`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      requiresAuth: true,
+    });
+
+    try {
+      return await request();
+    } catch (error) {
+      if (!isRetryablePlanGenerationError(error)) throw error;
+      await sleepForPlanRetry(2_500);
+      try {
+        return await request();
+      } catch (retryError) {
+        if (!isRetryablePlanGenerationError(retryError)) throw retryError;
+        await sleepForPlanRetry(5_000);
+        return request();
+      }
+    }
   },
   getPlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}`, { requiresAuth: true }),
   approvePlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}/approve`, { method: 'POST', requiresAuth: true }),
