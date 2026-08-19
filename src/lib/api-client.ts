@@ -375,6 +375,25 @@ export interface V2TestPlan {
   testCases?: Array<{ id: string; scenarioId: string; status: V2CaseStatus; result?: unknown }>;
 }
 
+export interface RunOutcome {
+  status: "COMPLETED" | "PASSED_WITH_FINDINGS" | "PARTIALLY_TESTED" | "BLOCKED" | "FAILED" | string;
+  message?: string | null;
+  coverage?: { planned: number; completed: number; blocked: number; needsReview: number };
+  findings?: { target: number; evidence: number };
+}
+
+export interface BrowserHandoff {
+  id: string;
+  runId: string;
+  status: "PENDING" | "CLAIMED" | "COMPLETED" | "CANCELLED" | "EXPIRED" | string;
+  reason?: string | null;
+  expiresAt: string;
+  claimedAt?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
+  hasCredentials?: boolean;
+}
+
 export interface RunReport {
   id?: string;
   runId?: string;
@@ -383,6 +402,7 @@ export interface RunReport {
   errorMessage?: string | null;
   incomplete?: boolean;
   reportReady?: boolean;
+  outcome?: RunOutcome | null;
   targetUrl?: string;
   startedAt?: string | Date;
   finishedAt?: string | Date;
@@ -860,6 +880,14 @@ export const runsApi = {
       requiresAuth: true,
     });
   },
+  getHandoff: (projectId: string, runId: string): Promise<BrowserHandoff | null> =>
+    apiRequest<BrowserHandoff | null>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff`, { requiresAuth: true }),
+  claimHandoff: (projectId: string, runId: string): Promise<BrowserHandoff> =>
+    apiRequest<BrowserHandoff>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff/claim`, { method: "POST", requiresAuth: true, body: JSON.stringify({}) }),
+  completeHandoff: (projectId: string, runId: string, data: { email: string; password: string }): Promise<BrowserHandoff> =>
+    apiRequest<BrowserHandoff>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff/complete`, { method: "POST", requiresAuth: true, body: JSON.stringify(data) }),
+  cancelHandoff: (projectId: string, runId: string): Promise<BrowserHandoff> =>
+    apiRequest<BrowserHandoff>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff/cancel`, { method: "POST", requiresAuth: true, body: JSON.stringify({}) }),
 };
 
 export interface AllocationRequest {
