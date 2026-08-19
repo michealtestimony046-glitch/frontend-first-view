@@ -182,7 +182,20 @@ export interface TriggerRunRequest {
   email?: string;
   password?: string;
   signupData?: { fullName: string; email: string; password: string; confirmPassword?: string };
+  accessMode?: V2MissionAccessMode;
+  enableVision?: boolean;
+  enableRecovery?: boolean;
 }
+export interface ProviderCapacityDecision {
+  status: "RESERVED" | "WAITING" | string;
+  provider: string;
+  reservationId?: string;
+  estimatedUnits: number;
+  usesProtectedReserve?: boolean;
+  retryAt?: string;
+  reason?: string;
+}
+
 export interface TriggerRunResponse {
   id: string;
   projectId: string;
@@ -191,6 +204,7 @@ export interface TriggerRunResponse {
   incomplete?: boolean;
   reportReady?: boolean;
   errorMessage?: string | null;
+  metadata?: { providerCapacity?: ProviderCapacityDecision; runCapabilities?: { enableVision?: boolean; enableRecovery?: boolean } } | null;
 }
 
 export interface RunEvent {
@@ -692,12 +706,13 @@ export interface AdminAiUsageSummary {
 
 export interface AdminAiProviderConfig {
   id: string;
-  provider: "groq" | "openai" | "gemini" | "openrouter" | "anthropic" | "zai" | "openai_compatible";
+  provider: "groq" | "openai" | "gemini" | "openrouter" | "anthropic" | "zai" | "cloudflare_workers_ai" | "openai_compatible";
   model: string;
   useCase: "DISCOVERY" | "PLANNING" | "BROWSER_AGENT" | "VISION" | "RECOVERY";
   enabled: boolean;
   priority: number;
   secretRef: string;
+  accountId?: string | null;
   secretSource?: "MANAGED" | "DEPLOYMENT" | "MISSING";
   runtimeStatus?: "READY" | "DISABLED" | "MISSING_SECRET";
   baseUrl?: string | null;
@@ -770,6 +785,11 @@ export interface ManagedSecretImportResult {
 
 export interface AdminTelemetrySummary {
   version: { public: string; build: string };
+  providerCapacity?: {
+    configuration: { provider: string; dailyBudget: number; organizationSlots: number; alphaOrganizations: number; protectedReserve: number; windowStart: string; windowEnd: string };
+    window: { id: string; reservedUnits: number; consumedUnits: number; releasedUnits: number; createdAt: string; updatedAt: string } | null;
+    reservationsByStatus: Record<string, { reservations: number; estimatedUnits: number; actualUnits: number }>;
+  };
   totals: number;
   sums: Record<string, number | null>;
   averages: Record<string, number | null>;
@@ -867,8 +887,9 @@ export const adminApi = {
   broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
   listAiProviderConfigs: (): Promise<AdminAiProviderConfig[]> => apiRequest('/admin/ai-provider-configs', { requiresAuth: true }),
-  listAiModelCatalog: (params: { provider: AdminAiProviderConfig["provider"]; secretRef: string; baseUrl?: string; useCase?: AdminAiProviderConfig["useCase"]; refresh?: boolean }): Promise<AdminAiModelCatalogResponse> => {
+  listAiModelCatalog: (params: { provider: AdminAiProviderConfig["provider"]; secretRef: string; accountId?: string; baseUrl?: string; useCase?: AdminAiProviderConfig["useCase"]; refresh?: boolean }): Promise<AdminAiModelCatalogResponse> => {
     const search = new URLSearchParams({ provider: params.provider, secretRef: params.secretRef });
+    if (params.accountId) search.set("accountId", params.accountId);
     if (params.baseUrl) search.set("baseUrl", params.baseUrl);
     if (params.useCase) search.set("useCase", params.useCase);
     if (params.refresh) search.set("refresh", "true");
