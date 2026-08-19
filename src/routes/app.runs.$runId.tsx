@@ -18,8 +18,10 @@ import {
   Terminal,
   XCircle,
 } from "lucide-react";
+import { BrowserHandoffPanel } from "@/components/browser-handoff-panel";
 import {
   runsApi,
+  type BrowserHandoff,
   type RunError,
   type RunReport,
   type V2PolicyDecision,
@@ -81,6 +83,7 @@ function RunDetailPage() {
       ? new URLSearchParams(window.location.search).get("projectId")
       : null;
   const [report, setReport] = useState<RunReport | null>(null);
+  const [handoff, setHandoff] = useState<BrowserHandoff | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -105,9 +108,13 @@ function RunDetailPage() {
 
     const loadReport = async () => {
       try {
-        const data = await runsApi.getReport(projectId, runId);
+        const [data, currentHandoff] = await Promise.all([
+          runsApi.getReport(projectId, runId),
+          runsApi.getHandoff(projectId, runId).catch(() => null),
+        ]);
         if (cancelled) return;
         setReport(data);
+        setHandoff(currentHandoff);
         if (data.incomplete && data.status !== "COMPLETED" && data.status !== "FAILED") {
           timer = window.setTimeout(loadReport, 5000);
         }
@@ -245,6 +252,7 @@ function RunDetailPage() {
             <strong>Run diagnostic:</strong> {report.errorMessage}
           </div>
         )}
+        {report.outcome && <OutcomeNotice report={report} />}
         {report.incomplete && (
           <div className="mt-5 rounded-md border border-primary/25 bg-primary/5 p-4 text-sm text-muted-foreground">
             This run is still processing. The report will refresh automatically when the worker reaches a terminal state.
@@ -274,6 +282,7 @@ function RunDetailPage() {
         </div>
 
         {videoUrl ? <EvidenceVideo report={report} url={videoUrl} /> : <EvidenceStatus report={report} />}
+        {projectId && <BrowserHandoffPanel projectId={projectId} runId={runId} handoff={handoff} onChange={setHandoff} />}
         <ExecutionStatusNotice report={report} />
         {report.v2Plan && <V2PlanResults plan={report.v2Plan} />}
 
@@ -317,6 +326,16 @@ function RunDetailPage() {
   );
 }
 
+function OutcomeNotice({ report }: { report: RunReport }) {
+  const outcome = report.outcome;
+  if (!outcome) return null;
+  const tone = outcome.status === "COMPLETED" ? "success" : outcome.status === "PASSED_WITH_FINDINGS" ? "warning" : outcome.status === "PARTIALLY_TESTED" ? "warning" : outcome.status === "BLOCKED" ? "warning" : "danger";
+  const classes = tone === "success" ? "border-success/30 bg-success/10" : tone === "danger" ? "border-destructive/40 bg-destructive/10" : "border-warning/40 bg-warning/10";
+  const coverage = outcome.coverage;
+  const findings = outcome.findings;
+  return <div className={`mt-5 rounded-md border p-4 text-sm ${classes}`}><div className="font-medium text-foreground">{outcome.status.replaceAll("_", " ")}</div><p className="mt-1 text-muted-foreground">{outcome.message || "All planned scenarios completed without recorded findings."}</p>{coverage && <p className="mt-2 text-xs text-muted-foreground">Coverage: {coverage.completed}/{coverage.planned} scenarios completed · {coverage.blocked} blocked · {coverage.needsReview} needs review{findings ? ` · ${findings.target} target finding${findings.target === 1 ? "" : "s"} · ${findings.evidence} evidence limitation${findings.evidence === 1 ? "" : "s"}` : ""}</p>}</div>;
+}
+
 function ExecutionStatusNotice({ report }: { report: RunReport }) {
   if (!report.v2Plan) return null;
   const videoStatus = report.artifactStatus?.video?.status ?? "not_available";
@@ -324,12 +343,20 @@ function ExecutionStatusNotice({ report }: { report: RunReport }) {
     ? "Execution in progress"
     : report.status === "COMPLETED" && videoStatus !== "ready"
       ? "Execution complete; processing report"
-      : videoStatus === "failed"
-        ? "Raw evidence preserved"
-        : videoStatus !== "ready"
-          ? "Video processing"
-          : "Execution complete";
-  const complete = message === "Execution complete";
+      : report.status === "PASSED_WITH_FINDINGS"
+        ? "Completed with findings"
+        : report.status === "PARTIALLY_TESTED"
+          ? "Partial coverage completed"
+          : report.status === "BLOCKED"
+            ? "Blocked before full coverage"
+            : report.status === "FAILED"
+              ? "Execution failed; evidence preserved"
+              : videoStatus === "failed"
+                ? "Raw evidence preserved"
+                : videoStatus !== "ready"
+                  ? "Video processing"
+                  : "Execution complete";
+  const complete = !report.incomplete && report.status !== "RUNNING" && report.status !== "PENDING";
   return (
     <div className="mt-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
       <span className={`h-1.5 w-1.5 rounded-full ${complete ? "bg-success" : "animate-pulse bg-primary"}`} />
@@ -785,11 +812,13 @@ function DetailStatusPill({ status }: { status: string }) {
   const tone =
     normalized === "COMPLETED"
       ? "bg-success/15 text-success"
-      : normalized === "FAILED"
-        ? "bg-destructive/15 text-destructive"
-        : normalized === "RUNNING"
-          ? "bg-primary/15 text-primary"
-          : "bg-surface-2 text-muted-foreground";
+      : normalized === "PASSED_WITH_FINDINGS" || normalized === "PARTIALLY_TESTED" || normalized === "BLOCKED"
+        ? "bg-warning/15 text-warning"
+        : normalized === "FAILED"
+          ? "bg-destructive/15 text-destructive"
+          : normalized === "RUNNING"
+            ? "bg-primary/15 text-primary"
+            : "bg-surface-2 text-muted-foreground";
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${tone}`}
