@@ -251,6 +251,7 @@ export interface ArtifactStatus {
     finalUploaded?: boolean;
     rawUploaded?: boolean;
     error?: string;
+    reason?: string;
   };
   artifactError?: string | null;
 }

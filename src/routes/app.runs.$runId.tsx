@@ -347,10 +347,13 @@ function OutcomeNotice({ report }: { report: RunReport }) {
 function ExecutionStatusNotice({ report }: { report: RunReport }) {
   if (!report.v2Plan) return null;
   const videoStatus = report.artifactStatus?.video?.status ?? "not_available";
+  const videoDisabled = report.artifactStatus?.video?.reason === "disabled by configuration";
   const message = report.incomplete
     ? "Execution in progress"
-    : report.status === "COMPLETED" && videoStatus !== "ready"
-      ? "Execution complete; processing report"
+    : videoDisabled && report.status !== "RUNNING" && report.status !== "PENDING"
+      ? "Execution complete; screenshots only"
+      : report.status === "COMPLETED" && videoStatus !== "ready"
+        ? "Execution complete; processing report"
       : report.status === "PASSED_WITH_FINDINGS"
         ? "Completed with findings"
         : report.status === "PARTIALLY_TESTED"
@@ -467,16 +470,19 @@ function PlanBadge({ label, tone }: { label: string; tone: "success" | "danger" 
 
 function EvidenceStatus({ report }: { report: RunReport }) {
   const status = report.artifactStatus?.video?.status ?? "not_available";
-  const message = status === "failed"
-    ? "Video evidence could not be prepared for this run."
-    : status === "raw_only"
-      ? "The raw browser recording is available, but the processed replay is not ready."
-      : "No video artifact is available for this run.";
+  const videoDisabled = report.artifactStatus?.video?.reason === "disabled by configuration";
+  const message = videoDisabled
+    ? "Video capture is intentionally disabled for screenshot-first runs."
+    : status === "failed"
+      ? "Video evidence could not be prepared for this run."
+      : status === "raw_only"
+        ? "The raw browser recording is available, but the processed replay is not ready."
+        : "No video artifact is available for this run.";
   return (
-    <div className="mt-8 flex items-start gap-3 rounded-md border border-warning/40 bg-warning/10 p-4 text-sm">
-      <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+    <div className={`mt-8 flex items-start gap-3 rounded-md border p-4 text-sm ${videoDisabled ? "border-primary/30 bg-primary/5" : "border-warning/40 bg-warning/10"}`}>
+      {videoDisabled ? <Camera className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> : <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-warning" />}
       <div>
-        <div className="font-medium text-foreground">Evidence video unavailable</div>
+        <div className="font-medium text-foreground">{videoDisabled ? "Screenshot-first evidence" : "Evidence video unavailable"}</div>
         <p className="mt-1 text-muted-foreground">{message} The browser run itself is {report.status === "COMPLETED" ? "complete" : report.status.toLowerCase()} and its screenshots, events, assertions, and report remain available.</p>
       </div>
     </div>
