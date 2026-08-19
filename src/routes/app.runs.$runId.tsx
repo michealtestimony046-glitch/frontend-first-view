@@ -14,7 +14,13 @@ import {
   Globe,
   Loader2,
   Network,
+  Pause,
   Play,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  SkipForward,
+  Square,
   Terminal,
   XCircle,
 } from "lucide-react";
@@ -23,6 +29,7 @@ import {
   runsApi,
   type BrowserHandoff,
   type RunError,
+  type RunMessage,
   type RunReport,
   type V2PolicyDecision,
   type V2Scenario,
@@ -293,7 +300,7 @@ function RunDetailPage() {
               [
                 { id: "overview", label: "Overview", icon: CheckCircle2 },
                 { id: "screenshots", label: "Screenshots", icon: Camera },
-                { id: "console", label: "Errors", icon: Terminal },
+                { id: "console", label: "Console", icon: Terminal },
                 { id: "network", label: "Events", icon: Network },
                 { id: "scenarios", label: "Assertions", icon: FileWarning },
               ] as const
@@ -318,7 +325,7 @@ function RunDetailPage() {
           {tab === "screenshots" && (
             <ScreenshotsTab report={report} selected={selected} setSelected={setSelected} />
           )}
-          {tab === "console" && <ErrorsTab errors={report.errors ?? []} />}
+          {tab === "console" && projectId && <RunConsoleTab projectId={projectId} runId={runId} report={report} />}
           {tab === "network" && <EventsTab report={report} />}
           {tab === "scenarios" && <AssertionsTab report={report} />}
         </div>
@@ -697,6 +704,163 @@ function ErrorsTab({ errors }: { errors: RunError[] }) {
       )}
     </div>
   );
+}
+
+const SUCCESSFUL_RUN_STATUSES = new Set(["COMPLETED", "PASSED_WITH_FINDINGS"]);
+const ACTIVE_RUN_STATUSES = new Set(["PENDING", "QUEUED", "RUNNING"]);
+
+type ConsoleAction = "PAUSE" | "RESUME" | "APPROVE" | "SKIP" | "STOP";
+
+function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId: string; report: RunReport }) {
+  const [messages, setMessages] = useState<RunMessage[]>([]);
+  const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [activeAction, setActiveAction] = useState<ConsoleAction | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
+  const active = ACTIVE_RUN_STATUSES.has(report.status);
+  const successful = SUCCESSFUL_RUN_STATUSES.has(report.status);
+  const finishedAt = report.finishedAt ? new Date(report.finishedAt).getTime() : null;
+  const pastRetention = successful && finishedAt != null && finishedAt + 60_000 <= Date.now();
+
+  const loadMessages = async () => {
+    try {
+      const next = await runsApi.listMessages(projectId, runId);
+      setMessages(next);
+      setExpired(successful && pastRetention && next.length === 0);
+      setError(null);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unable to load the Run Console.";
+      if (successful && (/expired|not found|transcript/i.test(message))) setExpired(true);
+      else setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (cancelled) return;
+      await loadMessages();
+    };
+    void load();
+    if (!active) return () => { cancelled = true; };
+    const interval = window.setInterval(() => { void load(); }, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [projectId, runId, active, report.status, report.finishedAt]);
+
+  const submitMessage = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const body = draft.trim();
+    if (!body || sending || expired) return;
+    setSending(true);
+    setError(null);
+    try {
+      const created = await runsApi.addMessage(projectId, runId, body);
+      setMessages((current) => [...current.filter((message) => message.id !== created.id), created]);
+      setDraft("");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unable to send your message.";
+      if (/expired|transcript/i.test(message)) setExpired(true);
+      else setError(message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendControl = async (action: ConsoleAction) => {
+    if (activeAction || expired) return;
+    if (action === "STOP" && !window.confirm("Stop this run? The worker will preserve the evidence collected so far.")) return;
+    setActiveAction(action);
+    setError(null);
+    try {
+      const result = await runsApi.control(projectId, runId, action);
+      if (result.message) setMessages((current) => [...current.filter((message) => message.id !== result.message?.id), result.message!]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Unable to request ${action.toLowerCase()}.`);
+    } finally {
+      setActiveAction(null);
+      void loadMessages();
+    }
+  };
+
+  return (
+    <section className="surface-card overflow-hidden">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-display text-sm font-semibold">Live Run Console</h3>
+            {active && <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-primary"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> listening</span>}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Talk to the worker, clarify scope, or approve a safe control request while this run is active.</p>
+        </div>
+        <button type="button" onClick={() => void loadMessages()} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent" aria-label="Refresh console">
+          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </button>
+      </div>
+
+      {error && <div className="border-b border-destructive/30 bg-destructive/10 px-5 py-3 text-xs text-destructive">{error}</div>}
+      {expired ? (
+        <div className="px-5 py-12 text-center">
+          <ShieldCheck className="mx-auto h-7 w-7 text-muted-foreground" />
+          <h4 className="mt-3 text-sm font-medium">Transcript expired</h4>
+          <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">Successful run transcripts are automatically deleted one minute after completion. The report, screenshots, and findings remain available.</p>
+        </div>
+      ) : (
+        <>
+          <div className="max-h-[520px] space-y-4 overflow-auto bg-surface-2/30 px-5 py-5">
+            {loading && !messages.length ? (
+              <div className="flex items-center gap-2 py-10 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading console transcript…</div>
+            ) : messages.length ? messages.map((message) => <RunConsoleMessage key={message.id} message={message} />) : (
+              <div className="py-10 text-center text-xs text-muted-foreground">No console messages yet. Worker updates and your instructions will appear here.</div>
+            )}
+          </div>
+          <div className="border-t border-border px-5 py-4">
+            <div className="flex flex-wrap gap-2">
+              <ConsoleButton action="PAUSE" icon={Pause} disabled={!active || Boolean(activeAction)} pending={activeAction === "PAUSE"} onClick={sendControl} />
+              <ConsoleButton action="RESUME" icon={Play} disabled={!active || Boolean(activeAction)} pending={activeAction === "RESUME"} onClick={sendControl} />
+              <ConsoleButton action="APPROVE" icon={ShieldCheck} disabled={!active || Boolean(activeAction)} pending={activeAction === "APPROVE"} onClick={sendControl} />
+              <ConsoleButton action="SKIP" icon={SkipForward} disabled={!active || Boolean(activeAction)} pending={activeAction === "SKIP"} onClick={sendControl} />
+              <ConsoleButton action="STOP" icon={Square} disabled={!active || Boolean(activeAction)} pending={activeAction === "STOP"} onClick={sendControl} danger />
+            </div>
+            <form onSubmit={submitMessage} className="mt-4 flex gap-2">
+              <label className="sr-only" htmlFor="run-console-message">Message the Run Console</label>
+              <input id="run-console-message" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!active || sending} maxLength={4000} placeholder={active ? "Tell the worker what to inspect next…" : "Console input is available while the run is active"} className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary" />
+              <button type="submit" disabled={!active || !draft.trim() || sending || expired} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><Send className="h-3.5 w-3.5" /> Send</button>
+            </form>
+            <p className="mt-2 text-[11px] text-muted-foreground">Controls are requests recorded on the run. The worker remains fail-closed for dangerous actions.</p>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function ConsoleButton({ action, icon: Icon, disabled, pending, onClick, danger = false }: { action: ConsoleAction; icon: typeof Pause; disabled: boolean; pending: boolean; onClick: (action: ConsoleAction) => void; danger?: boolean }) {
+  return <button type="button" disabled={disabled} onClick={() => onClick(action)} className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wide disabled:cursor-not-allowed disabled:opacity-45 ${danger ? "border-destructive/40 text-destructive hover:bg-destructive/10" : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"}`}>
+    {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />} {action}
+  </button>;
+}
+
+function RunConsoleMessage({ message }: { message: RunMessage }) {
+  const user = message.authorType === "USER";
+  const system = message.authorType === "SYSTEM";
+  return <article className={`flex ${user ? "justify-end" : "justify-start"}`}>
+    <div className={`max-w-[88%] rounded-md border px-4 py-3 ${user ? "border-primary/25 bg-primary/5" : system ? "border-warning/30 bg-warning/5" : "border-border bg-background"}`}>
+      <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span className={user ? "text-primary" : system ? "text-warning" : "text-foreground/70"}>{user ? "You" : message.authorType.toLowerCase()}</span>
+        <span className="rounded-full bg-surface-2 px-1.5 py-0.5">{message.kind}</span>
+        {message.action && <span className="text-primary">{message.action}</span>}
+        <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground/85">{message.body}</p>
+    </div>
+  </article>;
 }
 
 function EventsTab({ report }: { report: RunReport }) {

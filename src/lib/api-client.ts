@@ -891,6 +891,23 @@ export interface RunListItem {
   metadata?: Record<string, unknown> | null;
 }
 
+export type RunMessageAuthorType = "USER" | "AGENT" | "SYSTEM";
+export type RunMessageKind = "MESSAGE" | "CONTROL" | "APPROVAL" | "STATUS";
+export type RunConsoleControlAction = "PAUSE" | "RESUME" | "APPROVE" | "SKIP" | "STOP";
+
+export interface RunMessage {
+  id: string;
+  runId: string;
+  authorId?: string | null;
+  authorType: RunMessageAuthorType;
+  kind: RunMessageKind;
+  action?: string | null;
+  body: string;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+  expiresAt?: string | null;
+}
+
 export const runsApi = {
   list: (projectId: string): Promise<RunListItem[]> =>
     apiRequest(`/projects/${encodeURIComponent(projectId)}/runs`, { requiresAuth: true }),
@@ -901,6 +918,22 @@ export const runsApi = {
       requiresAuth: true,
     });
   },
+  listMessages: (projectId: string, runId: string): Promise<RunMessage[]> =>
+    apiRequest<RunMessage[]>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`, { requiresAuth: true }),
+  addMessage: (projectId: string, runId: string, body: string, metadata?: Record<string, unknown>): Promise<RunMessage> =>
+    apiRequest<RunMessage>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ body, metadata }),
+      requiresAuth: true,
+    }),
+  control: (projectId: string, runId: string, action: RunConsoleControlAction, body?: string): Promise<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage }> =>
+    apiRequest<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/console/control`, {
+      method: "POST",
+      body: JSON.stringify({ action, body }),
+      requiresAuth: true,
+    }),
+  deleteMessages: (projectId: string, runId: string): Promise<{ deleted: number }> =>
+    apiRequest<{ deleted: number }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`, { method: "DELETE", requiresAuth: true }),
   getHandoff: (projectId: string, runId: string): Promise<BrowserHandoff | null> =>
     apiRequest<BrowserHandoff | null>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff`, { requiresAuth: true }),
   claimHandoff: (projectId: string, runId: string): Promise<BrowserHandoff> =>
