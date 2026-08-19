@@ -703,7 +703,16 @@ export interface AdminTelemetrySummary {
   averages: Record<string, number | null>;
   recent: Array<Record<string, unknown>>;
   aiUsage?: AdminAiUsageSummary;
-  creditUsage?: { reservedUnits: number; reservedInternalCredits: number; settledUnits: number; settledInternalCredits: number; refundedUnits: number; refundedInternalCredits: number };
+  creditUsage?: {
+    reservedUnits: number;
+    reservedInternalCredits: number;
+    grossReservedUnits?: number;
+    grossReservedInternalCredits?: number;
+    settledUnits: number;
+    settledInternalCredits: number;
+    refundedUnits: number;
+    refundedInternalCredits: number;
+  };
 }
 
 export interface WorkerHealth {
