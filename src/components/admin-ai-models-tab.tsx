@@ -17,6 +17,7 @@ type Props = {
 
 type Draft = SavePayload & {
   baseUrl: string;
+  accountId: string;
   enabled: boolean;
   priority: number;
   timeoutMs: number;
@@ -35,6 +36,7 @@ const providers: Array<{ value: Provider; label: string }> = [
   { value: "openrouter", label: "OpenRouter" },
   { value: "anthropic", label: "Claude / Anthropic" },
   { value: "zai", label: "Z.ai (GLM)" },
+  { value: "cloudflare_workers_ai", label: "Cloudflare Workers AI" },
   { value: "openai_compatible", label: "Other OpenAI-compatible" },
 ];
 
@@ -45,6 +47,7 @@ const defaultSecretRefs: Record<Provider, string> = {
   openrouter: "OPENROUTER_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   zai: "ZAI_API_KEY",
+  cloudflare_workers_ai: "CLOUDFLARE_API_TOKEN",
   openai_compatible: "AI_COMPATIBLE_API_KEY",
 };
 
@@ -70,6 +73,7 @@ const blankDraft = (useCase: UseCase = "DISCOVERY", priority = 1): Draft => ({
   useCase,
   secretRef: "GROQ_API_KEY",
   baseUrl: "",
+  accountId: "",
   enabled: false,
   priority,
   timeoutMs: 20000,
@@ -111,7 +115,8 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
   const selectedCatalogModel = catalog?.models.find((item) => item.id === draft.model);
   const canAddChainItem = useCaseConfigs.length < 4;
   const validSecretRef = /^[A-Z][A-Z0-9_]{1,127}$/.test(draft.secretRef.trim());
-  const saveDisabled = !draft.model.trim() || !validSecretRef || (draft.provider === "openai_compatible" && !draft.baseUrl.trim());
+  const validAccountId = draft.provider !== "cloudflare_workers_ai" || /^[a-f0-9]{32}$/i.test(draft.accountId.trim());
+  const saveDisabled = !draft.model.trim() || !validSecretRef || !validAccountId || (draft.provider === "openai_compatible" && !draft.baseUrl.trim());
 
   useEffect(() => {
     if (!editing) return;
@@ -121,6 +126,7 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
       useCase: editing.useCase,
       secretRef: editing.secretRef,
       baseUrl: editing.baseUrl || "",
+      accountId: editing.accountId || "",
       enabled: editing.enabled,
       priority: editing.priority,
       timeoutMs: editing.timeoutMs,
@@ -143,17 +149,21 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
       setCatalogError("Enter the HTTPS base URL for the compatible provider before fetching models.");
       return;
     }
+    if (draft.provider === "cloudflare_workers_ai" && !/^[a-f0-9]{32}$/i.test(draft.accountId.trim())) {
+      setCatalogError("Enter the 32-character Cloudflare account ID before fetching models.");
+      return;
+    }
     setCatalogBusy(true);
     setCatalogError("");
     try {
-      const response = await adminApi.listAiModelCatalog({ provider: draft.provider, secretRef: draft.secretRef, baseUrl: draft.baseUrl.trim() || undefined, useCase: draft.useCase, refresh });
+      const response = await adminApi.listAiModelCatalog({ provider: draft.provider, secretRef: draft.secretRef, accountId: draft.accountId.trim() || undefined, baseUrl: draft.baseUrl.trim() || undefined, useCase: draft.useCase, refresh });
       setCatalog(response);
     } catch (cause) {
       setCatalogError(cause instanceof Error ? cause.message : "Unable to fetch the live model catalog.");
     } finally {
       setCatalogBusy(false);
     }
-  }, [draft.baseUrl, draft.provider, draft.secretRef, draft.useCase]);
+  }, [draft.accountId, draft.baseUrl, draft.provider, draft.secretRef, draft.useCase]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void loadCatalog(false); }, 350);
@@ -184,6 +194,7 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
       provider,
       secretRef: current.secretRef === currentDefault ? defaultSecretRefs[provider] : current.secretRef,
       baseUrl: provider === "openai_compatible" ? current.baseUrl : "",
+      accountId: provider === "cloudflare_workers_ai" ? current.accountId : "",
       model: "",
     }));
     setCatalog(null);
@@ -204,7 +215,11 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
       setCatalogError("Use an exact secret reference name such as ZAI_API_KEY.");
       return;
     }
-    await onSave({ ...draft, model: draft.model.trim(), secretRef: draft.secretRef.trim(), baseUrl: draft.baseUrl.trim() || undefined });
+    if (draft.provider === "cloudflare_workers_ai" && !/^[a-f0-9]{32}$/i.test(draft.accountId.trim())) {
+      setCatalogError("Use the 32-character Cloudflare account ID, not the API token.");
+      return;
+    }
+    await onSave({ ...draft, model: draft.model.trim(), secretRef: draft.secretRef.trim(), accountId: draft.accountId.trim() || undefined, baseUrl: draft.baseUrl.trim() || undefined });
   };
 
   const reorder = async (items: AdminAiProviderConfig[]) => {
@@ -215,6 +230,7 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
           model: item.model,
           useCase: item.useCase,
           secretRef: item.secretRef,
+          accountId: item.accountId || undefined,
           baseUrl: item.baseUrl || undefined,
           enabled: item.enabled,
           priority: index + 1,
@@ -252,6 +268,7 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
       </div>
       <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">GitHub Models inference was retired. GitHub is not an inference provider here; use <strong>Other OpenAI-compatible</strong> only when you have a current compatible endpoint. Keys remain deployment secrets such as <code>GROQ_API_KEY</code>.</div>
       {draft.provider === "zai" && <div className="mt-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs leading-5 text-warning"><strong>Z.ai direct API:</strong> the model list is curated from published Z.ai API models because no public catalog endpoint is documented. Use <code>ZAI_API_KEY</code> for backend API access; do not paste a GLM Coding Plan credential unless its server-side use is approved by Z.ai.</div>}
+      {draft.provider === "cloudflare_workers_ai" && <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground"><strong>Cloudflare Workers AI:</strong> models are fetched live from the account-scoped Cloudflare catalog. Use <code>CLOUDFLARE_ACCOUNT_ID</code> as the account identifier and <code>CLOUDFLARE_API_TOKEN</code> as the managed secret reference; never paste the token value here.</div>}
       <form className="mt-5 grid gap-3" onSubmit={(event) => { void submit(event); }}>
         <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs text-muted-foreground">Use case<select value={draft.useCase} onChange={(event) => changeUseCase(event.target.value as UseCase)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{useCases.map((item) => <option key={item} value={item}>{useCaseLabels[item]}</option>)}</select></label><label className="grid gap-1 text-xs text-muted-foreground">Provider<select value={draft.provider} onChange={(event) => changeProvider(event.target.value as Provider)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{providers.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>
         <p className="text-[11px] text-muted-foreground">{useCaseDescriptions[draft.useCase]}</p>
@@ -261,15 +278,17 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
         {selectedCatalogModel && <div className={`rounded-md border p-2 text-[11px] ${compatibilityClass(selectedCatalogModel.compatibility.status)}`}><strong>{selectedCatalogModel.name}</strong> · {selectedCatalogModel.status.toLowerCase()} · {selectedCatalogModel.contextLength ? `${selectedCatalogModel.contextLength.toLocaleString()} context` : "context unknown"}{selectedCatalogModel.compatibility.reasons.length > 0 && <span> · {selectedCatalogModel.compatibility.reasons.join(" ")}</span>}</div>}
         {draft.model && !selectedCatalogModel && <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" />Manual / unverified model ID. Run a health check after saving before activating it.</div>}
         <label className="grid gap-1 text-xs text-muted-foreground">Secret reference<input required list={`ai-secret-options-${draft.useCase}`} pattern="[A-Z][A-Z0-9_]{1,127}" value={draft.secretRef} onChange={(event) => set("secretRef", event.target.value.toUpperCase())} placeholder="ANTHROPIC_API_KEY" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><datalist id={`ai-secret-options-${draft.useCase}`}>{[...new Set([...managedSecretNames, ...Object.values(defaultSecretRefs)])].map((secret) => <option key={secret} value={secret}>{managedSecretNames.includes(secret) ? "Managed encrypted secret" : "Deployment fallback"}</option>)}</datalist><span className="text-[11px]">Choose a managed encrypted secret or use an exact deployment environment name. Never paste the actual API key here.</span></label>
+        {draft.provider === "cloudflare_workers_ai" && <label className="grid gap-1 text-xs text-muted-foreground">Cloudflare account ID<input required pattern="[a-fA-F0-9]{32}" value={draft.accountId} onChange={(event) => set("accountId", event.target.value.trim())} placeholder="32-character account ID" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><span className="text-[11px]">This is the account identifier, not the API token. It is safe to store with the model configuration.</span></label>}
         <label className="grid gap-1 text-xs text-muted-foreground">Custom HTTPS base URL <span className="font-normal">(required for Other OpenAI-compatible)</span><input type="url" required={draft.provider === "openai_compatible"} value={draft.baseUrl} onChange={(event) => set("baseUrl", event.target.value)} placeholder={draft.provider === "openai_compatible" ? "https://your-provider.example/v1" : "Leave blank for provider default"} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label>
         <div className="grid gap-3 sm:grid-cols-3"><label className="grid gap-1 text-xs text-muted-foreground">Chain position<input type="number" min={1} max={100} value={draft.priority} onChange={(event) => set("priority", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Timeout ms<input type="number" min={1000} max={120000} value={draft.timeoutMs} onChange={(event) => set("timeoutMs", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Max output tokens<input type="number" min={16} max={8192} value={draft.maxOutputTokens} onChange={(event) => set("maxOutputTokens", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div>
         <div className="grid gap-3 sm:grid-cols-4"><label className="grid gap-1 text-xs text-muted-foreground">Temperature<input type="number" min={0} max={1} step={0.05} value={draft.temperature} onChange={(event) => set("temperature", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Input USD / 1M<input type="number" min={0} step={0.000001} value={draft.estimatedInputUsdPerMillion} onChange={(event) => set("estimatedInputUsdPerMillion", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Output USD / 1M<input type="number" min={0} step={0.000001} value={draft.estimatedOutputUsdPerMillion} onChange={(event) => set("estimatedOutputUsdPerMillion", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label><label className="grid gap-1 text-xs text-muted-foreground">Matrix units<input type="number" min={0} max={100} value={draft.matrixUnitSurcharge} onChange={(event) => set("matrixUnitSurcharge", Number(event.target.value))} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label></div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.enabled} onChange={(event) => set("enabled", event.target.checked)} /> Activate this configuration for new work</label>
         {!draft.model.trim() && <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">Choose a catalog model or type a model ID before saving. Provider selection alone is not a model mapping.</p>}
         {draft.model.trim() && !validSecretRef && <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-destructive">Use an exact secret reference name such as GROQ_API_KEY; never paste the secret value.</p>}
+        {draft.provider === "cloudflare_workers_ai" && draft.model.trim() && !validAccountId && <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-destructive">Enter a valid 32-character Cloudflare account ID before saving or fetching live models.</p>}
         <div className="flex flex-wrap gap-2"><button disabled={busyId === `ai-provider-${draft.useCase}` || saveDisabled} className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"><Check className="h-3.5 w-3.5" /> {editingId ? "Save configuration" : draft.priority === 1 ? "Save primary" : "Save fallback"}</button>{editingId && <button type="button" onClick={() => reset(draft.useCase, useCaseConfigs.length + 1)} className="rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent">Cancel edit</button>}</div>
       </form>
     </section>
-    <section className="surface-card p-5"><div className="flex items-center gap-2"><Settings2 className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Configuration chains</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Primary is position 1. Fallbacks run in order for transient provider failures, unavailable models, and bounded recovery events. Matrix QA policy remains authoritative.</p><div className="mt-4 space-y-4">{useCases.map((useCase) => { const items = sortedConfigs(configs.filter((item) => item.useCase === useCase)); return <section key={useCase} className="border-t border-border/70 pt-3 first:border-t-0 first:pt-0"><div className="flex items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{useCaseLabels[useCase]}</h3><p className="text-[11px] text-muted-foreground">{useCaseDescriptions[useCase]}</p></div><button type="button" onClick={() => reset(useCase, items.length + 1)} disabled={items.length >= 4} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50"><Plus className="h-3 w-3" /> {items.length >= 4 ? "Maximum reached" : items.length ? "Add fallback" : "Add primary"}</button></div>{items.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">No model configured.</p> : <div className="mt-2 space-y-2">{items.map((config, index) => <article key={config.id} className={`border p-3 ${index === 0 ? "border-primary/40 bg-primary/5" : "border-border/70"}`}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex items-center gap-2 text-sm font-medium">{index === 0 ? <Crown className="h-3.5 w-3.5 text-primary" /> : <span className="text-[10px] font-mono text-muted-foreground">F{index}</span>}<span className="truncate">{index === 0 ? "Primary" : `Fallback ${index}`} · {providerLabel(config.provider)}</span></div><div className="mt-1 truncate text-[11px] text-muted-foreground">{config.model} · v{config.configVersion} · {config.enabled ? "Active" : "Disabled"}</div><div className={`mt-1 text-[11px] font-medium ${config.runtimeStatus === "READY" ? "text-success" : config.runtimeStatus === "MISSING_SECRET" ? "text-destructive" : "text-muted-foreground"}`}>{config.runtimeStatus === "READY" ? `Mapped · ${config.secretSource === "MANAGED" ? "managed vault" : "deployment fallback"}` : config.runtimeStatus === "MISSING_SECRET" ? "Mapping unavailable · secret missing" : "Not active"}</div></div><div className="flex shrink-0 flex-wrap justify-end gap-1"><button type="button" onClick={() => setEditingId(config.id)} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">Edit</button>{index > 0 && <button type="button" onClick={() => { void promote(config); }} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">Promote</button>}<button type="button" aria-label="Move up" disabled={index === 0} onClick={() => { void move(config, "up"); }} className="rounded-md border border-border p-1 hover:bg-accent disabled:opacity-30"><ArrowUp className="h-3 w-3" /></button><button type="button" aria-label="Move down" disabled={index === items.length - 1} onClick={() => { void move(config, "down"); }} className="rounded-md border border-border p-1 hover:bg-accent disabled:opacity-30"><ArrowDown className="h-3 w-3" /></button><button type="button" aria-label="Remove configuration" onClick={() => { void onRemove(config); }} disabled={busyId === `ai-remove-${config.id}`} className="rounded-md border border-destructive/40 p-1 text-destructive hover:bg-destructive/10 disabled:opacity-50"><Trash2 className="h-3 w-3" /></button></div></div><div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground"><span>{config.secretRef}</span><span>{config.baseUrl || "provider default endpoint"}</span><span>Health: {config.lastHealthStatus || "Not checked"}</span><span>{formatDate(config.lastHealthCheckedAt)}</span></div>{config.lastHealthError && <div className="mt-1 text-[11px] text-destructive">{config.lastHealthError}</div>}<div className="mt-2 flex items-center justify-between gap-2"><span className={`text-[11px] font-medium ${config.enabled ? "text-primary" : "text-muted-foreground"}`}>{config.enabled ? "Eligible for new work" : "Disabled"}</span><div className="flex gap-1"><button type="button" onClick={() => { void onSave({ provider: config.provider, model: config.model, useCase: config.useCase, secretRef: config.secretRef, baseUrl: config.baseUrl || undefined, enabled: !config.enabled, priority: index + 1, timeoutMs: config.timeoutMs, maxOutputTokens: config.maxOutputTokens, temperature: config.temperature, estimatedInputUsdPerMillion: config.estimatedInputUsdPerMillion, estimatedOutputUsdPerMillion: config.estimatedOutputUsdPerMillion, matrixUnitSurcharge: config.matrixUnitSurcharge }); }} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">{config.enabled ? "Disable" : "Enable"}</button><button type="button" onClick={() => { void onHealthCheck(config); }} disabled={busyId === `ai-health-${config.id}`} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50">{busyId === `ai-health-${config.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : "Health check"}</button></div></div></article>)}</div>}</section>; })}</div></section>
+    <section className="surface-card p-5"><div className="flex items-center gap-2"><Settings2 className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Configuration chains</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Primary is position 1. Fallbacks run in order for transient provider failures, unavailable models, and bounded recovery events. Matrix QA policy remains authoritative.</p><div className="mt-4 space-y-4">{useCases.map((useCase) => { const items = sortedConfigs(configs.filter((item) => item.useCase === useCase)); return <section key={useCase} className="border-t border-border/70 pt-3 first:border-t-0 first:pt-0"><div className="flex items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{useCaseLabels[useCase]}</h3><p className="text-[11px] text-muted-foreground">{useCaseDescriptions[useCase]}</p></div><button type="button" onClick={() => reset(useCase, items.length + 1)} disabled={items.length >= 4} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50"><Plus className="h-3 w-3" /> {items.length >= 4 ? "Maximum reached" : items.length ? "Add fallback" : "Add primary"}</button></div>{items.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">No model configured.</p> : <div className="mt-2 space-y-2">{items.map((config, index) => <article key={config.id} className={`border p-3 ${index === 0 ? "border-primary/40 bg-primary/5" : "border-border/70"}`}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex items-center gap-2 text-sm font-medium">{index === 0 ? <Crown className="h-3.5 w-3.5 text-primary" /> : <span className="text-[10px] font-mono text-muted-foreground">F{index}</span>}<span className="truncate">{index === 0 ? "Primary" : `Fallback ${index}`} · {providerLabel(config.provider)}</span></div><div className="mt-1 truncate text-[11px] text-muted-foreground">{config.model} · v{config.configVersion} · {config.enabled ? "Active" : "Disabled"}</div><div className={`mt-1 text-[11px] font-medium ${config.runtimeStatus === "READY" ? "text-success" : config.runtimeStatus === "MISSING_SECRET" ? "text-destructive" : "text-muted-foreground"}`}>{config.runtimeStatus === "READY" ? `Mapped · ${config.secretSource === "MANAGED" ? "managed vault" : "deployment fallback"}` : config.runtimeStatus === "MISSING_SECRET" ? "Mapping unavailable · secret missing" : "Not active"}</div></div><div className="flex shrink-0 flex-wrap justify-end gap-1"><button type="button" onClick={() => setEditingId(config.id)} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">Edit</button>{index > 0 && <button type="button" onClick={() => { void promote(config); }} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">Promote</button>}<button type="button" aria-label="Move up" disabled={index === 0} onClick={() => { void move(config, "up"); }} className="rounded-md border border-border p-1 hover:bg-accent disabled:opacity-30"><ArrowUp className="h-3 w-3" /></button><button type="button" aria-label="Move down" disabled={index === items.length - 1} onClick={() => { void move(config, "down"); }} className="rounded-md border border-border p-1 hover:bg-accent disabled:opacity-30"><ArrowDown className="h-3 w-3" /></button><button type="button" aria-label="Remove configuration" onClick={() => { void onRemove(config); }} disabled={busyId === `ai-remove-${config.id}`} className="rounded-md border border-destructive/40 p-1 text-destructive hover:bg-destructive/10 disabled:opacity-50"><Trash2 className="h-3 w-3" /></button></div></div><div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground"><span>{config.secretRef}</span><span>{config.baseUrl || "provider default endpoint"}</span><span>Health: {config.lastHealthStatus || "Not checked"}</span><span>{formatDate(config.lastHealthCheckedAt)}</span></div>{config.lastHealthError && <div className="mt-1 text-[11px] text-destructive">{config.lastHealthError}</div>}<div className="mt-2 flex items-center justify-between gap-2"><span className={`text-[11px] font-medium ${config.enabled ? "text-primary" : "text-muted-foreground"}`}>{config.enabled ? "Eligible for new work" : "Disabled"}</span><div className="flex gap-1"><button type="button" onClick={() => { void onSave({ provider: config.provider, model: config.model, useCase: config.useCase, secretRef: config.secretRef, accountId: config.accountId || undefined, baseUrl: config.baseUrl || undefined, enabled: !config.enabled, priority: index + 1, timeoutMs: config.timeoutMs, maxOutputTokens: config.maxOutputTokens, temperature: config.temperature, estimatedInputUsdPerMillion: config.estimatedInputUsdPerMillion, estimatedOutputUsdPerMillion: config.estimatedOutputUsdPerMillion, matrixUnitSurcharge: config.matrixUnitSurcharge }); }} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent">{config.enabled ? "Disable" : "Enable"}</button><button type="button" onClick={() => { void onHealthCheck(config); }} disabled={busyId === `ai-health-${config.id}`} className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50">{busyId === `ai-health-${config.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : "Health check"}</button></div></div></article>)}</div>}</section>; })}</div></section>
   </div>;
 }
