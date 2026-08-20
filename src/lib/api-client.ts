@@ -1000,7 +1000,7 @@ export interface RunListItem {
 
 export type RunMessageAuthorType = "USER" | "AGENT" | "SYSTEM";
 export type RunMessageKind = "MESSAGE" | "CONTROL" | "APPROVAL" | "STATUS" | "SUMMARY";
-export type RunConsoleControlAction = "PAUSE" | "RESUME" | "APPROVE" | "SKIP" | "STOP";
+export type RunConsoleControlAction = "PAUSE" | "RESUME" | "APPROVE" | "ALLOW_ACTION" | "ALLOW_SCENARIO" | "SKIP" | "STOP";
 
 export interface RunMessage {
   id: string;
@@ -1034,10 +1034,10 @@ export const runsApi = {
       body: JSON.stringify({ body, metadata }),
       requiresAuth: true,
     }),
-  control: (projectId: string, runId: string, action: RunConsoleControlAction, body?: string): Promise<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage }> =>
+  control: (projectId: string, runId: string, action: RunConsoleControlAction, body?: string, metadata?: Record<string, unknown>): Promise<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage }> =>
     apiRequest<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/console/control`, {
       method: "POST",
-      body: JSON.stringify({ action, body }),
+      body: JSON.stringify({ action, body, metadata }),
       requiresAuth: true,
     }),
   deleteMessages: (projectId: string, runId: string): Promise<{ deleted: number }> =>
