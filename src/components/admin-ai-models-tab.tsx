@@ -219,7 +219,7 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
       setCatalogError("Use the 32-character Cloudflare account ID, not the API token.");
       return;
     }
-    await onSave({ ...draft, model: draft.model.trim(), secretRef: draft.secretRef.trim(), accountId: draft.accountId.trim() || undefined, baseUrl: draft.baseUrl.trim() || undefined });
+    await onSave({ ...draft, ...(editingId ? { id: editingId } : {}), model: draft.model.trim(), secretRef: draft.secretRef.trim(), accountId: draft.accountId.trim() || undefined, baseUrl: draft.baseUrl.trim() || undefined });
   };
 
   const reorder = async (items: AdminAiProviderConfig[]) => {
