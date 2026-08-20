@@ -791,6 +791,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
   const [sending, setSending] = useState(false);
   const [activeAction, setActiveAction] = useState<ConsoleAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [continuing, setContinuing] = useState(false);
   const pendingScopeRequest = useMemo(() => {
     let pending: ScopePermissionRequest | null = null;
     let resolvedRequestId: string | null = null;
@@ -859,6 +860,19 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
     }
   };
 
+  const continueWithAi = async () => {
+    if (continuing || expired || !report.v2Plan) return;
+    setContinuing(true);
+    setError(null);
+    try {
+      const next = await runsApi.continue(projectId, runId, draft.trim() || undefined);
+      window.location.href = `/app/runs/${encodeURIComponent(next.id)}?projectId=${encodeURIComponent(projectId)}`;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to continue this AI-authored run.");
+      setContinuing(false);
+    }
+  };
+
   const sendControl = async (action: ConsoleAction, metadata?: Record<string, unknown>) => {
     if (activeAction || expired) return;
     if (action === "STOP" && !window.confirm("Stop this run? The worker will preserve the evidence collected so far.")) return;
@@ -899,6 +913,22 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
         </div>
       ) : (
         <>
+          {(!active && !successful && !expired && report.v2Plan && (report.status === "BLOCKED" || report.status === "FAILED" || report.status === "PARTIALLY_TESTED")) && (
+            <div className="border-b border-primary/30 bg-primary/5 px-5 py-4" role="region" aria-label="Continue AI run">
+              <div className="flex items-start gap-3">
+                <BrainCircuit className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-sm font-semibold text-foreground">The AI-authored scenario needs another instruction</p>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">This run is closed, so the live worker cannot receive a message. Start a fresh continuation from the same AI plan and tell the AI what to retry, inspect, or adapt. The original result remains unchanged for audit history.</p>
+                  <textarea id="run-continuation-instruction" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={continuing} rows={3} maxLength={4000} placeholder="Example: Re-open the Platform link, inspect the actual page heading, and adapt the assertion to the content you observe." className="mt-3 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary disabled:opacity-60" />
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => void continueWithAi()} disabled={continuing} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{continuing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} Continue with AI</button>
+                    <span className="text-[11px] text-muted-foreground">A new run will be created from the same approved AI-authored plan.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <AiOverviewPanel report={report} />
           {pendingScopeRequest && active && (
             <div className="border-b border-warning/40 bg-warning/10 px-5 py-4" role="alert" aria-live="assertive">

@@ -1040,6 +1040,12 @@ export const runsApi = {
       body: JSON.stringify({ action, body, metadata }),
       requiresAuth: true,
     }),
+  continue: (projectId: string, runId: string, instruction?: string): Promise<{ id: string; projectId: string; status: string; continuationOfRunId?: string | null; planId?: string | null }> =>
+    apiRequest<{ id: string; projectId: string; status: string; continuationOfRunId?: string | null; planId?: string | null }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/continue`, {
+      method: "POST",
+      body: JSON.stringify({ instruction: instruction?.trim() || undefined, idempotencyKey: `console-continue-${runId}-${Date.now()}` }),
+      requiresAuth: true,
+    }),
   deleteMessages: (projectId: string, runId: string): Promise<{ deleted: number }> =>
     apiRequest<{ deleted: number }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`, { method: "DELETE", requiresAuth: true }),
   getHandoff: (projectId: string, runId: string): Promise<BrowserHandoff | null> =>
