@@ -754,7 +754,35 @@ function ErrorsTab({ errors }: { errors: RunError[] }) {
 const SUCCESSFUL_RUN_STATUSES = new Set(["COMPLETED", "PASSED_WITH_FINDINGS"]);
 const ACTIVE_RUN_STATUSES = new Set(["PENDING", "QUEUED", "RUNNING"]);
 
-type ConsoleAction = "PAUSE" | "RESUME" | "APPROVE" | "SKIP" | "STOP";
+type ConsoleAction = "PAUSE" | "RESUME" | "APPROVE" | "ALLOW_ACTION" | "ALLOW_SCENARIO" | "SKIP" | "STOP";
+
+type ScopePermissionRequest = {
+  requestId: string;
+  action: string;
+  target: string;
+  route: string;
+  risk: string;
+  reason: string;
+  expectedEffect: string;
+  observedControl?: Record<string, unknown>;
+};
+
+function scopePermissionFromMessage(message: RunMessage): ScopePermissionRequest | null {
+  const metadata = message.metadata;
+  if (!metadata || metadata.type !== "ai-agent-scope-permission-requested") return null;
+  const requestId = typeof metadata.requestId === "string" ? metadata.requestId : "";
+  if (!requestId) return null;
+  return {
+    requestId,
+    action: typeof metadata.action === "string" ? metadata.action : "browser action",
+    target: typeof metadata.target === "string" ? metadata.target : "observed control",
+    route: typeof metadata.route === "string" ? metadata.route : "/",
+    risk: typeof metadata.risk === "string" ? metadata.risk : "UNKNOWN",
+    reason: typeof metadata.reason === "string" ? metadata.reason : "This action is outside the current run scope.",
+    expectedEffect: typeof metadata.expectedEffect === "string" ? metadata.expectedEffect : "The action may change the current browser state.",
+    observedControl: metadata.observedControl && typeof metadata.observedControl === "object" ? metadata.observedControl as Record<string, unknown> : undefined,
+  };
+}
 
 function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId: string; report: RunReport }) {
   const [messages, setMessages] = useState<RunMessage[]>([]);
@@ -763,6 +791,19 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
   const [sending, setSending] = useState(false);
   const [activeAction, setActiveAction] = useState<ConsoleAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pendingScopeRequest = useMemo(() => {
+    let pending: ScopePermissionRequest | null = null;
+    let resolvedRequestId: string | null = null;
+    for (const message of messages) {
+      const request = scopePermissionFromMessage(message);
+      if (request) { pending = request; resolvedRequestId = null; }
+      const metadata = message.metadata;
+      if (metadata?.type === "ai-agent-scope-permission-resolved" && typeof metadata.requestId === "string") {
+        if (pending?.requestId === metadata.requestId) resolvedRequestId = metadata.requestId;
+      }
+    }
+    return pending && pending.requestId !== resolvedRequestId ? pending : null;
+  }, [messages]);
   const [expired, setExpired] = useState(false);
   const active = ACTIVE_RUN_STATUSES.has(report.status);
   const successful = SUCCESSFUL_RUN_STATUSES.has(report.status);
@@ -818,13 +859,13 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
     }
   };
 
-  const sendControl = async (action: ConsoleAction) => {
+  const sendControl = async (action: ConsoleAction, metadata?: Record<string, unknown>) => {
     if (activeAction || expired) return;
     if (action === "STOP" && !window.confirm("Stop this run? The worker will preserve the evidence collected so far.")) return;
     setActiveAction(action);
     setError(null);
     try {
-      const result = await runsApi.control(projectId, runId, action);
+      const result = await runsApi.control(projectId, runId, action, undefined, metadata);
       if (result.message) setMessages((current) => [...current.filter((message) => message.id !== result.message?.id), result.message!]);
     } catch (e) {
       setError(e instanceof Error ? e.message : `Unable to request ${action.toLowerCase()}.`);
@@ -859,6 +900,29 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
       ) : (
         <>
           <AiOverviewPanel report={report} />
+          {pendingScopeRequest && active && (
+            <div className="border-b border-warning/40 bg-warning/10 px-5 py-4" role="alert" aria-live="assertive">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-sm font-semibold text-foreground">The AI wants to test something outside this run’s scope</p>
+                  <p className="mt-1 text-sm leading-6 text-foreground/85">Target: <strong>{pendingScopeRequest.target}</strong></p>
+                  <dl className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                    <div><dt className="font-mono uppercase tracking-wider">Why</dt><dd className="mt-0.5 text-foreground/75">{pendingScopeRequest.reason}</dd></div>
+                    <div><dt className="font-mono uppercase tracking-wider">Expected effect</dt><dd className="mt-0.5 text-foreground/75">{pendingScopeRequest.expectedEffect}</dd></div>
+                    <div><dt className="font-mono uppercase tracking-wider">Current route</dt><dd className="mt-0.5 font-mono text-foreground/75">{pendingScopeRequest.route}</dd></div>
+                    <div><dt className="font-mono uppercase tracking-wider">Risk classification</dt><dd className="mt-0.5 text-foreground/75">{pendingScopeRequest.risk}</dd></div>
+                  </dl>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("ALLOW_ACTION", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"><Check className="h-3.5 w-3.5" /> Allow this action</button>
+                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("ALLOW_SCENARIO", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Allow this scenario</button>
+                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("SKIP", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground hover:bg-accent disabled:opacity-50"><SkipForward className="h-3.5 w-3.5" /> Continue without it</button>
+                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("STOP", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"><Square className="h-3.5 w-3.5" /> Stop run</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="max-h-[520px] space-y-4 overflow-auto bg-surface-2/30 px-5 py-5">
             {loading && !messages.length ? (
               <div className="flex items-center gap-2 py-10 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading console transcript…</div>
