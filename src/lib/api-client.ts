@@ -737,7 +737,8 @@ export interface AdminAiProviderConfig {
   priority: number;
   secretRef: string;
   accountId?: string | null;
-  secretSource?: "MANAGED" | "DEPLOYMENT" | "MISSING";
+  secretSource?: "MANAGED" | "DEPLOYMENT" | "POOL" | "MISSING";
+  configuredPoolKeys?: number;
   runtimeStatus?: "READY" | "DISABLED" | "MISSING_SECRET";
   baseUrl?: string | null;
   timeoutMs: number;
@@ -753,6 +754,19 @@ export interface AdminAiProviderConfig {
   updatedById?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AdminAiProviderBenchmarkResponse {
+  config: AdminAiProviderConfig | null;
+  benchmark: {
+    sampleCount: number;
+    healthySamples: number;
+    failedSamples: number;
+    successRate: number;
+    latencyMs: { min: number; max: number; p50: number; p90: number };
+    samples: Array<{ latencyMs: number; healthy: boolean; error?: string | null }>;
+  };
+  activation: "ELIGIBLE_FOR_REVIEW" | "KEEP_INACTIVE";
 }
 
 export interface AdminAiModelCatalogItem {
@@ -944,6 +958,7 @@ export const adminApi = {
   },
   saveAiProviderConfig: (data: Partial<AdminAiProviderConfig> & Pick<AdminAiProviderConfig, 'provider' | 'model' | 'useCase' | 'secretRef'>): Promise<AdminAiProviderConfig> => apiRequest('/admin/ai-provider-configs', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   healthCheckAiProviderConfig: (id: string): Promise<AdminAiProviderConfig> => apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}/health-check`, { method: 'POST', requiresAuth: true }),
+  benchmarkAiProviderConfig: (id: string, samples = 3): Promise<AdminAiProviderBenchmarkResponse> => apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}/benchmark`, { method: 'POST', body: JSON.stringify({ samples }), requiresAuth: true }),
   deleteAiProviderConfig: (id: string): Promise<{ id: string; deleted: boolean }> => apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
   workerHealth: (): Promise<WorkerHealth> => apiRequest('/admin/worker-health', { requiresAuth: true }),
   listStaff: (): Promise<StaffManagementData> => apiRequest('/admin/staff', { requiresAuth: true }),
