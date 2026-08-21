@@ -706,7 +706,7 @@ export interface AdminAiUsageSummary {
 
 export interface AdminAiProviderConfig {
   id: string;
-  provider: "groq" | "openai" | "gemini" | "openrouter" | "anthropic" | "zai" | "cloudflare_workers_ai" | "openai_compatible";
+  provider: "groq" | "openai" | "gemini" | "openrouter" | "anthropic" | "zai" | "ollama_cloud" | "cloudflare_workers_ai" | "openai_compatible";
   model: string;
   useCase: "DISCOVERY" | "PLANNING" | "BROWSER_AGENT" | "VISION" | "RECOVERY";
   enabled: boolean;
@@ -807,6 +807,28 @@ export interface AdminTelemetrySummary {
   };
 }
 
+export interface AdminControlTowerSnapshot {
+  generatedAt: string;
+  product: { mission: string; runtime: string; deterministicCustomerFallback: boolean };
+  users: {
+    total: number;
+    new24h: number;
+    new30d: number;
+    recent: Array<{ id: string; email: string; fullName?: string | null; emailVerified: boolean; isStaff: boolean; createdAt: string; updatedAt: string }>;
+    leadTracking: { tracked: boolean; reason?: string };
+  };
+  organizations: { total: number; new30d: number };
+  runs: {
+    statusCounts: Record<string, number>;
+    recent: Array<{ id: string; projectId: string; workspaceId: string; triggeredById?: string | null; targetUrl: string; status: string; type: string; createdAt: string; startedAt?: string | null; finishedAt?: string | null; errorMessage?: string | null; metadata?: Record<string, unknown> | null }>;
+  };
+  queue: { pending: number; running: number; blocked: number; failed: number; completed: number; capacityByStatus: Record<string, { reservations: number; estimatedUnits: number; actualUnits: number }> };
+  aiProviders: Array<{ id: string; provider: string; model: string; useCase: string; enabled: boolean; priority: number; lastHealthStatus?: string | null; lastHealthError?: string | null; lastHealthCheckedAt?: string | null; configVersion: number; updatedAt: string }>;
+  allocations: { requestsByStatus: Record<string, number> };
+  security: { unreadNotifications: number; recentStaffAuditEvents: Array<{ id: string; eventType: string; actorId?: string | null; targetUserId?: string | null; metadata?: Record<string, unknown> | null; createdAt: string }>; loginTelemetry: { tracked: boolean; reason?: string }; countryTelemetry: { tracked: boolean; reason?: string } };
+  controls: { staffAccountDisable: boolean; staffSessionRevocation: boolean; customerAccountSuspension: boolean; customerSessionRevocation: boolean; providerConfiguration: boolean; allocationReview: boolean };
+}
+
 export interface WorkerHealth {
   healthy: boolean;
   activeRuns: number;
@@ -886,6 +908,7 @@ export const adminApi = {
   disableRecipient: (id: string) => apiRequest<StaffNotificationRecipient>(`/admin/notification-recipients/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
   broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
+  controlTower: (): Promise<AdminControlTowerSnapshot> => apiRequest('/admin/control-tower', { requiresAuth: true }),
   listAiProviderConfigs: (): Promise<AdminAiProviderConfig[]> => apiRequest('/admin/ai-provider-configs', { requiresAuth: true }),
   listAiModelCatalog: (params: { provider: AdminAiProviderConfig["provider"]; secretRef: string; accountId?: string; baseUrl?: string; useCase?: AdminAiProviderConfig["useCase"]; refresh?: boolean }): Promise<AdminAiModelCatalogResponse> => {
     const search = new URLSearchParams({ provider: params.provider, secretRef: params.secretRef });
