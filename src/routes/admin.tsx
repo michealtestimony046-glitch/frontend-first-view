@@ -46,7 +46,7 @@ function AdminPage() {
     setError("");
     try {
       const canManageStaff = user?.staffRole === "OWNER" || user?.staffRole === "OPERATIONS_ADMIN";
-      const [requestData, recipientData, telemetryData, aiProviderData, healthData, managedSecretData, staffManagementData, controlTowerData, metricsData, customerData, complaintData] = await Promise.all([
+      const [requestData, recipientData, telemetryData, aiProviderData, healthData, managedSecretData, staffManagementData, controlTowerData, metricsData, customerData, complaintData, suspensionData] = await Promise.all([
         adminApi.listAllocationRequests("PENDING"),
         adminApi.listRecipients(),
         adminApi.telemetry(),
