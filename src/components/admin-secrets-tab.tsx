@@ -18,6 +18,16 @@ type ImportIssue = { name: string; message: string };
 type ImportPreview = { entries: SecretEntry[]; errors: ImportIssue[] };
 
 const validName = /^[A-Z][A-Z0-9_]{1,127}$/;
+const ollamaKeyPattern = /^OLLAMA_API_KEY_(\d+)$/;
+const ollamaPoolDisplayLimit = 80;
+
+function ollamaOrdinal(name: string): number | null {
+  const match = ollamaKeyPattern.exec(name.trim().toUpperCase());
+  if (!match) return null;
+  const ordinal = Number(match[1]);
+  return Number.isSafeInteger(ordinal) && ordinal > 0 ? ordinal : null;
+}
+
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -235,6 +245,11 @@ export function AdminSecretsTab({ secrets, role, busyId, onSaved, onDeleted, set
     <section className="surface-card p-5">
       <div className="flex items-center gap-2"><Upload className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Import JSON or `.env` separately</h2></div>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">Paste JSON directly into the first box, or choose a `.env` file in the second box. Both previews show names only; validated values are sent through the authenticated request and are never returned.</p>
+      {(() => {
+        const ollamaKeys = secrets.map((secret) => ollamaOrdinal(secret.name)).filter((ordinal): ordinal is number => ordinal !== null).sort((left, right) => left - right);
+        const highest = ollamaKeys.at(-1) ?? 0;
+        return <div className="mt-3 rounded-md border border-primary/25 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground"><strong className="text-foreground">Ollama Cloud key pool:</strong> {ollamaKeys.length} configured position{ollamaKeys.length === 1 ? "" : "s"}{highest > ollamaPoolDisplayLimit ? ` · highest position ${highest}` : ` · positions 1–${ollamaPoolDisplayLimit} supported by default`}. Missing positions are allowed; values remain encrypted and are never displayed.</div>;
+      })()}
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div className="rounded-md border border-border/60 p-4">
           <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold">Paste JSON</h3><p className="mt-1 text-[11px] text-muted-foreground">Object map, array, or an object with a secrets property.</p></div><FileJson className="h-4 w-4 text-primary" /></div>
@@ -257,7 +272,7 @@ export function AdminSecretsTab({ secrets, role, busyId, onSaved, onDeleted, set
         <div className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /><h2 className="font-display text-base font-semibold">Add or rotate a secret</h2></div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">Values are encrypted before storage. Matrix QA returns only the exact reference name and health metadata, never the secret value.</p>
         <form autoComplete="off" onSubmit={(event) => { void save(event); }} className="mt-5 grid gap-3">
-          <label className="grid gap-1 text-xs text-muted-foreground">Reference name<input name="managedSecretName" autoComplete="off" required pattern="[A-Z][A-Z0-9_]{1,127}" value={name} onChange={(event) => setName(event.target.value.toUpperCase())} placeholder="ZAI_API_KEY" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><span className="text-[11px]">Use this exact name in the AI Models configuration.</span></label>
+          <label className="grid gap-1 text-xs text-muted-foreground">Reference name<input name="managedSecretName" autoComplete="off" required pattern="[A-Z][A-Z0-9_]{1,127}" value={name} onChange={(event) => setName(event.target.value.toUpperCase())} placeholder="OLLAMA_API_KEY_1" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /><span className="text-[11px]">Use an exact provider reference. Ollama pool positions use OLLAMA_API_KEY_1 through OLLAMA_API_KEY_80 by default; gaps are allowed.</span></label>
           <label className="grid gap-1 text-xs text-muted-foreground">Secret value<input name="managedSecretValue" autoComplete="new-password" required type={showValue ? "text" : "password"} value={value} onChange={(event) => setValue(event.target.value)} placeholder="Paste the provider key once" className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label>
           <label className="flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={showValue} onChange={(event) => setShowValue(event.target.checked)} /> Show value while entering</label>
           <label className="grid gap-1 text-xs text-muted-foreground">Description <span className="font-normal">(optional)</span><input name="managedSecretDescription" autoComplete="off" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Z.ai direct API key" maxLength={500} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground" /></label>
