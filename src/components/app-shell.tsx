@@ -18,7 +18,7 @@ const nav: NavItem[] = [
   { label: "Issues", to: "/app/issues", icon: Bug },
   { label: "Audit Log", to: "/app/audit", icon: ScrollText },
   { label: "Reports", to: "/app/reports", icon: FileText },
-  { label: "Credits", to: "/app/credits", icon: CircleDollarSign },
+  { label: "Test capacity", to: "/app/credits", icon: CircleDollarSign },
   { label: "Notifications", to: "/app/notifications", icon: Bell },
   { label: "Settings", to: "/app/settings", icon: Settings },
 ];

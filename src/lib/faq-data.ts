@@ -18,15 +18,15 @@ export const FAQS: FaqEntry[] = [
   },
   {
     q: "Are there usage limits today?",
-    a: "Private-alpha workspaces receive a visible Matrix Unit allocation. The Credits page shows what is available, what has been reserved, and when the current allowance resets.",
+    a: "Private-alpha workspaces receive managed test capacity. The Test capacity page explains how to request an extension, while Matrix QA automatically queues work when shared provider capacity is temporarily full.",
   },
   {
     q: "What does Matrix QA actually do in v1?",
     a: "It walks your critical user journeys — login, signup, navigation, forms — and streams screenshots, console logs, network activity, and timestamps into an evidence-grade report. Only hard failures are surfaced in the primary issue stream.",
   },
   {
-    q: "How do I request more alpha allocation?",
-    a: "Open the Credits page in your workspace and choose Request more alpha allocation. Your request is tracked and routed to the Matrix QA staff team for review; you do not need to find a private email address.",
+    q: "How do I request more alpha capacity?",
+    a: "Open the Test capacity page in your workspace and choose the request form. Your request is tracked and routed to the Matrix QA staff team for review; you do not need to find a private email address.",
   },
   {
     q: "Do you store the test data or credentials I use?",
