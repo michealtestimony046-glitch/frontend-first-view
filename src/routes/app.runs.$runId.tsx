@@ -1266,6 +1266,7 @@ function buildReportMarkdown(report: RunReport, runId: string) {
 
 function eventTypeLabel(type: string) {
   const labels: Record<string, string> = {
+    "v2-final-test-completion": "Run completion",
     "ai-agent-decision": "AI decision",
     "ai-agent-action": "Browser action",
     "ai-agent-result": "Verified result",
@@ -1296,7 +1297,8 @@ function eventLabel(e: {
   url?: string;
   message?: string;
 }) {
-  return e.target ?? e.label ?? e.message ?? e.url ?? eventTypeLabel(e.type);
+  const isInternal = (value: unknown) => typeof value === "string" && /^(ai-agent-|v2-|run-outcome|bug-intelligence|auth-)/i.test(value.trim());
+  return [e.target, e.label, e.message, e.url].find((value) => typeof value === "string" && value.trim() && !isInternal(value)) ?? eventTypeLabel(e.type);
 }
 function Stat({
   label,
