@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Eye, Loader2, Play, Radar, RefreshCw, ShieldAlert, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, Loader2, Play, Radar, RefreshCw, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
 import {
   v2Api,
   type Project,
