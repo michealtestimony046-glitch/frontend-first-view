@@ -946,7 +946,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
             <h3 className="font-display text-sm font-semibold">Live Run Console</h3>
             {active && <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-primary"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> listening</span>}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Talk to the worker, clarify scope, or approve a safe control request while this run is active.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Guide the worker with a bounded instruction for its next decision, clarify scope, or approve a safe control request while this run is active.</p>
         </div>
         <button type="button" onClick={() => void loadMessages()} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent" aria-label="Refresh console">
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
@@ -1022,7 +1022,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
               <input id="run-console-message" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!active || sending} maxLength={4000} placeholder={active ? "Tell the worker what to inspect next…" : "Console input is available while the run is active"} className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary" />
               <button type="submit" disabled={!active || !draft.trim() || sending || expired} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><Send className="h-3.5 w-3.5" /> Send</button>
             </form>
-            <p className="mt-2 text-[11px] text-muted-foreground">Controls are requests recorded on the run. The worker remains fail-closed for dangerous actions.</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">Messages are added to the next AI decision. Stop preserves collected evidence and ends the active run; dangerous actions remain fail-closed.</p>
           </div>
         </>
       )}
