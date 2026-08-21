@@ -36,6 +36,7 @@ const providers: Array<{ value: Provider; label: string }> = [
   { value: "openrouter", label: "OpenRouter" },
   { value: "anthropic", label: "Claude / Anthropic" },
   { value: "zai", label: "Z.ai (GLM)" },
+  { value: "ollama_cloud", label: "Ollama Cloud" },
   { value: "cloudflare_workers_ai", label: "Cloudflare Workers AI" },
   { value: "openai_compatible", label: "Other OpenAI-compatible" },
 ];
@@ -47,6 +48,7 @@ const defaultSecretRefs: Record<Provider, string> = {
   openrouter: "OPENROUTER_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   zai: "ZAI_API_KEY",
+  ollama_cloud: "OLLAMA_API_KEY_POOL",
   cloudflare_workers_ai: "CLOUDFLARE_API_TOKEN",
   openai_compatible: "AI_COMPATIBLE_API_KEY",
 };
@@ -268,6 +270,7 @@ export function AdminAiModelsTab({ configs, busyId, onSave, onHealthCheck, onRem
       </div>
       <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">GitHub Models inference was retired. GitHub is not an inference provider here; use <strong>Other OpenAI-compatible</strong> only when you have a current compatible endpoint. Keys remain deployment secrets such as <code>GROQ_API_KEY</code>.</div>
       {draft.provider === "zai" && <div className="mt-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs leading-5 text-warning"><strong>Z.ai direct API:</strong> the model list is curated from published Z.ai API models because no public catalog endpoint is documented. Use <code>ZAI_API_KEY</code> for backend API access; do not paste a GLM Coding Plan credential unless its server-side use is approved by Z.ai.</div>}
+      {draft.provider === "ollama_cloud" && <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground"><strong>Ollama Cloud:</strong> use <code>OLLAMA_API_KEY_POOL</code> to let the backend rotate through configured <code>OLLAMA_API_KEY_1</code>…<code>OLLAMA_API_KEY_80</code> references. The pool is benchmark-gated and does not guarantee unlimited provider capacity.</div>}
       {draft.provider === "cloudflare_workers_ai" && <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground"><strong>Cloudflare Workers AI:</strong> models are fetched live from the account-scoped Cloudflare catalog. Use <code>CLOUDFLARE_ACCOUNT_ID</code> as the account identifier and <code>CLOUDFLARE_API_TOKEN</code> as the managed secret reference; never paste the token value here.</div>}
       <form className="mt-5 grid gap-3" onSubmit={(event) => { void submit(event); }}>
         <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs text-muted-foreground">Use case<select value={draft.useCase} onChange={(event) => changeUseCase(event.target.value as UseCase)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{useCases.map((item) => <option key={item} value={item}>{useCaseLabels[item]}</option>)}</select></label><label className="grid gap-1 text-xs text-muted-foreground">Provider<select value={draft.provider} onChange={(event) => changeProvider(event.target.value as Provider)} className="rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground">{providers.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>
