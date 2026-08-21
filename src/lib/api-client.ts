@@ -469,10 +469,10 @@ export interface AiRunOverview {
   model: string;
   configVersion: number;
   headline: string;
-  whatWasTested: string[];
-  whatTheAgentDid: string[];
+  whatWasTested: unknown[];
+  whatTheAgentDid: unknown[];
   findings: Array<{ severity: string; title: string; explanation: string; evidence: AiSummaryEvidenceRef[] }>;
-  coverage: string;
+  coverage: unknown;
   blockers: string[];
   recommendedNextSteps: string[];
   scenarioVerdicts: Array<{ scenarioId: string; verdict: 'PASSED' | 'FAILED' | 'INCONCLUSIVE'; reason: string; evidence: AiSummaryEvidenceRef[] }>;

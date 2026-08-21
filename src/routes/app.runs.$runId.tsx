@@ -581,6 +581,22 @@ function EvidenceVideo({ report, url }: { report: RunReport; url: string }) {
   );
 }
 
+function formatAiValue(value: unknown, depth = 0): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map((item) => formatAiValue(item, depth + 1)).filter(Boolean).join("; ");
+  if (depth >= 3) return "[structured value]";
+  return Object.entries(value as Record<string, unknown>)
+    .slice(0, 24)
+    .map(([key, item]) => `${key}: ${formatAiValue(item, depth + 1)}`)
+    .filter((item) => !item.endsWith(": "))
+    .join("; ");
+}
+
+function formatAiList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => formatAiValue(item)).filter(Boolean) : [];
+}
+
 function AiOverviewPanel({ report, final = false }: { report: RunReport; final?: boolean }) {
   const summary = final ? report.aiOverview : report.liveAiSummary;
   if (!summary) {
@@ -601,11 +617,11 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
       <div className="grid gap-6 p-5 lg:grid-cols-2">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "What the agent tested" : "What changed"}</h3>
-          <ul className="mt-3 space-y-2 text-sm text-foreground/85">{(final ? summary.whatWasTested : summary.whatChanged).map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul>
+          <ul className="mt-3 space-y-2 text-sm text-foreground/85">{formatAiList(final ? summary.whatWasTested : summary.whatChanged).map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul>
         </div>
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "Coverage" : "Next step"}</h3>
-          <p className="mt-3 text-sm leading-6 text-foreground/85">{final ? summary.coverage : summary.nextStep}</p>
+          <p className="mt-3 text-sm leading-6 text-foreground/85">{final ? formatAiValue(summary.coverage) || "Coverage summary unavailable." : summary.nextStep}</p>
           {(final ? summary.blockers : summary.blockers).length > 0 && <div className="mt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-warning">Blockers</h4><ul className="mt-2 space-y-1 text-xs text-muted-foreground">{summary.blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
         </div>
       </div>
@@ -676,7 +692,7 @@ function OverviewTab({ report }: { report: RunReport }) {
                   </span>
                 </div>
                 <p className="mt-2 font-mono text-[10px] text-muted-foreground">
-                  expected: {String(a.expected)} · actual: {String(a.actual)}
+                  expected: {formatAiValue(a.expected)} · actual: {formatAiValue(a.actual)}
                 </p>
                 {(a.observationId || (a.evidenceRefs?.length ?? 0) > 0) && <p className="mt-1 font-mono text-[10px] text-muted-foreground">{a.observationId ? `observation ${a.observationId}` : ""}{a.evidenceRefs?.length ? `${a.observationId ? " · " : ""}evidence ${a.evidenceRefs.join(", ")}` : ""}</p>}
               </div>
