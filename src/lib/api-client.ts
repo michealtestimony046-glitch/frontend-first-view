@@ -335,6 +335,23 @@ export interface V2AiEnrichment {
   reason?: string;
 }
 
+export interface V2WebPrecheck {
+  status: "PASS" | "FAIL";
+  targetUrl: string;
+  finalUrl?: string | null;
+  targetOrigin: string;
+  reachable: boolean;
+  httpStatus?: number | null;
+  httpStatusOk: boolean;
+  redirectCount: number;
+  robots: { checked: boolean; status?: number | null; sitemapUrls: string[]; disallowRules: number };
+  sitemap: { checked: boolean; status?: number | null; url?: string | null; routeCount: number };
+  publicRouteCount: number;
+  publicRoutes: string[];
+  errors: string[];
+  checkedAt: string;
+}
+
 export interface V2ApplicationScan {
   id: string;
   projectId: string;
@@ -343,9 +360,10 @@ export interface V2ApplicationScan {
   targetUrl: string;
   startedAt?: string | null;
   finishedAt?: string | null;
-  summary?: (Record<string, unknown> & { aiEnrichment?: V2AiEnrichment }) | null;
+  summary?: (Record<string, unknown> & { aiEnrichment?: V2AiEnrichment; precheck?: V2WebPrecheck }) | null;
   projectMap?: {
     targetOrigin?: string;
+    precheck?: V2WebPrecheck;
     mission?: V2MissionSpec;
     coverageFrontier?: V2CoverageFrontier;
     features?: string[];
@@ -688,6 +706,41 @@ export const notificationsApi = {
   markAllRead: () => apiRequest<{ updatedCount: number }>('/notifications/read', { method: 'DELETE', requiresAuth: true }),
 };
 
+export type TargetComplaintStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "DISMISSED";
+
+export interface TargetComplaint {
+  id: string;
+  reporterId?: string;
+  projectId?: string | null;
+  targetUrl: string;
+  reason: string;
+  status: TargetComplaintStatus;
+  staffNote?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+  reporter?: { id: string; email: string; fullName?: string | null; accountStatus?: string };
+  project?: { id: string; name: string; organizationId: string } | null;
+  reviewedBy?: { id: string; email: string; fullName?: string | null } | null;
+}
+
+export const targetComplaintsApi = {
+  create: (data: { targetUrl: string; projectId?: string; reason: string }): Promise<TargetComplaint> => apiRequest('/target-complaints', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  list: (): Promise<TargetComplaint[]> => apiRequest('/target-complaints', { requiresAuth: true }),
+};
+
+export interface AdminCustomerAccount {
+  id: string;
+  email: string;
+  fullName?: string | null;
+  emailVerified: boolean;
+  accountStatus: "ACTIVE" | "SUSPENDED" | "DISABLED" | string;
+  organizationCount: number;
+  runCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminAllocationRequest {
   id: string;
   requestedUnits: number;
@@ -845,6 +898,53 @@ export interface AdminTelemetrySummary {
   };
 }
 
+export interface AdminMetricComparison { current: number; previous: number; delta: number }
+export interface AdminOperationsMetricSnapshot {
+  totalRuns: number;
+  statusCounts: Record<string, number>;
+  terminalRuns: number;
+  coveredRuns: number;
+  successfulRuns: number;
+  findingRuns: number;
+  findingRate: number;
+  passRate: number;
+  repeatRunRate: number;
+  averageDurationSec: number;
+  averageTimeToFirstReportSec: number;
+  queueDepth: number;
+  providerExhaustionFrequency: number;
+  ai: { calls: number; tokens: number; estimatedCostUsd: number; costPerRunUsd: number; fallbackRate: number };
+}
+export interface AdminOperationsMetrics {
+  generatedAt: string;
+  window: { days: number; currentFrom: string; currentTo: string; previousFrom: string; previousTo: string };
+  current: AdminOperationsMetricSnapshot;
+  previous: AdminOperationsMetricSnapshot;
+  comparisons: {
+    totalRuns: AdminMetricComparison;
+    findingRate: AdminMetricComparison;
+    repeatRunRate: AdminMetricComparison;
+    averageTimeToFirstReportSec: AdminMetricComparison;
+    queueDepth: AdminMetricComparison;
+    providerExhaustionFrequency: AdminMetricComparison;
+    aiCostPerRunUsd: AdminMetricComparison;
+  };
+  trend: Array<{
+    bucketStart: string;
+    bucketEnd: string;
+    label: string;
+    totalRuns: number;
+    pending: number;
+    running: number;
+    completed: number;
+    passedWithFindings: number;
+    partiallyTested: number;
+    blocked: number;
+    failed: number;
+    queueDepth: number;
+  }>;
+}
+
 export interface AdminControlTowerSnapshot {
   generatedAt: string;
   product: { mission: string; runtime: string; deterministicCustomerFallback: boolean };
@@ -935,6 +1035,8 @@ export interface StaffInvitationPreview {
 }
 
 export const adminApi = {
+  listCustomerAccounts: (): Promise<AdminCustomerAccount[]> => apiRequest('/admin/customers', { requiresAuth: true }),
+  changeCustomerAccountStatus: (userId: string, data: { status: 'ACTIVE' | 'SUSPENDED' | 'DISABLED'; reason?: string }) => apiRequest<AdminCustomerAccount & { sessionsRevoked: boolean }>(`/admin/users/${encodeURIComponent(userId)}/status`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   listAllocationRequests: (status?: string): Promise<AdminAllocationRequest[]> => apiRequest(`/admin/allocation-requests${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
   reviewAllocationRequest: (id: string, data: { status: 'APPROVED' | 'DECLINED'; staffNote?: string }) => apiRequest<AdminAllocationRequest>(`/admin/allocation-requests/${encodeURIComponent(id)}/review`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listRecipients: (): Promise<StaffNotificationRecipient[]> => apiRequest('/admin/notification-recipients', { requiresAuth: true }),
@@ -946,7 +1048,10 @@ export const adminApi = {
   disableRecipient: (id: string) => apiRequest<StaffNotificationRecipient>(`/admin/notification-recipients/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
   broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
+  metrics: (days = 7): Promise<AdminOperationsMetrics> => apiRequest(`/admin/metrics?days=${encodeURIComponent(String(days))}`, { requiresAuth: true }),
   controlTower: (): Promise<AdminControlTowerSnapshot> => apiRequest('/admin/control-tower', { requiresAuth: true }),
+  listTargetComplaints: (status?: TargetComplaintStatus): Promise<TargetComplaint[]> => apiRequest(`/target-complaints/staff${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
+  reviewTargetComplaint: (id: string, data: { status: TargetComplaintStatus; staffNote?: string }): Promise<TargetComplaint> => apiRequest(`/target-complaints/staff/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   listAiProviderConfigs: (): Promise<AdminAiProviderConfig[]> => apiRequest('/admin/ai-provider-configs', { requiresAuth: true }),
   listAiModelCatalog: (params: { provider: AdminAiProviderConfig["provider"]; secretRef: string; accountId?: string; baseUrl?: string; useCase?: AdminAiProviderConfig["useCase"]; refresh?: boolean }): Promise<AdminAiModelCatalogResponse> => {
     const search = new URLSearchParams({ provider: params.provider, secretRef: params.secretRef });

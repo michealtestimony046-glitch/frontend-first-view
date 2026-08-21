@@ -66,16 +66,18 @@ function AppDashboard() {
     return sum + outcomeWarning + reportWarnings(reportForRun(reports, run.id));
   }, 0);
   const stats = { total, passed, failed, warnings };
-  const trend = buildFailureTrend(runs);
+  const trend = buildOverallTrend(runs);
   const latest = {
     runId: latestRun?.id ?? "",
     status: statusFromApi(latestRun?.status),
     startedAt: latestRun ? formatLiveDate(latestRun.startedAt ?? latestRun.createdAt) : "—",
-    duration: formatLiveDuration(latestReport?.durationSec),
-    steps: Array.isArray(latestReport?.steps) ? latestReport.steps.length : 0,
-    issues: latestReport?.bugs ?? latestReport?.summary?.bugCount ?? 0,
+    duration: formatLiveDuration(durationForRun(latestRun, latestReport)),
+    steps: reportStepCount(latestReport),
+    issues: latestReport?.bugs ?? latestReport?.summary?.bugCount ?? latestReport?.errors?.length ?? 0,
   };
   const usage = { used: total, cap: Number.POSITIVE_INFINITY, atCap: false };
+  const totalTrendRuns = trend.reduce((sum, point) => sum + point.passed + point.findings + point.running + point.blocked + point.failed + point.queued, 0);
+  const trendFindings = trend.reduce((sum, point) => sum + point.findings, 0);
 
   const downloadLatestReport = () => {
     if (!latestRun) return;
@@ -155,8 +157,8 @@ function AppDashboard() {
               <HelpCircle className="h-4 w-4" />
             </button>
             {utilityPanel === "help" && <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-md border border-border bg-popover p-3 text-xs shadow-2xl">
-              <div className="font-medium text-foreground">Matrix QA v1 help</div>
-              <p className="mt-1 leading-5 text-muted-foreground">Create a project, queue a browser run, then review terminal evidence in Reports. Video processing is still being stabilized.</p>
+              <div className="font-medium text-foreground">Using Matrix QA</div>
+              <p className="mt-1 leading-5 text-muted-foreground">Create a project, start a browser test, then review the evidence-backed report and findings. Screenshot evidence is available while video processing remains optional.</p>
               <Link to="/app/settings" className="mt-2 inline-flex text-primary hover:underline">Open Settings</Link>
             </div>}
           </div>
@@ -222,7 +224,7 @@ function AppDashboard() {
               <span>Duration</span>
               <span />
             </div>
-            <ul>
+            <ul className="max-h-[26rem] overflow-y-auto">
               {runs.slice(0, 6).map((r) => (
                 <li key={r.id}>
                   <Link
@@ -247,7 +249,7 @@ function AppDashboard() {
           </div>
 
           {/* Mobile cards */}
-          <ul className="divide-y divide-border md:hidden">
+          <ul className="max-h-[26rem] divide-y divide-border overflow-y-auto md:hidden">
             {runs.slice(0, 6).map((r) => (
               <li key={r.id}>
                 <Link
@@ -275,24 +277,23 @@ function AppDashboard() {
           </ul>
         </section>
 
-        {/* Failure trend */}
+        {/* Overall run trend */}
         <section className="surface-card flex flex-col overflow-hidden">
-          <header className="flex items-center justify-between border-b border-border px-5 py-4">
+              <header className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
               <h2 className="font-display text-base font-semibold">
-                Failure Trend
+                Overall Run Trend
               </h2>
-              <p className="text-[11px] text-muted-foreground">Last 7 days</p>
+              <p className="text-[11px] text-muted-foreground">Last 7 days · all run statuses</p>
             </div>
           </header>
           <div className="h-[200px] px-2 pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trend} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="failGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="oklch(0.68 0.22 22)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="oklch(0.68 0.22 22)" stopOpacity={0} />
-                  </linearGradient>
+                  <linearGradient id="passGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="oklch(0.7 0.18 150)" stopOpacity={0.3} /><stop offset="100%" stopColor="oklch(0.7 0.18 150)" stopOpacity={0} /></linearGradient>
+                  <linearGradient id="findingGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="oklch(0.68 0.2 260)" stopOpacity={0.3} /><stop offset="100%" stopColor="oklch(0.68 0.2 260)" stopOpacity={0} /></linearGradient>
+                  <linearGradient id="failureGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="oklch(0.68 0.22 22)" stopOpacity={0.3} /><stop offset="100%" stopColor="oklch(0.68 0.22 22)" stopOpacity={0} /></linearGradient>
                 </defs>
                 <XAxis
                   dataKey="day"
@@ -318,28 +319,26 @@ function AppDashboard() {
                   }}
                   labelStyle={{ color: "var(--muted-foreground)" }}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="failures"
-                  stroke="oklch(0.68 0.22 22)"
-                  strokeWidth={2}
-                  fill="url(#failGrad)"
-                  dot={{ r: 3, fill: "oklch(0.68 0.22 22)" }}
-                />
+                <Area type="monotone" dataKey="passed" name="Passed" stroke="oklch(0.7 0.18 150)" strokeWidth={2} fill="url(#passGrad)" dot={{ r: 2, fill: "oklch(0.7 0.18 150)" }} />
+                <Area type="monotone" dataKey="findings" name="Findings" stroke="oklch(0.68 0.2 260)" strokeWidth={2} fill="url(#findingGrad)" dot={{ r: 2, fill: "oklch(0.68 0.2 260)" }} />
+                <Area type="monotone" dataKey="running" name="Running" stroke="oklch(0.72 0.16 90)" strokeWidth={1.5} fill="none" dot={false} />
+                <Area type="monotone" dataKey="blocked" name="Blocked" stroke="oklch(0.72 0.16 70)" strokeWidth={1.5} fill="none" dot={false} />
+                <Area type="monotone" dataKey="failed" name="Failed" stroke="oklch(0.68 0.22 22)" strokeWidth={2} fill="url(#failureGrad)" dot={{ r: 2, fill: "oklch(0.68 0.22 22)" }} />
+                <Area type="monotone" dataKey="queued" name="Queued" stroke="oklch(0.68 0.02 250)" strokeWidth={1.5} fill="none" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
           <div className="mt-auto flex items-end justify-between border-t border-border px-5 py-4">
             <div>
               <div className="text-[11px] text-muted-foreground">
-                Total Failures
+                Total runs in period
               </div>
               <div className="font-display text-2xl font-semibold">
-                {trend.reduce((a, p) => a + p.failures, 0)}
+                {totalTrendRuns}
               </div>
             </div>
-            <span className="font-mono text-[11px] text-success">
-              ↑ 33% vs last 7 days
+            <span className="font-mono text-[11px] text-primary">
+              {trendFindings} findings captured
             </span>
           </div>
         </section>
@@ -371,7 +370,7 @@ function AppDashboard() {
               <span>Occurrences</span>
               <span>First Seen</span>
             </div>
-            <ul>
+            <ul className="max-h-[26rem] overflow-y-auto">
               {issues.slice(0, 6).map((i) => (
                 <li
                   key={i.id}
@@ -396,7 +395,7 @@ function AppDashboard() {
           </div>
 
           {/* Mobile cards */}
-          <ul className="divide-y divide-border md:hidden">
+          <ul className="max-h-[26rem] divide-y divide-border overflow-y-auto md:hidden">
             {issues.slice(0, 6).map((i) => (
               <li key={i.id} className="px-4 py-3">
                 <div className="flex items-start gap-2">
@@ -533,7 +532,7 @@ function percent(value: number, total: number) {
   return total > 0 ? Math.round((value / total) * 100) : 0;
 }
 
-function buildFailureTrend(runs: Array<{ status: string; startedAt?: string | null; createdAt?: string }>) {
+function buildOverallTrend(runs: Array<{ status: string; startedAt?: string | null; createdAt?: string }>) {
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
@@ -541,15 +540,37 @@ function buildFailureTrend(runs: Array<{ status: string; startedAt?: string | nu
     return date;
   });
   return days.map((date) => {
-    const day = date.toLocaleDateString(undefined, { weekday: "short" });
-    const failures = runs.filter((run) => {
-      if (run.status !== "FAILED") return false;
+    const counts = { passed: 0, findings: 0, running: 0, blocked: 0, failed: 0, queued: 0 };
+    runs.forEach((run) => {
       const started = run.startedAt ?? run.createdAt;
       const parsed = started ? new Date(started) : null;
-      return parsed && parsed.toDateString() === date.toDateString();
-    }).length;
-    return { day, failures };
+      if (!parsed || parsed.toDateString() !== date.toDateString()) return;
+      if (run.status === "COMPLETED") counts.passed += 1;
+      else if (run.status === "PASSED_WITH_FINDINGS") counts.findings += 1;
+      else if (run.status === "RUNNING") counts.running += 1;
+      else if (run.status === "BLOCKED") counts.blocked += 1;
+      else if (run.status === "FAILED") counts.failed += 1;
+      else counts.queued += 1;
+    });
+    return { day: date.toLocaleDateString(undefined, { weekday: "short" }), ...counts };
   });
+}
+
+function durationForRun(run: { startedAt?: string | null; finishedAt?: string | null; createdAt?: string } | null, report?: RunReport) {
+  if (typeof report?.durationSec === "number" && Number.isFinite(report.durationSec)) return report.durationSec;
+  const started = run?.startedAt ?? run?.createdAt;
+  const finished = run?.finishedAt;
+  if (!started || !finished) return undefined;
+  const value = (new Date(finished).getTime() - new Date(started).getTime()) / 1000;
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function reportStepCount(report?: RunReport) {
+  if (!report) return 0;
+  if (Array.isArray(report.steps)) return report.steps.length;
+  if (Array.isArray(report.events)) return report.events.length;
+  if (Array.isArray(report.assertions)) return report.assertions.length;
+  return 0;
 }
 
 function StatCard({

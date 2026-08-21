@@ -3,8 +3,10 @@ import { Building2, FolderKanban, Loader2, Plus, RefreshCw, Pencil, Trash2 } fro
 import {
   organizationsApi,
   workspacesApi,
+  targetComplaintsApi,
   type Organization,
   type Workspace,
+  type TargetComplaint,
 } from "@/lib/api-client";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
@@ -28,6 +30,11 @@ function OrganizationSettingsPage() {
   const [loadingWorkspaces, setLoadingWorkspaces] = useState(false);
   const [organizationName, setOrganizationName] = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
+  const [complaintTargetUrl, setComplaintTargetUrl] = useState("");
+  const [complaintReason, setComplaintReason] = useState("");
+  const [complaints, setComplaints] = useState<TargetComplaint[]>([]);
+  const [submittingComplaint, setSubmittingComplaint] = useState(false);
+  const [complaintMessage, setComplaintMessage] = useState<string | null>(null);
   const [creatingOrganization, setCreatingOrganization] = useState(false);
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +68,7 @@ function OrganizationSettingsPage() {
 
   useEffect(() => {
     void loadOrganizations();
+    targetComplaintsApi.list().then(setComplaints).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -180,6 +188,26 @@ function OrganizationSettingsPage() {
     }
   };
 
+  const submitComplaint = async (event: FormEvent) => {
+    event.preventDefault();
+    const targetUrl = complaintTargetUrl.trim();
+    const reason = complaintReason.trim();
+    if (!targetUrl || reason.length < 10) return;
+    setSubmittingComplaint(true);
+    setComplaintMessage(null);
+    try {
+      const created = await targetComplaintsApi.create({ targetUrl, reason });
+      setComplaints((current) => [created, ...current]);
+      setComplaintTargetUrl("");
+      setComplaintReason("");
+      setComplaintMessage("Your target report was sent to the Matrix QA operations team.");
+    } catch (cause) {
+      setComplaintMessage(toMessage(cause, "Unable to submit the target report."));
+    } finally {
+      setSubmittingComplaint(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -235,7 +263,7 @@ function OrganizationSettingsPage() {
               ))
             )}
           </div>
-          {ownsOrganization ? <p className="border-t border-border px-4 py-3 text-xs leading-5 text-muted-foreground">v1 allows one organization per account. Use the existing organization for now.</p> : <form onSubmit={createOrganization} className="border-t border-border p-4">
+          {ownsOrganization ? <p className="border-t border-border px-4 py-3 text-xs leading-5 text-muted-foreground">The private alpha currently supports one organization per account. Use the existing organization for now.</p> : <form onSubmit={createOrganization} className="border-t border-border p-4">
             <label className="block text-xs font-medium text-muted-foreground">Create organization</label>
             <div className="mt-1.5 flex gap-2">
               <input
@@ -293,6 +321,20 @@ function OrganizationSettingsPage() {
           </form>
         </section>
       </div>
+
+      <section className="surface-card overflow-hidden">
+        <header className="border-b border-border px-5 py-4">
+          <h3 className="font-display text-base font-semibold">Report a target concern</h3>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Tell us if a target is unsafe, belongs to someone else, or is producing unexpected behavior. The report is reviewed by Matrix QA staff and does not start a test.</p>
+        </header>
+        <form onSubmit={submitComplaint} className="grid gap-3 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] md:items-end">
+          <label className="block"><span className="mb-1.5 block text-xs font-medium">Target URL</span><input type="url" required value={complaintTargetUrl} onChange={(event) => setComplaintTargetUrl(event.target.value)} placeholder="https://example.com" className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary" /></label>
+          <label className="block"><span className="mb-1.5 block text-xs font-medium">What should staff review?</span><textarea required minLength={10} maxLength={2000} value={complaintReason} onChange={(event) => setComplaintReason(event.target.value)} placeholder="Describe the concern or unexpected target behavior…" className="min-h-10 w-full resize-y rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-primary" /></label>
+          <button type="submit" disabled={submittingComplaint || !complaintTargetUrl.trim() || complaintReason.trim().length < 10} className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60">{submittingComplaint && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Send report</button>
+        </form>
+        {complaintMessage && <p className="border-t border-border px-5 py-3 text-xs text-muted-foreground">{complaintMessage}</p>}
+        <div className="max-h-64 divide-y divide-border overflow-y-auto border-t border-border">{complaints.length === 0 ? <p className="p-5 text-xs text-muted-foreground">No target reports submitted from this account.</p> : complaints.map((complaint) => <div key={complaint.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-xs"><div className="min-w-0"><div className="truncate font-mono text-primary">{complaint.targetUrl}</div><div className="mt-1 truncate text-muted-foreground">{complaint.reason}</div></div><span className="shrink-0 rounded-full border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{complaint.status.replaceAll("_", " ")}</span></div>)}</div>
+      </section>
     </div>
   );
 }
