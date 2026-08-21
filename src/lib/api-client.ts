@@ -741,6 +741,21 @@ export interface AdminCustomerAccount {
   updatedAt: string;
 }
 
+export interface AdminClientView {
+  client: Pick<AdminCustomerAccount, "id" | "email" | "fullName" | "emailVerified" | "accountStatus" | "createdAt"> & { isStaff: boolean };
+  organizations: Array<{
+    id: string;
+    name: string;
+    ownerId: string;
+    createdAt: string;
+    members: Array<{ role: string }>;
+    workspaces: Array<{ id: string; name: string; createdAt: string; projects: Array<{ id: string; name: string; defaultTargetUrl?: string | null; createdAt: string }> }>;
+  }>;
+  recentRuns: Array<{ id: string; targetUrl: string; status: string; type: string; createdAt: string; startedAt?: string | null; finishedAt?: string | null; errorMessage?: string | null; project?: { id: string; name: string } | null; workspace?: { id: string; name: string } | null }>;
+  readOnly: true;
+  viewedAt: string;
+}
+
 export interface AdminAllocationRequest {
   id: string;
   requestedUnits: number;
@@ -1036,6 +1051,7 @@ export interface StaffInvitationPreview {
 
 export const adminApi = {
   listCustomerAccounts: (): Promise<AdminCustomerAccount[]> => apiRequest('/admin/customers', { requiresAuth: true }),
+  viewAsClient: (userId: string): Promise<AdminClientView> => apiRequest(`/admin/users/${encodeURIComponent(userId)}/view-as-client`, { requiresAuth: true }),
   changeCustomerAccountStatus: (userId: string, data: { status: 'ACTIVE' | 'SUSPENDED' | 'DISABLED'; reason?: string }) => apiRequest<AdminCustomerAccount & { sessionsRevoked: boolean }>(`/admin/users/${encodeURIComponent(userId)}/status`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   listAllocationRequests: (status?: string): Promise<AdminAllocationRequest[]> => apiRequest(`/admin/allocation-requests${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
   reviewAllocationRequest: (id: string, data: { status: 'APPROVED' | 'DECLINED'; staffNote?: string }) => apiRequest<AdminAllocationRequest>(`/admin/allocation-requests/${encodeURIComponent(id)}/review`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
