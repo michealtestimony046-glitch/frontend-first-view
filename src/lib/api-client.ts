@@ -440,7 +440,8 @@ export interface V2TestPlan {
 }
 
 export interface RunOutcome {
-  status: "COMPLETED" | "PASSED_WITH_FINDINGS" | "PARTIALLY_TESTED" | "BLOCKED" | "FAILED" | string;
+  status: "COMPLETED" | "PASSED_WITH_FINDINGS" | "PARTIALLY_TESTED" | "BLOCKED" | "REVIEW_REQUIRED" | "AWAITING_PERMISSION" | "FAILED" | string;
+  reasonCode?: string | null;
   message?: string | null;
   coverage?: { planned: number; completed: number; blocked: number; needsReview: number };
   findings?: { target: number; evidence: number };

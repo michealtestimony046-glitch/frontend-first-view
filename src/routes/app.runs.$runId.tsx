@@ -373,11 +373,12 @@ function QueueStateNotice({ queue }: { queue: NonNullable<RunReport["metadata"]>
 function OutcomeNotice({ report }: { report: RunReport }) {
   const outcome = report.outcome;
   if (!outcome) return null;
-  const tone = outcome.status === "COMPLETED" ? "success" : outcome.status === "PASSED_WITH_FINDINGS" ? "warning" : outcome.status === "PARTIALLY_TESTED" ? "warning" : outcome.status === "BLOCKED" ? "warning" : "danger";
+  const tone = outcome.status === "COMPLETED" ? "success" : outcome.status === "PASSED_WITH_FINDINGS" ? "warning" : outcome.status === "PARTIALLY_TESTED" || outcome.status === "REVIEW_REQUIRED" || outcome.status === "AWAITING_PERMISSION" ? "warning" : outcome.status === "BLOCKED" ? "danger" : "danger";
   const classes = tone === "success" ? "border-success/30 bg-success/10" : tone === "danger" ? "border-destructive/40 bg-destructive/10" : "border-warning/40 bg-warning/10";
   const coverage = outcome.coverage;
   const findings = outcome.findings;
-  return <div className={`mt-5 rounded-md border p-4 text-sm ${classes}`}><div className="font-medium text-foreground">{outcome.status.replaceAll("_", " ")}</div><p className="mt-1 text-muted-foreground">{outcome.message || "All planned scenarios completed without recorded findings."}</p>{coverage && <p className="mt-2 text-xs text-muted-foreground">Coverage: {coverage.completed}/{coverage.planned} scenarios completed · {coverage.blocked} blocked · {coverage.needsReview} needs review{findings ? ` · ${findings.target} target finding${findings.target === 1 ? "" : "s"} · ${findings.evidence} evidence limitation${findings.evidence === 1 ? "" : "s"}` : ""}</p>}</div>;
+  const title = outcome.status === "AWAITING_PERMISSION" ? "Waiting for your decision" : outcome.status === "REVIEW_REQUIRED" ? "Review required" : outcome.status.replaceAll("_", " ");
+  return <div className={`mt-5 rounded-md border p-4 text-sm ${classes}`}><div className="font-medium text-foreground">{title}</div><p className="mt-1 text-muted-foreground">{outcome.message || "All planned scenarios completed without recorded findings."}</p>{coverage && <p className="mt-2 text-xs text-muted-foreground">Coverage: {coverage.completed}/{coverage.planned} scenarios completed · {coverage.blocked} blocked · {coverage.needsReview} needs review{findings ? ` · ${findings.target} target finding${findings.target === 1 ? "" : "s"} · ${findings.evidence} evidence limitation${findings.evidence === 1 ? "" : "s"}` : ""}</p>}</div>;
 }
 
 function ExecutionStatusNotice({ report }: { report: RunReport }) {
@@ -395,15 +396,19 @@ function ExecutionStatusNotice({ report }: { report: RunReport }) {
         : report.status === "PARTIALLY_TESTED"
           ? "Partial coverage completed"
           : report.status === "BLOCKED"
-            ? "Blocked before full coverage"
-            : report.status === "FAILED"
+            ? "Policy blocked a specific action"
+            : report.status === "REVIEW_REQUIRED"
+              ? "Review required; evidence preserved"
+              : report.status === "AWAITING_PERMISSION"
+                ? "Waiting for your decision"
+                : report.status === "FAILED"
               ? "Execution failed; evidence preserved"
               : videoStatus === "failed"
                 ? "Raw evidence preserved"
                 : videoStatus !== "ready"
                   ? "Video processing"
                   : "Execution complete";
-  const complete = !report.incomplete && report.status !== "RUNNING" && report.status !== "PENDING";
+  const complete = !report.incomplete && report.status !== "RUNNING" && report.status !== "PENDING" && report.status !== "AWAITING_PERMISSION";
   return (
     <div className="mt-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
       <span className={`h-1.5 w-1.5 rounded-full ${complete ? "bg-success" : "animate-pulse bg-primary"}`} />
@@ -809,7 +814,7 @@ function ErrorsTab({ errors }: { errors: RunError[] }) {
 }
 
 const SUCCESSFUL_RUN_STATUSES = new Set(["COMPLETED", "PASSED_WITH_FINDINGS"]);
-const ACTIVE_RUN_STATUSES = new Set(["PENDING", "QUEUED", "RUNNING"]);
+const ACTIVE_RUN_STATUSES = new Set(["PENDING", "QUEUED", "RUNNING", "AWAITING_PERMISSION"]);
 
 type ConsoleAction = "PAUSE" | "RESUME" | "APPROVE" | "ALLOW_ACTION" | "ALLOW_SCENARIO" | "SKIP" | "STOP";
 
@@ -970,7 +975,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
         </div>
       ) : (
         <>
-          {(!active && !successful && !expired && report.v2Plan && (report.status === "BLOCKED" || report.status === "FAILED" || report.status === "PARTIALLY_TESTED")) && (
+          {(!active && !successful && !expired && report.v2Plan && (report.status === "BLOCKED" || report.status === "FAILED" || report.status === "PARTIALLY_TESTED" || report.status === "REVIEW_REQUIRED")) && (
             <div className="border-b border-primary/30 bg-primary/5 px-5 py-4" role="region" aria-label="Continue test run">
               <div className="flex items-start gap-3">
                 <BrainCircuit className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
