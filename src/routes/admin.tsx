@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, BrainCircuit, Check, CircleAlert, CircleDollarSign, Database, ListChecks, Loader2, Mail, Menu, Radio, RefreshCw, Search, Send, ShieldCheck, Users, X } from "lucide-react";
+import { Activity, BrainCircuit, Check, CircleAlert, CircleDollarSign, Database, Eye, ListChecks, Loader2, Mail, Menu, Radio, RefreshCw, Search, Send, ShieldCheck, Users, X } from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { adminApi, type AdminAiProviderConfig, type AdminAllocationRequest, type AdminClientView, type AdminControlTowerSnapshot, type AdminCustomerAccount, type AdminOperationsMetrics, type AdminTelemetrySummary, type ManagedSecretMetadata, type StaffManagementData, type StaffNotificationRecipient, type TargetComplaint, type TargetComplaintStatus, type WorkerHealth } from "@/lib/api-client";
 import { StaffManagementPanel } from "@/components/staff-management-panel";
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type AdminTab = "control_tower" | "queue" | "notifications" | "telemetry" | "ai_models" | "secrets" | "staff" | "customers" | "complaints";
+type AdminTab = "control_tower" | "queue" | "notifications" | "telemetry" | "ai_models" | "secrets" | "staff" | "customers" | "complaints" | "client_view";
 
 function AdminPage() {
   const { user, isLoading } = useAuth();
@@ -29,6 +29,7 @@ function AdminPage() {
   const [customers, setCustomers] = useState<AdminCustomerAccount[]>([]);
   const [complaints, setComplaints] = useState<TargetComplaint[]>([]);
   const [clientView, setClientView] = useState<AdminClientView | null>(null);
+  const [clientViewLoading, setClientViewLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -159,14 +160,16 @@ function AdminPage() {
   };
 
   const viewAsClient = async (client: AdminCustomerAccount) => {
-    setBusyId(`view-client-${client.id}`); setError(""); setMessage("");
+    setBusyId(`view-client-${client.id}`); setClientViewLoading(true); setError(""); setMessage(""); setTab("client_view");
     try {
       const view = await adminApi.viewAsClient(client.id);
       setClientView(view);
       setMessage(`Read-only client view opened for ${client.email}. Staff identity remains active and actions are attributed to the staff operator.`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to open the client view."); }
-    finally { setBusyId(null); }
+    finally { setClientViewLoading(false); setBusyId(null); }
   };
+
+  const returnToClientAccounts = () => { setClientView(null); setClientViewLoading(false); setTab("customers"); };
 
   const changeCustomerStatus = async (customer: AdminCustomerAccount, status: "ACTIVE" | "SUSPENDED" | "DISABLED") => {
     const reason = window.prompt(status === "ACTIVE" ? "Optional reactivation note" : `Reason for ${status.toLowerCase()} this client account`, "") ?? "";
@@ -199,8 +202,7 @@ function AdminPage() {
     <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-primary"><ShieldCheck className="h-4 w-4" /> Matrix QA staff</div><h1 className="mt-2 font-display text-2xl font-semibold">Admin console</h1><p className="mt-1 text-sm text-muted-foreground">Private-alpha operations, allocation decisions, notifications, and cost telemetry.</p></div><button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent"><RefreshCw className="h-3.5 w-3.5" /> Refresh</button></div>
     {error && <div className="mt-5 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}{message && <div className="mt-5 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-primary">{message}</div>}
     {loading ? <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading staff data…</div> : tab === "control_tower" ? <ControlTowerTab snapshot={controlTower} metrics={metrics} providers={aiProviders} onOpenAiModels={() => setTab("ai_models")} /> :
- tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : tab === "customers" ? <CustomersTab customers={customers} busyId={busyId} onStatusChange={changeCustomerStatus} onViewAsClient={viewAsClient} /> : tab === "complaints" ? <ComplaintsTab complaints={complaints} busyId={busyId} onReview={reviewComplaint} /> : tab === "telemetry" ? <TelemetryTab telemetry={telemetry} health={health} /> : tab === "ai_models" ? <AdminAiModelsTab configs={aiProviders} busyId={busyId} managedSecretNames={secrets.map((secret) => secret.name)} onSave={saveAiProvider} onHealthCheck={healthCheckAiProvider} onRemove={removeAiProvider} /> : tab === "secrets" && (user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") ? <AdminSecretsTab secrets={secrets} role={user.staffRole} busyId={busyId} onSaved={saveManagedSecret} onDeleted={deleteManagedSecret} setMessage={setMessage} setError={setError} /> : staffData ? <StaffManagementPanel data={staffData} role={user.staffRole} onChanged={load} setMessage={setMessage} setError={setError} /> : <div className="mt-6 surface-card p-6 text-sm text-muted-foreground">Staff management is available to owners and operations administrators.</div>}
-    {clientView && <ClientViewPanel view={clientView} onClose={() => setClientView(null)} />}
+ tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : tab === "customers" ? <CustomersTab customers={customers} busyId={busyId} onStatusChange={changeCustomerStatus} onViewAsClient={viewAsClient} /> : tab === "client_view" ? <ClientViewTab customers={customers} busyId={busyId} clientView={clientView} loading={clientViewLoading} onViewAsClient={viewAsClient} onReturn={returnToClientAccounts} /> : tab === "complaints" ? <ComplaintsTab complaints={complaints} busyId={busyId} onReview={reviewComplaint} /> : tab === "telemetry" ? <TelemetryTab telemetry={telemetry} health={health} /> : tab === "ai_models" ? <AdminAiModelsTab configs={aiProviders} busyId={busyId} managedSecretNames={secrets.map((secret) => secret.name)} onSave={saveAiProvider} onHealthCheck={healthCheckAiProvider} onRemove={removeAiProvider} /> : tab === "secrets" && (user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") ? <AdminSecretsTab secrets={secrets} role={user.staffRole} busyId={busyId} onSaved={saveManagedSecret} onDeleted={deleteManagedSecret} setMessage={setMessage} setError={setError} /> : staffData ? <StaffManagementPanel data={staffData} role={user.staffRole} onChanged={load} setMessage={setMessage} setError={setError} /> : <div className="mt-6 surface-card p-6 text-sm text-muted-foreground">Staff management is available to owners and operations administrators.</div>}
   </div></AdminShell>;
 }
 
@@ -210,7 +212,7 @@ function AdminShell({ activeTab, onTabChange, canManageStaff, children }: { acti
   const groups: Array<{ label: string; items: Array<{ key: AdminTab; label: string; icon: typeof Activity }> }> = [
     { label: "Overview", items: [{ key: "control_tower", label: "Control tower", icon: Activity }] },
     { label: "Operations", items: [{ key: "queue", label: "Queue & capacity", icon: ListChecks }, { key: "telemetry", label: "Telemetry", icon: Radio }, { key: "notifications", label: "Notifications", icon: Mail }] },
-    { label: "Security", items: [{ key: "customers", label: "Client accounts", icon: Users }, { key: "complaints", label: "Target complaints", icon: CircleAlert }] },
+    { label: "Security", items: [{ key: "client_view", label: "Client view", icon: Eye }, { key: "customers", label: "Client accounts", icon: Users }, { key: "complaints", label: "Target complaints", icon: CircleAlert }] },
     { label: "Configuration", items: [{ key: "ai_models", label: "AI providers", icon: BrainCircuit }, ...(canManageStaff ? [{ key: "secrets" as const, label: "Secrets", icon: Database }, { key: "staff" as const, label: "Staff management", icon: Users }] : [])] },
   ];
   const sidebar = <div className="flex h-full flex-col bg-background text-muted-foreground"><div className="flex h-16 items-center gap-3 border-b border-border px-5"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-display text-sm font-bold text-primary-foreground">M</div><div><div className="font-display text-sm font-semibold tracking-wide text-foreground">Matrix QA</div><div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Control tower</div></div></div><div className="border-b border-border px-5 py-4"><div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operations workspace</div><div className="mt-1 truncate text-sm font-medium text-foreground">Private alpha</div></div><nav aria-label="Admin navigation" className="flex-1 overflow-y-auto px-3 py-4">{groups.map((group) => <div key={group.label} className="mb-5"><div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{group.label}</div><div className="space-y-1">{group.items.map((item) => { const Icon = item.icon; const active = activeTab === item.key; return <button key={item.key} type="button" onClick={() => { onTabChange(item.key); setMobileOpen(false); }} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${active ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}><Icon className="h-4 w-4" />{item.label}</button>; })}</div></div>)}</nav><div className="border-t border-border p-4"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{(user?.fullName || user?.email || "MQ").slice(0, 2).toUpperCase()}</div><div className="min-w-0"><div className="truncate text-xs font-medium text-foreground">{user?.fullName || "Staff operator"}</div><div className="truncate text-[10px] text-muted-foreground">{user?.staffRole || "Staff"}</div></div></div></div></div>;
@@ -227,9 +229,88 @@ function CustomersTab({ customers, busyId, onStatusChange, onViewAsClient }: { c
   return <div className="space-y-5"><div><div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Security / lifecycle</div><h2 className="mt-2 font-display text-xl font-semibold">Client accounts</h2><p className="mt-1 text-sm text-muted-foreground">Review account access, revoke active sessions, and keep the private alpha under control.</p></div><div className="grid gap-3 sm:grid-cols-3"><MetricCard label="Active" value={active} tone="success" /><MetricCard label="Suspended" value={suspended} tone="warning" /><MetricCard label="Disabled" value={disabled} tone="danger" /></div><section className="surface-card overflow-hidden"><header className="flex items-center justify-between border-b border-border px-5 py-4"><div><h3 className="font-display text-base font-semibold">Client directory</h3><p className="mt-1 text-xs text-muted-foreground">Account state changes revoke sessions immediately and create audit records.</p></div><span className="font-mono text-xs text-muted-foreground">{customers.length} accounts</span></header><div className="max-h-[34rem] divide-y divide-border overflow-y-auto">{customers.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No client accounts found.</p> : customers.map((customer) => <div key={customer.id} className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="truncate text-sm font-semibold">{customer.fullName || "Unnamed client"}</span><span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${customer.accountStatus === "ACTIVE" ? "border-success/30 bg-success/10 text-success" : customer.accountStatus === "SUSPENDED" ? "border-warning/30 bg-warning/10 text-warning" : "border-destructive/30 bg-destructive/10 text-destructive"}`}>{customer.accountStatus}</span></div><div className="mt-1 truncate text-xs text-muted-foreground">{customer.email} · joined {new Date(customer.createdAt).toLocaleDateString()} · {customer.emailVerified ? "verified" : "unverified"}</div><div className="mt-2 text-[11px] text-muted-foreground">{customer.organizationCount} organizations · {customer.runCount} triggered runs</div></div><div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => onViewAsClient(customer)} disabled={busyId === `view-client-${customer.id}`} className="rounded-md border border-primary/30 px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:opacity-40">View as client</button><button type="button" onClick={() => onStatusChange(customer, "ACTIVE")} disabled={busyId === `customer-${customer.id}` || customer.accountStatus === "ACTIVE"} className="rounded-md border border-success/30 px-2.5 py-1.5 text-[11px] font-medium text-success hover:bg-success/10 disabled:opacity-40">Reactivate</button><button type="button" onClick={() => onStatusChange(customer, "SUSPENDED")} disabled={busyId === `customer-${customer.id}` || customer.accountStatus === "SUSPENDED"} className="rounded-md border border-warning/30 px-2.5 py-1.5 text-[11px] font-medium text-warning hover:bg-warning/10 disabled:opacity-40">Suspend</button><button type="button" onClick={() => onStatusChange(customer, "DISABLED")} disabled={busyId === `customer-${customer.id}` || customer.accountStatus === "DISABLED"} className="rounded-md border border-destructive/30 px-2.5 py-1.5 text-[11px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-40">Disable</button></div></div>)}</div></section></div>;
 }
 
+function ClientViewTab({ customers, busyId, clientView, loading, onViewAsClient, onReturn }: { customers: AdminCustomerAccount[]; busyId: string | null; clientView: AdminClientView | null; loading: boolean; onViewAsClient: (client: AdminCustomerAccount) => void; onReturn: () => void }) {
+  const [query, setQuery] = useState("");
+  const matches = customers.filter((client) => `${client.fullName || ""} ${client.email}`.toLowerCase().includes(query.trim().toLowerCase()));
+  return <div className="mt-6 space-y-5"><section className="surface-card overflow-hidden"><header className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-4"><div><div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.18em] text-primary"><Eye className="h-4 w-4" /> Staff workspace</div><h2 className="mt-2 font-display text-xl font-semibold">Client view</h2><p className="mt-1 text-sm text-muted-foreground">Select a client to inspect their profile, organizations, workspaces, projects, and recent runs without changing the URL or leaving the staff console.</p></div>{clientView && <button type="button" onClick={onReturn} className="rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent">Return to client accounts</button>}</header><div className="p-5"><label className="text-xs font-medium text-foreground" htmlFor="client-view-search">Find a client</label><div className="relative mt-2"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input id="client-view-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name or email" className="w-full rounded-md border border-border bg-surface-2 py-2.5 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary" /></div><div className="mt-4 grid max-h-64 gap-2 overflow-y-auto pr-1">{matches.length ? matches.map((client) => <button key={client.id} type="button" onClick={() => onViewAsClient(client)} disabled={busyId === `view-client-${client.id}`} className={`flex items-center justify-between gap-3 rounded-md border px-3 py-3 text-left ${clientView?.client.id === client.id ? "border-primary/50 bg-primary/10" : "border-border/70 bg-surface-2/25 hover:bg-accent"}`}><span className="min-w-0"><span className="block truncate text-sm font-medium text-foreground">{client.fullName || "Unnamed client"}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{client.email} · {client.organizationCount} organizations · {client.runCount} runs</span></span><span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{client.accountStatus}</span></button>) : <p className="text-sm text-muted-foreground">No clients match this search.</p>}</div></div></section>{loading ? <div className="surface-card flex items-center gap-2 p-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading the selected client view…</div> : clientView ? <ClientViewPanel view={clientView} onClose={onReturn} /> : <div className="surface-card p-8 text-sm text-muted-foreground">Choose a client above to open the read-only client view. Every view is recorded in the staff audit history.</div>}</div>;
+}
+
 function ClientViewPanel({ view, onClose }: { view: AdminClientView; onClose: () => void }) {
   const client = view.client;
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="client-view-title"><section className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-xl border border-primary/30 bg-surface p-5 shadow-2xl md:p-6"><div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4"><div><div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Read-only staff view</div><h2 id="client-view-title" className="mt-2 font-display text-xl font-semibold">View as client</h2><p className="mt-1 text-sm text-muted-foreground">{client.fullName || "Unnamed client"} · {client.email}</p><p className="mt-2 text-xs text-muted-foreground">This view never changes the staff identity, cannot submit client actions, and is recorded in the staff audit history.</p></div><button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent">Return to staff console</button></div><div className="mt-5 grid gap-3 sm:grid-cols-4"><MetricCard label="Account status" value={client.accountStatus} tone={client.accountStatus === "ACTIVE" ? "success" : client.accountStatus === "SUSPENDED" ? "warning" : "danger"} /><MetricCard label="Organizations" value={view.organizations.length} tone="neutral" /><MetricCard label="Recent runs" value={view.recentRuns.length} tone="neutral" /><MetricCard label="Email" value={client.emailVerified ? "Verified" : "Unverified"} tone={client.emailVerified ? "success" : "warning"} /></div><div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]"><section className="surface-card overflow-hidden"><header className="border-b border-border px-4 py-3"><h3 className="font-display text-base font-semibold">Client organizations and workspaces</h3><p className="mt-1 text-xs text-muted-foreground">Read-only structure view; no client data is modified.</p></header><div className="divide-y divide-border">{view.organizations.length ? view.organizations.map((organization) => <article key={organization.id} className="px-4 py-4"><div className="flex flex-wrap items-center justify-between gap-2"><div className="font-medium">{organization.name}</div><span className="text-xs text-muted-foreground">{organization.ownerId === client.id ? "Owner" : organization.members[0]?.role || "Member"}</span></div><div className="mt-3 space-y-2">{organization.workspaces.length ? organization.workspaces.map((workspace) => <div key={workspace.id} className="rounded-md border border-border/70 bg-surface-2/35 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-medium">{workspace.name}</span><span className="text-[11px] text-muted-foreground">{workspace.projects.length} projects</span></div>{workspace.projects.length > 0 && <div className="mt-2 space-y-1">{workspace.projects.map((project) => <div key={project.id} className="flex flex-wrap items-center justify-between gap-2 text-xs"><span>{project.name}</span><span className="max-w-[22rem] truncate font-mono text-muted-foreground">{project.defaultTargetUrl || "No target configured"}</span></div>)}</div>}</div>) : <p className="text-xs text-muted-foreground">No workspaces found.</p>}</div></article>) : <p className="p-4 text-sm text-muted-foreground">No organizations found.</p>}</div></section><section className="surface-card overflow-hidden"><header className="border-b border-border px-4 py-3"><h3 className="font-display text-base font-semibold">Recent client runs</h3><p className="mt-1 text-xs text-muted-foreground">Latest run outcomes available to staff for support.</p></header><div className="divide-y divide-border">{view.recentRuns.length ? view.recentRuns.map((run) => <div key={run.id} className="px-4 py-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-mono text-xs uppercase tracking-wider">{run.status}</span><span className="text-[11px] text-muted-foreground">{new Date(run.createdAt).toLocaleString()}</span></div><div className="mt-1 truncate text-sm font-medium">{run.targetUrl}</div><div className="mt-1 text-[11px] text-muted-foreground">{run.project?.name || "Project"} · {run.workspace?.name || "Workspace"} · {run.type}</div>{run.errorMessage && <div className="mt-1 truncate text-xs text-destructive">{run.errorMessage}</div>}</div>) : <p className="p-4 text-sm text-muted-foreground">No runs recorded for this client.</p>}</div></section></div></section></div>;
+  return (
+    <section className="surface-card overflow-hidden border-primary/20 p-5 md:p-6" aria-labelledby="client-view-title">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Read-only staff view</div>
+          <h2 id="client-view-title" className="mt-2 font-display text-xl font-semibold">View as client</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{client.fullName || "Unnamed client"} · {client.email}</p>
+          <p className="mt-2 text-xs text-muted-foreground">This view never changes the staff identity, cannot submit client actions, and is recorded in the staff audit history.</p>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent">Return to client accounts</button>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-4">
+        <MetricCard label="Account status" value={client.accountStatus} tone={client.accountStatus === "ACTIVE" ? "success" : client.accountStatus === "SUSPENDED" ? "warning" : "danger"} />
+        <MetricCard label="Organizations" value={view.organizations.length} tone="neutral" />
+        <MetricCard label="Recent runs" value={view.recentRuns.length} tone="neutral" />
+        <MetricCard label="Email" value={client.emailVerified ? "Verified" : "Unverified"} tone={client.emailVerified ? "success" : "warning"} />
+      </div>
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <section className="surface-card overflow-hidden">
+          <header className="border-b border-border px-4 py-3">
+            <h3 className="font-display text-base font-semibold">Client organizations and workspaces</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Read-only structure view; no client data is modified.</p>
+          </header>
+          <div className="divide-y divide-border">
+            {view.organizations.length ? view.organizations.map((organization) => (
+              <article key={organization.id} className="px-4 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-medium">{organization.name}</div>
+                  <span className="text-xs text-muted-foreground">{organization.ownerId === client.id ? "Owner" : organization.members[0]?.role || "Member"}</span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {organization.workspaces.length ? organization.workspaces.map((workspace) => (
+                    <div key={workspace.id} className="rounded-md border border-border/70 bg-surface-2/35 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium">{workspace.name}</span>
+                        <span className="text-[11px] text-muted-foreground">{workspace.projects.length} projects</span>
+                      </div>
+                      {workspace.projects.length > 0 && <div className="mt-2 space-y-1">
+                        {workspace.projects.map((project) => (
+                          <div key={project.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span>{project.name}</span>
+                            <span className="max-w-[22rem] truncate font-mono text-muted-foreground">{project.defaultTargetUrl || "No target configured"}</span>
+                          </div>
+                        ))}
+                      </div>}
+                    </div>
+                  )) : <p className="text-xs text-muted-foreground">No workspaces found.</p>}
+                </div>
+              </article>
+            )) : <p className="p-4 text-sm text-muted-foreground">No organizations found.</p>}
+          </div>
+        </section>
+        <section className="surface-card overflow-hidden">
+          <header className="border-b border-border px-4 py-3">
+            <h3 className="font-display text-base font-semibold">Recent client runs</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Latest run outcomes available to staff for support.</p>
+          </header>
+          <div className="divide-y divide-border">
+            {view.recentRuns.length ? view.recentRuns.map((run) => (
+              <div key={run.id} className="px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-xs uppercase tracking-wider">{run.status}</span>
+                  <span className="text-[11px] text-muted-foreground">{new Date(run.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="mt-1 truncate text-sm font-medium">{run.targetUrl}</div>
+                <div className="mt-1 text-[11px] text-muted-foreground">{run.project?.name || "Project"} · {run.workspace?.name || "Workspace"} · {run.type}</div>
+                {run.errorMessage && <div className="mt-1 truncate text-xs text-destructive">{run.errorMessage}</div>}
+              </div>
+            )) : <p className="p-4 text-sm text-muted-foreground">No runs recorded for this client.</p>}
+          </div>
+        </section>
+      </div>
+    </section>
+  );
 }
 
 function ComplaintsTab({ complaints, busyId, onReview }: { complaints: TargetComplaint[]; busyId: string | null; onReview: (complaint: TargetComplaint, status: TargetComplaintStatus) => void }) {
