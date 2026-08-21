@@ -223,7 +223,7 @@ function ProfileTab() {
         <section className="surface-card overflow-hidden"><header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Password</h2><p className="text-[11px] text-muted-foreground">Change it without leaving Settings</p></header><div className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3"><span className="text-xs text-muted-foreground">Forgot the current password?</span><Link to="/auth" search={{ mode: "signin", returnTo: "/app", recover: true }} className="text-xs font-medium text-primary hover:underline">Send a reset link</Link></div><form onSubmit={changePassword} className="space-y-3 p-5"><input type="password" placeholder="Current password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><input type="password" placeholder="New password · 10+ characters" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={10} required className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><button disabled={busy} className="rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-60">Change password</button></form></section>
         <section className="surface-card overflow-hidden"><header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Change email</h2><p className="text-[11px] text-muted-foreground">We will confirm the new address before switching it</p></header><form onSubmit={requestEmailChange} className="space-y-3 p-5"><input type="email" placeholder="New email address" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} required className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><input type="password" placeholder="Current password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required className="w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><button disabled={busy} className="rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-60">Send confirmation</button></form></section>
         <section className="surface-card overflow-hidden"><header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Sessions</h2><p className="text-[11px] text-muted-foreground">Revoke every active Matrix QA session</p></header><div className="space-y-3 p-5"><Meta label="Authentication" value={user ? "Authenticated" : "Not available"} /><Meta label="Account" value={user?.email || "Unavailable"} /><button type="button" onClick={() => void logoutAll()} className="rounded-md border border-destructive/50 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10">Sign out everywhere</button></div></section>
-        <section className="surface-card overflow-hidden"><header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">About Matrix QA</h2></header><div className="space-y-2 p-5 text-xs text-muted-foreground"><Meta label="Product release" value="Matrix QA v1.2.0" /><Meta label="Build/runtime" value="1.6.2" /></div></section>
+        <section className="surface-card overflow-hidden"><header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">About Matrix QA</h2></header><div className="space-y-2 p-5 text-xs text-muted-foreground"><Meta label="Product release" value="1.2.0" /><Meta label="Build/runtime" value="1.6.2" /></div></section>
       </div>
     </div>
   );
@@ -239,7 +239,7 @@ function EngineTab() {
         </header>
         <div className="space-y-4 p-5">
           <p className="text-sm leading-6 text-muted-foreground">
-            Matrix QA v1 stores each project’s target URL with the backend project record. Open Projects to review or create a project target instead of editing example URLs here.
+            Matrix QA stores each project’s target URL with the backend project record. Open Projects to review or create a project target instead of editing example URLs here.
           </p>
           <Link
             to="/app/projects"
@@ -253,12 +253,12 @@ function EngineTab() {
       <section className="surface-card overflow-hidden">
         <header className="border-b border-border px-5 py-3">
           <h2 className="font-display text-sm font-semibold">Feature scope map</h2>
-          <p className="text-[11px] text-muted-foreground">Worker defaults are controlled by the backend in v1</p>
+          <p className="text-[11px] text-muted-foreground">Worker defaults are controlled by the backend</p>
         </header>
         <div className="p-5">
-          <V1Notice>
-            Per-project feature scopes and custom journey maps are not configurable in the v1 console yet. The browser worker uses the deployed backend defaults and reports the resulting evidence.
-          </V1Notice>
+          <AvailabilityNotice>
+            Per-project feature scopes and custom journey maps are not configurable in this console yet. The browser worker uses the deployed backend defaults and reports the resulting evidence.
+          </AvailabilityNotice>
         </div>
       </section>
     </div>
@@ -273,9 +273,9 @@ function VaultTab() {
         <p className="text-[11px] text-muted-foreground">Secure test personas for browser runs</p>
       </header>
       <div className="p-5">
-        <V1Notice>
-          The encrypted role vault is not enabled in v1. Do not paste test credentials into this page. Secure persona storage is planned for the v2 backend.
-        </V1Notice>
+        <AvailabilityNotice>
+          The encrypted role vault is not enabled in this console. Do not paste test credentials into this page. Secure persona storage is planned for a future release.
+        </AvailabilityNotice>
       </div>
     </section>
   );
@@ -301,7 +301,7 @@ function PolicyTab() {
             <span className="text-sm">
               <span className="font-medium">Hide minor visual shifts and console warnings</span>
               <span className="mt-0.5 block text-xs text-muted-foreground">
-                This toggle is local to the current browser session in v1. Terminal reports continue to use the backend noise gate.
+                This toggle is local to the current browser session. Terminal reports continue to use the backend noise gate.
               </span>
             </span>
           </label>
@@ -315,7 +315,7 @@ function PolicyTab() {
         </header>
         <div className="space-y-4 p-5 text-sm">
           <Meta label="Configuration" value="Managed by the deployed backend" />
-          <V1Notice>Quota editing and concurrency controls are read-only in v1. Plan-specific governors ship with the paid product releases.</V1Notice>
+          <AvailabilityNotice>Quota editing and concurrency controls are read-only in this console. Plan-specific governors are managed by the workspace.</AvailabilityNotice>
         </div>
       </section>
     </div>
@@ -328,7 +328,7 @@ function TokensTab() {
       <section className="surface-card overflow-hidden">
         <header className="border-b border-border px-5 py-3">
           <h2 className="font-display text-sm font-semibold">Workspace API tokens</h2>
-          <p className="text-[11px] text-muted-foreground">Programmatic run triggers are not enabled in the v1 web console</p>
+          <p className="text-[11px] text-muted-foreground">Programmatic run triggers are not enabled in the web console</p>
         </header>
         <div className="p-5">
           <div className="flex items-start gap-3 rounded-md border border-border bg-surface-2/30 p-4">
@@ -336,7 +336,7 @@ function TokensTab() {
             <div>
               <div className="text-sm font-medium">No API token is available</div>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Matrix QA v1 has no token-generation endpoint. The previous placeholder token UI has been removed so the console never presents a value that cannot authenticate against the live backend.
+                Matrix QA does not currently issue workspace API tokens. The previous placeholder token UI has been removed so the console never presents a value that cannot authenticate against the live backend.
               </p>
             </div>
           </div>
@@ -348,7 +348,7 @@ function TokensTab() {
           <h2 className="font-display text-sm font-semibold">Quick start</h2>
         </header>
         <div className="p-5">
-          <V1Notice>Use the authenticated web console to create projects and queue runs in v1. CLI and API-token workflows are planned for a later release.</V1Notice>
+          <AvailabilityNotice>Use the authenticated web console to create projects and queue runs. CLI and API-token workflows are planned for a future release.</AvailabilityNotice>
         </div>
       </section>
     </div>
@@ -371,7 +371,7 @@ function DisabledAction({ label, detail }: { label: string; detail: string }) {
   );
 }
 
-function V1Notice({ children }: { children: ReactNode }) {
+function AvailabilityNotice({ children }: { children: ReactNode }) {
   return <div className="rounded-md border border-border/60 bg-surface-2/30 p-3 text-[11px] leading-5 text-muted-foreground">{children}</div>;
 }
 
