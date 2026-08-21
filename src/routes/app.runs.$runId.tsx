@@ -409,7 +409,7 @@ function ExecutionStatusNotice({ report }: { report: RunReport }) {
       <span className={`h-1.5 w-1.5 rounded-full ${complete ? "bg-success" : "animate-pulse bg-primary"}`} />
       <span className={complete ? "text-success" : "text-muted-foreground"}>{message}</span>
       <span className="text-border">·</span>
-      <span>V2 adaptive run</span>
+      <span>Adaptive run</span>
     </div>
   );
 }
@@ -422,7 +422,7 @@ function V2PlanResults({ plan }: { plan: V2TestPlan }) {
       <div className="border-b border-border px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-wider text-primary">V2 application-aware plan</p>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-primary">Test plan</p>
             <h2 className="mt-1 font-display text-lg font-semibold">{plan.name}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider">
@@ -486,12 +486,17 @@ function V2PolicyRow({ decision }: { decision: V2PolicyDecision }) {
 }
 
 function describeScenarioResult(result: unknown) {
-  if (!result || typeof result !== "object") return "No terminal result recorded";
+  if (!result || typeof result !== "object") return "No scenario result was returned.";
   const record = result as Record<string, unknown>;
+  if (typeof record.assertionNarrative === "string" && record.assertionNarrative.trim()) return record.assertionNarrative;
   if (typeof record.actual === "string" && record.actual.trim()) return record.actual;
+  if (Array.isArray(record.assertions)) {
+    const passed = record.assertions.slice().reverse().find((item) => item && typeof item === "object" && (item as Record<string, unknown>).status === "passed") as Record<string, unknown> | undefined;
+    if (typeof passed?.actual === "string" && passed.actual.trim()) return passed.actual;
+  }
   if (typeof record.message === "string" && record.message.trim()) return record.message;
   if (typeof record.url === "string" && record.url.trim()) return `Rendered ${record.url}`;
-  return "Terminal result recorded without a textual detail";
+  return "No textual result was recorded for this scenario.";
 }
 
 function OutcomeBadge({ value }: { value: string }) {
@@ -602,21 +607,21 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
   if (!summary) {
     return (
       <section className="mt-6 surface-card border border-warning/25 bg-warning/5 p-5">
-        <div className="flex items-center gap-2 text-sm font-medium"><BrainCircuit className="h-4 w-4 text-warning" /> AI overview unavailable</div>
-        <p className="mt-2 text-xs leading-5 text-muted-foreground">No AI-authored summary was returned for this run. The raw activity, screenshots, and evidence remain available below; Matrix QA will not invent a replacement conclusion.</p>
+        <div className="flex items-center gap-2 text-sm font-medium"><BrainCircuit className="h-4 w-4 text-warning" /> Test summary unavailable</div>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">No test summary was returned for this run. The raw activity, screenshots, and evidence remain available below; Matrix QA will not invent a replacement conclusion.</p>
       </section>
     );
   }
   return (
     <section className="mt-6 surface-card overflow-hidden border border-primary/25">
       <div className="border-b border-border bg-primary/5 px-5 py-4">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> AI-authored {final ? "run overview" : "live summary"}<span className="text-muted-foreground">· {summary.provider}/{summary.model}</span></div>
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Test summary" : "Live test summary"}</div>
         <h2 className="mt-2 font-display text-lg font-semibold">{summary.headline}</h2>
         {!final && <p className="mt-2 text-sm text-muted-foreground">{summary.currentObjective}</p>}
       </div>
       <div className="grid gap-6 p-5 lg:grid-cols-2">
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "What the agent tested" : "What changed"}</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "What was tested" : "What changed"}</h3>
           <ul className="mt-3 space-y-2 text-sm text-foreground/85">{formatAiList(final ? summary.whatWasTested : summary.whatChanged).map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul>
         </div>
         <div>
@@ -625,8 +630,8 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
           {(final ? summary.blockers : summary.blockers).length > 0 && <div className="mt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-warning">Blockers</h4><ul className="mt-2 space-y-1 text-xs text-muted-foreground">{summary.blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
         </div>
       </div>
-      {final && summary.findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI findings</h3><div className="mt-3 divide-y divide-border">{summary.findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced"}</p></div>)}</div></div>}
-      <div className="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground">Source: AI · config {summary.configVersion} · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
+      {final && summary.findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Findings</h3><div className="mt-3 divide-y divide-border">{summary.findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced"}</p></div>)}</div></div>}
+      <div className="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground">Evidence-backed summary · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
     </section>
   );
 }
@@ -917,7 +922,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
       const next = await runsApi.continue(projectId, runId, draft.trim() || undefined);
       window.location.href = `/app/runs/${encodeURIComponent(next.id)}?projectId=${encodeURIComponent(projectId)}`;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to continue this AI-authored run.");
+      setError(e instanceof Error ? e.message : "Unable to continue this run.");
       setContinuing(false);
     }
   };
@@ -963,16 +968,16 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
       ) : (
         <>
           {(!active && !successful && !expired && report.v2Plan && (report.status === "BLOCKED" || report.status === "FAILED" || report.status === "PARTIALLY_TESTED")) && (
-            <div className="border-b border-primary/30 bg-primary/5 px-5 py-4" role="region" aria-label="Continue AI run">
+            <div className="border-b border-primary/30 bg-primary/5 px-5 py-4" role="region" aria-label="Continue test run">
               <div className="flex items-start gap-3">
                 <BrainCircuit className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-display text-sm font-semibold text-foreground">The AI-authored scenario needs another instruction</p>
-                  <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">This run is closed, so the live worker cannot receive a message. Start a fresh continuation from the same AI plan and tell the AI what to retry, inspect, or adapt. The original result remains unchanged for audit history.</p>
+                  <p className="font-display text-sm font-semibold text-foreground">The test worker needs another instruction</p>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">This run is closed, so the live worker cannot receive a message. Start a fresh continuation from the same test plan and tell the worker what to retry, inspect, or adapt. The original result remains unchanged for audit history.</p>
                   <textarea id="run-continuation-instruction" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={continuing} rows={3} maxLength={4000} placeholder="Example: Re-open the Platform link, inspect the actual page heading, and adapt the assertion to the content you observe." className="mt-3 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary disabled:opacity-60" />
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={() => void continueWithAi()} disabled={continuing} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{continuing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} Continue with AI</button>
-                    <span className="text-[11px] text-muted-foreground">A new run will be created from the same approved AI-authored plan.</span>
+                    <button type="button" onClick={() => void continueWithAi()} disabled={continuing} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{continuing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} Continue test</button>
+                    <span className="text-[11px] text-muted-foreground">A new run will be created from the same approved test plan.</span>
                   </div>
                 </div>
               </div>

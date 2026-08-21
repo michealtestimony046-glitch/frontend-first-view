@@ -94,7 +94,7 @@ function OrganizationSettingsPage() {
   const createOrganization = async (event: FormEvent) => {
     event.preventDefault();
     if (ownsOrganization) {
-      setError("v1 allows one organization per account. Use your existing organization for now.");
+      setError("Alpha accounts currently support one organization. Use your existing organization for now.");
       return;
     }
     const name = organizationName.trim();

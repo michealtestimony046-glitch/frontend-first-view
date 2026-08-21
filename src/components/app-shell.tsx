@@ -163,7 +163,7 @@ function WorkspaceSwitcher() {
   const createWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
     if (ownsOrganization) {
-      setError("v1 allows one organization per account. Use your existing organization for now.");
+      setError("Alpha accounts currently support one organization. Use your existing organization for now.");
       setShowCreate(false);
       return;
     }

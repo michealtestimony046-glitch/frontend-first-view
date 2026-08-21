@@ -95,7 +95,7 @@ export function BrowserHandoffPanel({
             <span className="font-mono text-[10px] uppercase tracking-wider text-warning">{handoff.status}</span>
           </div>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{handoff.reason || "The target requires authentication before the approved scenarios can continue."}</p>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">Claim this request only if you are authorized to use a temporary test account. The credential is encrypted at rest, is not sent to the AI agent, and is never written into the evidence report.</p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">Claim this request only if you are authorized to use a temporary test account. The credential is encrypted at rest, is not sent to the test worker, and is never written into the evidence report.</p>
           {handoff.status === "PENDING" ? (
             <button type="button" onClick={() => { void claim(); }} disabled={busy} className="mt-3 inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
