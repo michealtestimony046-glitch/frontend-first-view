@@ -341,7 +341,7 @@ function RunDetailPage() {
 function QueueStateNotice({ queue }: { queue: NonNullable<RunReport["metadata"]>["queue"] }) {
   if (!queue) return null;
   const copy = queue.state === "WAITING_FOR_PROVIDER"
-    ? "The AI provider is temporarily at capacity. Your test is protected — nothing is being charged."
+    ? "Configured test capacity is temporarily full. Your test is protected — nothing is being charged."
     : queue.state === "WAITING_FOR_ORGANIZATION"
       ? "Another run is active for your organization. Your test is queued and will start automatically."
       : queue.state === "EXPIRED"
@@ -414,7 +414,7 @@ function ExecutionStatusNotice({ report }: { report: RunReport }) {
       <span className={`h-1.5 w-1.5 rounded-full ${complete ? "bg-success" : "animate-pulse bg-primary"}`} />
       <span className={complete ? "text-success" : "text-muted-foreground"}>{message}</span>
       <span className="text-border">·</span>
-      <span>AI browser test</span>
+      <span>Adaptive browser test</span>
     </div>
   );
 }
@@ -612,7 +612,7 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
   if (!summary) {
     return (
       <section className="mt-6 surface-card border border-warning/25 bg-warning/5 p-5">
-        <div className="flex items-center gap-2 text-sm font-medium"><BrainCircuit className="h-4 w-4 text-warning" /> {final ? "Evidence review is still being prepared" : "The AI is preparing the next update"}</div>
+        <div className="flex items-center gap-2 text-sm font-medium"><BrainCircuit className="h-4 w-4 text-warning" /> {final ? "Evidence review is still being prepared" : "The test worker is preparing the next update"}</div>
         <p className="mt-2 text-xs leading-5 text-muted-foreground">{final ? "The browser activity, screenshots, and evidence are preserved. Matrix QA will not invent a conclusion before the evidence can be verified." : "The worker is collecting browser evidence and will explain its next step here."}</p>
       </section>
     );
@@ -623,7 +623,7 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
   return (
     <section className="mt-6 surface-card overflow-hidden border border-primary/25">
       <div className="border-b border-border bg-primary/5 px-5 py-4">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Wow Report summary" : "AI progress update"}</div>
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Wow Report summary" : "Live test update"}</div>
         <h2 className="mt-2 font-display text-lg font-semibold">{narrative}</h2>
         {!final && <p className="mt-2 text-sm text-muted-foreground">{summary.currentObjective}</p>}
       </div>
@@ -639,7 +639,7 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
         </div>
       </div>
       {final && summary.findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Findings</h3><div className="mt-3 divide-y divide-border">{summary.findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced"}</p></div>)}</div></div>}
-      <div className="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground">Evidence-backed AI narrative · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
+      <div className="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground">Evidence-backed test narrative · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
     </section>
   );
 }
@@ -700,7 +700,7 @@ function OverviewTab({ report }: { report: RunReport }) {
                   )}
                   <span className="text-sm">{a.name}</span>
                   <span className="ml-auto flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
-                    {a.source && <span className={a.source === "AI" ? "text-primary" : "text-warning"}>{a.source}</span>}
+                    {a.source && <span className={a.source === "AI" ? "text-primary" : "text-warning"}>{a.source === "AI" ? "Test worker" : a.source}</span>}
                     {msToClock(a.timestamp)}
                   </span>
                 </div>
@@ -997,7 +997,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
               <div className="flex items-start gap-3">
                 <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-display text-sm font-semibold text-foreground">The AI wants to test something outside this run’s scope</p>
+                  <p className="font-display text-sm font-semibold text-foreground">The test worker wants to test something outside this run’s scope</p>
                   <p className="mt-1 text-sm leading-6 text-foreground/85">Target: <strong>{pendingScopeRequest.target}</strong></p>
                   <dl className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                     <div><dt className="font-mono uppercase tracking-wider">Why</dt><dd className="mt-0.5 text-foreground/75">{pendingScopeRequest.reason}</dd></div>
@@ -1035,7 +1035,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
               <input id="run-console-message" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!active || sending} maxLength={4000} placeholder={active ? "Tell the worker what to inspect next…" : "Console input is available while the run is active"} className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary" />
               <button type="submit" disabled={!active || !draft.trim() || sending || expired} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><Send className="h-3.5 w-3.5" /> Send</button>
             </form>
-            <p className="mt-2 text-[11px] text-muted-foreground">Messages are added to the next AI decision. Stop preserves collected evidence and ends the active run; dangerous actions remain fail-closed.</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">Messages are added to the next test-worker decision. Stop preserves collected evidence and ends the active run; dangerous actions remain fail-closed.</p>
           </div>
         </>
       )}
@@ -1056,7 +1056,7 @@ function RunConsoleMessage({ message }: { message: RunMessage }) {
   const rawSummary = metadata && "summary" in metadata && typeof metadata.summary === "object" && metadata.summary ? metadata.summary as Record<string, unknown> : null;
   const evidence = rawSummary && Array.isArray(rawSummary.evidenceRefs) ? rawSummary.evidenceRefs : [];
   const authorLabel = user ? "You" : "Matrix QA";
-  const messageLabel = summary ? "AI update" : message.kind === "APPROVAL" ? "Permission" : "Progress";
+  const messageLabel = summary ? "Run summary" : message.kind === "APPROVAL" ? "Permission" : "Progress";
   const safeObjective = rawSummary && typeof rawSummary.currentObjective === "string" ? rawSummary.currentObjective : null;
   const safeNextStep = rawSummary && typeof rawSummary.nextStep === "string" ? rawSummary.nextStep : null;
   return <article className={`flex ${user ? "justify-end" : "justify-start"}`}>
@@ -1217,7 +1217,7 @@ function buildReportMarkdown(report: RunReport, runId: string) {
     "",
     `- Status: ${report.status}`,
     `- Target URL: ${report.targetUrl ?? "—"}`,
-    `- Test strategy: AI browser test`,
+    `- Test strategy: Adaptive browser test`,
     `- Started: ${report.startedAt ? new Date(report.startedAt).toISOString() : "—"}`,
     `- Duration: ${duration(report.durationSec)}`,
     `- Scenarios: ${summary.passed}/${summary.scenarios} passed`,
@@ -1230,7 +1230,7 @@ function buildReportMarkdown(report: RunReport, runId: string) {
   if (ai) {
     lines.push("", "## Test summary", "", `> ${ai.summary || ai.headline}`, "", `**Coverage:** ${String(ai.coverage)}`);
     if (ai.findings.length > 0) {
-      lines.push("", "### AI findings");
+      lines.push("", "### Findings");
       for (const finding of ai.findings) {
         lines.push("", `#### ${finding.title} (${finding.severity})`, "", finding.explanation);
       }
@@ -1272,7 +1272,7 @@ function buildReportMarkdown(report: RunReport, runId: string) {
 function eventTypeLabel(type: string) {
   const labels: Record<string, string> = {
     "v2-final-test-completion": "Run completion",
-    "ai-agent-decision": "AI decision",
+    "ai-agent-decision": "Test-worker decision",
     "ai-agent-action": "Browser action",
     "ai-agent-result": "Verified result",
     "ai-agent-captured-evidence": "Evidence captured",
@@ -1290,7 +1290,7 @@ function eventTypeLabel(type: string) {
     "auth-failed-needs-review": "Authentication needs review",
   };
   if (labels[type]) return labels[type];
-  if (/^ai-agent-/i.test(type)) return "AI browser activity";
+  if (/^ai-agent-/i.test(type)) return "Test-worker activity";
   if (/^v2-/i.test(type)) return "Scenario activity";
   return "Browser activity";
 }
