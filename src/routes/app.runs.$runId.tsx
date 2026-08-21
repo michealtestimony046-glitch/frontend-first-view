@@ -433,7 +433,6 @@ function V2PlanResults({ plan }: { plan: V2TestPlan }) {
           <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider">
             <PlanBadge label={plan.mode.replaceAll("_", " ")} tone="neutral" />
             <PlanBadge label={plan.status} tone={plan.status === "COMPLETED" ? "success" : "neutral"} />
-            {plan.estimatedUnits != null && <PlanBadge label={`${plan.estimatedUnits} units est.`} tone="neutral" />}
           </div>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
@@ -617,6 +616,8 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
       </section>
     );
   }
+  const liveSummary = "currentObjective" in summary ? summary : null;
+  const finalSummary = "findings" in summary ? summary : null;
   const narrative = final
     ? ("summary" in summary && typeof summary.summary === "string" && summary.summary.trim() ? summary.summary : summary.headline)
     : ("message" in summary && typeof summary.message === "string" && summary.message.trim() ? summary.message : summary.headline);
@@ -625,20 +626,20 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
       <div className="border-b border-border bg-primary/5 px-5 py-4">
         <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Wow Report summary" : "Live test update"}</div>
         <h2 className="mt-2 font-display text-lg font-semibold">{narrative}</h2>
-        {!final && <p className="mt-2 text-sm text-muted-foreground">{summary.currentObjective}</p>}
+        {!final && <p className="mt-2 text-sm text-muted-foreground">{liveSummary?.currentObjective}</p>}
       </div>
       <div className="grid gap-6 p-5 lg:grid-cols-2">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "What was tested" : "What changed"}</h3>
-          <ul className="mt-3 space-y-2 text-sm text-foreground/85">{formatAiList(final ? summary.whatWasTested : summary.whatChanged).map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul>
+          <ul className="mt-3 space-y-2 text-sm text-foreground/85">{formatAiList(final ? finalSummary?.whatWasTested : liveSummary?.whatChanged).map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul>
         </div>
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "Coverage" : "Next step"}</h3>
-          <p className="mt-3 text-sm leading-6 text-foreground/85">{final ? formatAiValue(summary.coverage) || "Coverage summary unavailable." : summary.nextStep}</p>
-          {(final ? summary.blockers : summary.blockers).length > 0 && <div className="mt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-warning">Blockers</h4><ul className="mt-2 space-y-1 text-xs text-muted-foreground">{summary.blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+          <p className="mt-3 text-sm leading-6 text-foreground/85">{final ? formatAiValue(finalSummary?.coverage) || "Coverage summary unavailable." : liveSummary?.nextStep}</p>
+          {summary.blockers.length > 0 && <div className="mt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-warning">Blockers</h4><ul className="mt-2 space-y-1 text-xs text-muted-foreground">{summary.blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
         </div>
       </div>
-      {final && summary.findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Findings</h3><div className="mt-3 divide-y divide-border">{summary.findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced"}</p></div>)}</div></div>}
+      {finalSummary && finalSummary.findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Findings</h3><div className="mt-3 divide-y divide-border">{finalSummary.findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced"}</p></div>)}</div></div>}
       <div className="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground">Evidence-backed test narrative · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
     </section>
   );
