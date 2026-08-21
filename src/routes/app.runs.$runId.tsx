@@ -262,6 +262,7 @@ function RunDetailPage() {
             <strong>Run diagnostic:</strong> {report.errorMessage}
           </div>
         )}
+        {report.metadata?.queue && <QueueStateNotice queue={report.metadata.queue} />}
         {report.outcome && <OutcomeNotice report={report} />}
         {report.incomplete && (
           <div className="mt-5 rounded-md border border-primary/25 bg-primary/5 p-4 text-sm text-muted-foreground">
@@ -332,6 +333,38 @@ function RunDetailPage() {
           {tab === "network" && <EventsTab report={report} />}
           {tab === "scenarios" && <AssertionsTab report={report} />}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function QueueStateNotice({ queue }: { queue: NonNullable<RunReport["metadata"]>["queue"] }) {
+  if (!queue) return null;
+  const copy = queue.state === "WAITING_FOR_PROVIDER"
+    ? "The AI provider is temporarily at capacity. Your test is protected — nothing is being charged."
+    : queue.state === "WAITING_FOR_ORGANIZATION"
+      ? "Another run is active for your organization. Your test is queued and will start automatically."
+      : queue.state === "EXPIRED"
+        ? "This run expired before provider admission. Nothing was charged. You can try again."
+        : queue.state === "RUNNING"
+          ? "The browser worker is running this test now."
+          : queue.state === "ADMITTED"
+            ? "Your test was admitted and is preparing to run."
+            : "Your test is queued for automatic admission.";
+  const retryAt = queue.retryAt && Number.isFinite(Date.parse(queue.retryAt))
+    ? new Date(queue.retryAt).toLocaleString()
+    : null;
+  const tone = queue.state === "EXPIRED" ? "border-warning/40 bg-warning/10" : queue.state === "WAITING_FOR_PROVIDER" || queue.state === "WAITING_FOR_ORGANIZATION" ? "border-primary/30 bg-primary/5" : "border-border bg-surface-2/30";
+  return (
+    <div className={`mt-5 flex items-start gap-3 rounded-md border p-4 text-sm ${tone}`}>
+      <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+          <span>{copy}</span>
+          <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{queue.state.replaceAll("_", " ")}</span>
+        </div>
+        {queue.reason && <p className="mt-1 text-xs text-muted-foreground">{queue.reason}</p>}
+        {retryAt && queue.state !== "EXPIRED" && <p className="mt-1 text-xs text-muted-foreground">Automatic retry or admission check: {retryAt}.</p>}
       </div>
     </div>
   );
