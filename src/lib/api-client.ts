@@ -478,6 +478,23 @@ export interface AiRunOverview {
   scenarioVerdicts: Array<{ scenarioId: string; verdict: 'PASSED' | 'FAILED' | 'INCONCLUSIVE'; reason: string; evidence: AiSummaryEvidenceRef[] }>;
 }
 
+export type RunQueueState = "REQUESTED" | "QUEUED" | "WAITING_FOR_PROVIDER" | "WAITING_FOR_ORGANIZATION" | "ADMITTED" | "RUNNING" | "EXPIRED";
+
+export interface RunQueueMetadata {
+  state: RunQueueState;
+  requestedAt: string;
+  queuedAt?: string;
+  admittedAt?: string;
+  startedAt?: string;
+  retryAt?: string;
+  expiresAt: string;
+  provider?: string;
+  reason?: string;
+  organizationId?: string;
+  workspaceId?: string;
+  position?: number;
+}
+
 export interface RunReport {
   id?: string;
   runId?: string;
@@ -509,6 +526,12 @@ export interface RunReport {
   finalVideo?: string | null;
   rawVideo?: string | null;
   artifactStatus?: ArtifactStatus;
+  metadata?: {
+    queue?: RunQueueMetadata;
+    providerCapacity?: ProviderCapacityDecision;
+    runCapabilities?: { enableVision?: boolean; enableRecovery?: boolean };
+    [key: string]: unknown;
+  } | null;
   v2Plan?: V2TestPlan | null;
   evidenceLog?: string | null;
   auditLog?: string | null;
