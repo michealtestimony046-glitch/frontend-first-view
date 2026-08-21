@@ -185,6 +185,7 @@ export interface TriggerRunRequest {
   accessMode?: V2MissionAccessMode;
   enableVision?: boolean;
   enableRecovery?: boolean;
+  targetAuthorizationConfirmed?: boolean;
 }
 export interface ProviderCapacityDecision {
   status: "RESERVED" | "WAITING" | string;
