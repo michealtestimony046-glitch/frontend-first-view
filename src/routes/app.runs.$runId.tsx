@@ -409,7 +409,7 @@ function ExecutionStatusNotice({ report }: { report: RunReport }) {
       <span className={`h-1.5 w-1.5 rounded-full ${complete ? "bg-success" : "animate-pulse bg-primary"}`} />
       <span className={complete ? "text-success" : "text-muted-foreground"}>{message}</span>
       <span className="text-border">·</span>
-      <span>Adaptive run</span>
+      <span>AI browser test</span>
     </div>
   );
 }
@@ -607,16 +607,19 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
   if (!summary) {
     return (
       <section className="mt-6 surface-card border border-warning/25 bg-warning/5 p-5">
-        <div className="flex items-center gap-2 text-sm font-medium"><BrainCircuit className="h-4 w-4 text-warning" /> Test summary unavailable</div>
-        <p className="mt-2 text-xs leading-5 text-muted-foreground">No test summary was returned for this run. The raw activity, screenshots, and evidence remain available below; Matrix QA will not invent a replacement conclusion.</p>
+        <div className="flex items-center gap-2 text-sm font-medium"><BrainCircuit className="h-4 w-4 text-warning" /> {final ? "Evidence review is still being prepared" : "The AI is preparing the next update"}</div>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">{final ? "The browser activity, screenshots, and evidence are preserved. Matrix QA will not invent a conclusion before the evidence can be verified." : "The worker is collecting browser evidence and will explain its next step here."}</p>
       </section>
     );
   }
+  const narrative = final
+    ? ("summary" in summary && typeof summary.summary === "string" && summary.summary.trim() ? summary.summary : summary.headline)
+    : ("message" in summary && typeof summary.message === "string" && summary.message.trim() ? summary.message : summary.headline);
   return (
     <section className="mt-6 surface-card overflow-hidden border border-primary/25">
       <div className="border-b border-border bg-primary/5 px-5 py-4">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Test summary" : "Live test summary"}</div>
-        <h2 className="mt-2 font-display text-lg font-semibold">{summary.headline}</h2>
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Wow Report summary" : "AI progress update"}</div>
+        <h2 className="mt-2 font-display text-lg font-semibold">{narrative}</h2>
         {!final && <p className="mt-2 text-sm text-muted-foreground">{summary.currentObjective}</p>}
       </div>
       <div className="grid gap-6 p-5 lg:grid-cols-2">
@@ -631,7 +634,7 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
         </div>
       </div>
       {final && summary.findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Findings</h3><div className="mt-3 divide-y divide-border">{summary.findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced"}</p></div>)}</div></div>}
-      <div className="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground">Evidence-backed summary · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
+      <div className="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground">Evidence-backed AI narrative · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
     </section>
   );
 }
@@ -1043,22 +1046,25 @@ function ConsoleButton({ action, icon: Icon, disabled, pending, onClick, danger 
 
 function RunConsoleMessage({ message }: { message: RunMessage }) {
   const user = message.authorType === "USER";
-  const system = message.authorType === "SYSTEM";
   const summary = message.kind === "SUMMARY";
   const metadata = message.metadata && typeof message.metadata === "object" ? message.metadata : null;
-  const rawSummary = metadata && "summary" in metadata && typeof metadata.summary === "object" ? metadata.summary as Record<string, unknown> : null;
+  const rawSummary = metadata && "summary" in metadata && typeof metadata.summary === "object" && metadata.summary ? metadata.summary as Record<string, unknown> : null;
   const evidence = rawSummary && Array.isArray(rawSummary.evidenceRefs) ? rawSummary.evidenceRefs : [];
+  const authorLabel = user ? "You" : "Matrix QA";
+  const messageLabel = summary ? "AI update" : message.kind === "APPROVAL" ? "Permission" : "Progress";
+  const safeObjective = rawSummary && typeof rawSummary.currentObjective === "string" ? rawSummary.currentObjective : null;
+  const safeNextStep = rawSummary && typeof rawSummary.nextStep === "string" ? rawSummary.nextStep : null;
   return <article className={`flex ${user ? "justify-end" : "justify-start"}`}>
-    <div className={`max-w-[92%] rounded-md border px-4 py-3 ${summary ? "border-primary/35 bg-primary/5" : user ? "border-primary/25 bg-primary/5" : system ? "border-warning/30 bg-warning/5" : "border-border bg-background"}`}>
+    <div className={`max-w-[92%] rounded-md border px-4 py-3 ${summary ? "border-primary/35 bg-primary/5" : user ? "border-primary/25 bg-primary/5" : "border-border bg-background"}`}>
       <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-        <span className={summary ? "text-primary" : user ? "text-primary" : system ? "text-warning" : "text-foreground/70"}>{summary ? "AI overview" : user ? "You" : message.authorType.toLowerCase()}</span>
-        <span className="rounded-full bg-surface-2 px-1.5 py-0.5">{message.kind}</span>
-        {message.action && <span className="text-primary">{message.action}</span>}
+        <span className={summary ? "text-primary" : user ? "text-primary" : "text-foreground/70"}>{authorLabel}</span>
+        <span className="rounded-full bg-surface-2 px-1.5 py-0.5">{messageLabel}</span>
         <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
       </div>
       <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground/85">{message.body}</p>
-      {rawSummary && <div className="mt-3 space-y-1 text-xs text-muted-foreground"><p>{typeof rawSummary.currentObjective === "string" ? rawSummary.currentObjective : typeof rawSummary.coverage === "string" ? rawSummary.coverage : "AI summary generated from the recorded run activity."}</p>{evidence.length > 0 && <p className="font-mono text-[10px]">Evidence: {evidence.map((item) => typeof item === "object" && item && "label" in item ? String(item.label) : String(item)).join(", ")}</p>}</div>}
-      {metadata && <details className="mt-3"><summary className="cursor-pointer font-mono text-[10px] uppercase tracking-wider text-muted-foreground">activity details</summary><pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-surface-2 p-2 font-mono text-[10px] text-muted-foreground">{JSON.stringify(metadata, null, 2)}</pre></details>}
+      {safeObjective && <p className="mt-3 text-xs leading-5 text-muted-foreground">{safeObjective}</p>}
+      {safeNextStep && <p className="mt-2 text-xs leading-5 text-muted-foreground"><span className="font-medium text-foreground/75">Next:</span> {safeNextStep}</p>}
+      {evidence.length > 0 && <p className="mt-3 font-mono text-[10px] text-muted-foreground">Evidence: {evidence.map((item) => typeof item === "object" && item && "label" in item ? String(item.label) : String(item)).join(", ")}</p>}
     </div>
   </article>;
 }
@@ -1079,7 +1085,7 @@ function EventsTab({ report }: { report: RunReport }) {
             <span className="font-mono text-[11px] text-muted-foreground">
               {msToClock(e.timestamp)}
             </span>
-            <span className="font-mono text-[11px] text-primary">{e.type}</span>
+              <span className="font-mono text-[11px] text-primary">{eventTypeLabel(e.type)}</span>
             <span className="text-sm">
               {eventLabel(e)}
               {e.x != null && e.y != null && (
@@ -1200,11 +1206,13 @@ function DetailStatusPill({ status }: { status: string }) {
 function buildReportMarkdown(report: RunReport, runId: string) {
   const id = report.id ?? report.runId ?? runId;
   const summary = reportSummary(report);
+  const ai = report.aiOverview;
   const lines = [
     `# Matrix QA run ${id}`,
     "",
     `- Status: ${report.status}`,
     `- Target URL: ${report.targetUrl ?? "—"}`,
+    `- Test strategy: AI browser test`,
     `- Started: ${report.startedAt ? new Date(report.startedAt).toISOString() : "—"}`,
     `- Duration: ${duration(report.durationSec)}`,
     `- Scenarios: ${summary.passed}/${summary.scenarios} passed`,
@@ -1213,6 +1221,16 @@ function buildReportMarkdown(report: RunReport, runId: string) {
     `- Events: ${(report.events ?? []).length}`,
     `- Evidence video: ${report.artifactStatus?.video?.status === "ready" ? "processed video available" : report.artifactStatus?.video?.status === "raw_only" ? "raw recording available; processed video unavailable" : "not available"}`,
   ];
+
+  if (ai) {
+    lines.push("", "## Test summary", "", `> ${ai.summary || ai.headline}`, "", `**Coverage:** ${String(ai.coverage)}`);
+    if (ai.findings.length > 0) {
+      lines.push("", "### AI findings");
+      for (const finding of ai.findings) {
+        lines.push("", `#### ${finding.title} (${finding.severity})`, "", finding.explanation);
+      }
+    }
+  }
 
   if (report.errorMessage) {
     lines.push("", `> Diagnostic: ${report.errorMessage}`);
@@ -1246,6 +1264,31 @@ function buildReportMarkdown(report: RunReport, runId: string) {
   return lines.join("\n");
 }
 
+function eventTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    "ai-agent-decision": "AI decision",
+    "ai-agent-action": "Browser action",
+    "ai-agent-result": "Verified result",
+    "ai-agent-captured-evidence": "Evidence captured",
+    "ai-agent-assertion-passed": "Check passed",
+    "ai-agent-assertion-failed": "Check needs review",
+    "ai-agent-replan-required": "Test path adapted",
+    "ai-agent-replanned": "Test path updated",
+    "ai-agent-finished-scenario": "Scenario completed",
+    "v2-scenario-completed": "Scenario completed",
+    "v2-scenario-needs-review": "Scenario needs review",
+    "v2-scenario-blocked": "Scenario paused",
+    "run-outcome": "Run outcome recorded",
+    "bug-intelligence": "Finding reviewed",
+    "auth-completed": "Authentication checked",
+    "auth-failed-needs-review": "Authentication needs review",
+  };
+  if (labels[type]) return labels[type];
+  if (/^ai-agent-/i.test(type)) return "AI browser activity";
+  if (/^v2-/i.test(type)) return "Scenario activity";
+  return "Browser activity";
+}
+
 function eventLabel(e: {
   type: string;
   target?: string;
@@ -1253,7 +1296,7 @@ function eventLabel(e: {
   url?: string;
   message?: string;
 }) {
-  return e.target ?? e.label ?? e.message ?? e.url ?? e.type;
+  return e.target ?? e.label ?? e.message ?? e.url ?? eventTypeLabel(e.type);
 }
 function Stat({
   label,
