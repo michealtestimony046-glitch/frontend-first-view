@@ -467,10 +467,8 @@ export interface AiSummaryEvidenceRef {
 export interface AiLiveSummary {
   source: 'AI';
   generatedAt: string;
-  provider: string;
-  model: string;
-  configVersion: number;
   headline: string;
+  message: string;
   currentObjective: string;
   whatChanged: string[];
   findingsSoFar: string[];
@@ -483,10 +481,8 @@ export interface AiLiveSummary {
 export interface AiRunOverview {
   source: 'AI';
   generatedAt: string;
-  provider: string;
-  model: string;
-  configVersion: number;
   headline: string;
+  summary?: string;
   whatWasTested: unknown[];
   whatTheAgentDid: unknown[];
   findings: Array<{ severity: string; title: string; explanation: string; evidence: AiSummaryEvidenceRef[] }>;
