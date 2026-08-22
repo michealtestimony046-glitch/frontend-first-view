@@ -696,6 +696,25 @@ export interface NotificationItem {
   createdAt: string;
 }
 
+export interface GuidanceMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface GuidanceResponse {
+  answer: string;
+  degraded: boolean;
+  available: boolean;
+}
+
+export const guidanceApi = {
+  chat: (message: string, history: GuidanceMessage[] = []): Promise<GuidanceResponse> => apiRequest('/guidance/chat', {
+    method: 'POST',
+    body: JSON.stringify({ message, history: history.slice(-8) }),
+    requiresAuth: true,
+  }),
+};
+
 export const notificationsApi = {
   list: (): Promise<NotificationItem[]> => apiRequest('/notifications', { requiresAuth: true }),
   unreadCount: (): Promise<{ unreadCount: number }> => apiRequest('/notifications/unread-count', { requiresAuth: true }),

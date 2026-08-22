@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+
+const FIRST_TEST_READY_KEY = "matrix_qa_first_test_ready";
 import {
   Activity,
   AlertTriangle,
@@ -78,6 +80,21 @@ function AppDashboard() {
   const usage = { used: total, cap: Number.POSITIVE_INFINITY, atCap: false };
   const totalTrendRuns = trend.reduce((sum, point) => sum + point.passed + point.findings + point.running + point.blocked + point.failed + point.queued, 0);
   const trendFindings = trend.reduce((sum, point) => sum + point.findings, 0);
+
+  useEffect(() => {
+    if (!live.activeProject || typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(FIRST_TEST_READY_KEY);
+      if (!raw) return;
+      const pending = JSON.parse(raw) as { projectId?: string; targetUrl?: string };
+      if (pending.projectId !== live.activeProject.id) return;
+      setRunTargetUrl(pending.targetUrl || live.activeProject.defaultTargetUrl || live.activeProject.targetUrl || "");
+      setShowRunModal(true);
+      localStorage.removeItem(FIRST_TEST_READY_KEY);
+    } catch {
+      localStorage.removeItem(FIRST_TEST_READY_KEY);
+    }
+  }, [live.activeProject]);
 
   const downloadLatestReport = () => {
     if (!latestRun) return;
@@ -556,7 +573,7 @@ function buildOverallTrend(runs: Array<{ status: string; startedAt?: string | nu
   });
 }
 
-function durationForRun(run: { startedAt?: string | null; finishedAt?: string | null; createdAt?: string } | null, report?: RunReport) {
+function durationForRun(run: { startedAt?: string | null; finishedAt?: string | null; createdAt?: string } | null, report?: RunReport | null) {
   if (typeof report?.durationSec === "number" && Number.isFinite(report.durationSec)) return report.durationSec;
   const started = run?.startedAt ?? run?.createdAt;
   const finished = run?.finishedAt;
@@ -565,7 +582,7 @@ function durationForRun(run: { startedAt?: string | null; finishedAt?: string | 
   return Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
-function reportStepCount(report?: RunReport) {
+function reportStepCount(report?: RunReport | null) {
   if (!report) return 0;
   if (Array.isArray(report.steps)) return report.steps.length;
   if (Array.isArray(report.events)) return report.events.length;
