@@ -77,7 +77,12 @@ function AuthPage() {
     const code = params.get("code");
     const provider = params.get("provider");
     const state = params.get("state");
-    if (code && provider) {
+    const oauthError = params.get("oauth_error");
+    if (oauthError) {
+      window.history.replaceState({}, "", "/auth");
+      setErrorMessage("Social sign-in could not be completed. Please try again.");
+      authApi.oauthProviders().then((available) => { if (active) setOauthProviders(available); }).catch(() => undefined);
+    } else if (code && provider) {
       setOauthLoading(true);
       authApi.handleOAuthCallback(code, provider, state || undefined)
         .then((response) => {
@@ -93,7 +98,10 @@ function AuthPage() {
             navigate({ to: returnTo });
           }
         })
-        .catch((cause) => setErrorMessage(cause instanceof Error ? cause.message : "Social sign-in could not be completed."))
+        .catch((cause) => {
+          window.history.replaceState({}, "", "/auth");
+          setErrorMessage(cause instanceof Error ? cause.message : "Social sign-in could not be completed.");
+        })
         .finally(() => { if (active) setOauthLoading(false); });
     } else {
       authApi.oauthProviders().then((available) => { if (active) setOauthProviders(available); }).catch(() => undefined);
