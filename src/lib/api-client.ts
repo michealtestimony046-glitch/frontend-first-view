@@ -115,6 +115,7 @@ export interface VerifyEmailRequest {
 export interface AuthResponse {
   user: { id: string; email: string; fullName?: string | null; isStaff?: boolean; staffRole?: StaffRole | null };
   accessToken: string;
+  isNewUser?: boolean;
 }
 export type StaffRole = "OWNER" | "OPERATIONS_ADMIN" | "OPERATOR" | "VIEWER";
 export type StaffMembershipStatus = "ACTIVE" | "DISABLED";
@@ -601,9 +602,8 @@ export const authApi = {
   loginWithGoogle: (): void => {
     window.location.href = `${API_BASE_URL}/auth/google`;
   },
-  handleOAuthCallback: async (code: string, provider: string, state?: string): Promise<AuthResponse> => {
-    const params = new URLSearchParams({ code, provider });
-    if (state) params.set("state", state);
+  handleOAuthCallback: async (code: string, provider: string, state: string): Promise<AuthResponse> => {
+    const params = new URLSearchParams({ code, provider, state });
     const response = await apiRequest<AuthResponse>(
       `/auth/oauth/callback?${params.toString()}`,
     );
