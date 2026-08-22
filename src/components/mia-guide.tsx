@@ -11,8 +11,9 @@ const SUGGESTIONS = ["How do I run my first test?", "What happened in my latest 
 function storageKey(userId: string) { return `matrixqa_mia_messages:${userId}`; }
 function seenKey(userId: string) { return `matrixqa_mia_seen:${userId}`; }
 
-function sanitizeStoredMessage(value: string): string {
-  return value
+function sanitizeStoredMessage(value: string, role?: GuidanceMessage["role"]): string {
+  const sanitized = value
+    .replace(/\bevidence[-‑ ]backed\s+AI\s+pass\s+assertion\b/gi, "evidence-backed pass check")
     .replace(/\bAI browser test\b/gi, "adaptive browser test")
     .replace(/\bAI browser worker\b/gi, "test worker")
     .replace(/\bAI pass assertion\b/gi, "evidence-backed pass check")
@@ -21,6 +22,11 @@ function sanitizeStoredMessage(value: string): string {
     .replace(/\b\d+(?:\.\d+)?\s*⟐/g, "additional test capacity")
     .replace(/\b(?:OpenRouter|Ollama|Groq|Cloudflare|Z\.ai|Gemini|Claude|GPT(?:-\d+(?:\.\d+)?)?)\b/gi, "configured test capacity")
     .slice(0, 2_000);
+
+  if (role === "assistant" && /(?:can['’]t|cannot|unable|sorry)[^.?!\n]{0,240}\b(?:delete|remove|rename|invite|suspend|disable|reset|change|edit)\b/i.test(sanitized)) {
+    return "I’m read-only and cannot perform or authorize account changes. Use the relevant Settings area or contact your workspace administrator.";
+  }
+  return sanitized;
 }
 
 export function MiaGuide({ compact = false }: MiaGuideProps) {
@@ -39,7 +45,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
     if (!userId || typeof window === "undefined") return;
     try {
       const stored = JSON.parse(localStorage.getItem(storageKey(userId)) || "[]") as GuidanceMessage[];
-      if (Array.isArray(stored)) setMessages(stored.filter((item) => (item.role === "user" || item.role === "assistant") && typeof item.content === "string").map((item) => ({ role: item.role, content: sanitizeStoredMessage(item.content) })).slice(-10));
+      if (Array.isArray(stored)) setMessages(stored.filter((item) => (item.role === "user" || item.role === "assistant") && typeof item.content === "string").map((item) => ({ role: item.role, content: sanitizeStoredMessage(item.content, item.role) })).slice(-10));
     } catch {
       setMessages([]);
     }
@@ -81,7 +87,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
     setError(null);
     try {
       const response = await guidanceApi.chat(message, messages.slice(-8));
-      setMessages((current) => [...current, { role: "assistant" as const, content: sanitizeStoredMessage(response.answer) }].slice(-10));
+      setMessages((current) => [...current, { role: "assistant" as const, content: sanitizeStoredMessage(response.answer, "assistant") }].slice(-10));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Mia could not respond right now.");
     } finally {
