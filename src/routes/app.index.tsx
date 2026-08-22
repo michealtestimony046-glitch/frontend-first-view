@@ -53,6 +53,8 @@ export const Route = createFileRoute("/app/")({
 function AppDashboard() {
   const live = useLivePortfolio();
   const [runTargetUrl, setRunTargetUrl] = useState("");
+  const [runMissionGoal, setRunMissionGoal] = useState("");
+  const [autoStartFirstRun, setAutoStartFirstRun] = useState(false);
   const [showRunModal, setShowRunModal] = useState(false);
   const [utilityPanel, setUtilityPanel] = useState<"notifications" | "help" | null>(null);
   const runs = live.runs;
@@ -86,9 +88,11 @@ function AppDashboard() {
     try {
       const raw = localStorage.getItem(FIRST_TEST_READY_KEY);
       if (!raw) return;
-      const pending = JSON.parse(raw) as { projectId?: string; targetUrl?: string };
+      const pending = JSON.parse(raw) as { projectId?: string; targetUrl?: string; missionGoal?: string; autoStart?: boolean; targetAuthorizationConfirmed?: boolean };
       if (pending.projectId !== live.activeProject.id) return;
       setRunTargetUrl(pending.targetUrl || live.activeProject.defaultTargetUrl || live.activeProject.targetUrl || "");
+      setRunMissionGoal(pending.missionGoal || "Test this website thoroughly.");
+      setAutoStartFirstRun(Boolean(pending.autoStart && pending.targetAuthorizationConfirmed));
       setShowRunModal(true);
       localStorage.removeItem(FIRST_TEST_READY_KEY);
     } catch {
@@ -516,6 +520,8 @@ function AppDashboard() {
                 type="button"
                 onClick={() => {
                   setRunTargetUrl(latestRun?.targetUrl ?? live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "");
+                  setRunMissionGoal("Test this website thoroughly.");
+                  setAutoStartFirstRun(false);
                   setShowRunModal(true);
                 }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-surface/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
@@ -529,7 +535,7 @@ function AppDashboard() {
       </div>
 
       {/* New Run modal */}
-      {showRunModal && live.activeProject && <V2RunPreflight project={live.activeProject} initialTargetUrl={runTargetUrl} onClose={() => setShowRunModal(false)} onStarted={handleV2Started} />}
+      {showRunModal && live.activeProject && <V2RunPreflight project={live.activeProject} initialTargetUrl={runTargetUrl} initialMissionGoal={runMissionGoal} autoStart={autoStartFirstRun} initialTargetAuthorizationConfirmed={autoStartFirstRun} onClose={() => { setShowRunModal(false); setAutoStartFirstRun(false); }} onStarted={handleV2Started} />}
     </div>
   );
 }
