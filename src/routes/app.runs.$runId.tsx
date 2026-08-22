@@ -30,6 +30,8 @@ import {
   runsApi,
   type BrowserHandoff,
   type RunError,
+  type RunEvent,
+  type RunExecutionState,
   type RunMessage,
   type RunReport,
   type V2PolicyDecision,
@@ -107,6 +109,38 @@ function msToClock(ms: number) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
+function normalizeExecutionEvent(event: RunExecutionState["events"][number]): RunEvent {
+  const payload = event.payload && typeof event.payload === "object" ? event.payload : {};
+  const text = (key: string) => typeof payload[key] === "string" ? String(payload[key]) : undefined;
+  const eventType = event.eventType || "execution-event";
+  return {
+    type: `execution:${eventType}`,
+    timestamp: Math.max(0, Number(event.timestampMs ?? 0)),
+    label: eventType.replaceAll("-", " "),
+    message: text("message") || text("reason"),
+    url: text("url"),
+    subtype: event.phase || "lifecycle",
+    status: typeof payload.status === "number" ? payload.status : undefined,
+    source: "execution-state",
+    executionSequence: event.sequence,
+  };
+}
+
+function mergeRunEvents(reportEvents: RunEvent[] | undefined, executionEvents: RunExecutionState["events"] | undefined): RunEvent[] {
+  const lifecycle = (executionEvents || []).map(normalizeExecutionEvent);
+  const browser = reportEvents || [];
+  const merged = [...lifecycle, ...browser];
+  const seen = new Set<string>();
+  return merged
+    .filter((event) => {
+      const key = `${event.source === "execution-state" ? "execution" : "report"}:${event.executionSequence ?? ""}:${event.type}:${event.timestamp}:${event.message || event.label || event.url || ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
 function duration(sec?: number) {
   if (sec == null) return "—";
   return `${Math.floor(sec / 60)}m ${Math.round(sec % 60)}s`;
@@ -169,12 +203,17 @@ function RunDetailPage() {
 
     const loadReport = async () => {
       try {
-        const [data, currentHandoff] = await Promise.all([
+        const [data, currentHandoff, executionState] = await Promise.all([
           runsApi.getReport(projectId, runId),
           runsApi.getHandoff(projectId, runId).catch(() => null),
+          runsApi.getExecutionState(projectId, runId).catch(() => null),
         ]);
         if (cancelled) return;
-        setReport(data);
+        const mergedReport: RunReport = {
+          ...data,
+          events: mergeRunEvents(data.events, executionState?.events),
+        };
+        setReport(mergedReport);
         setHandoff(currentHandoff);
         const terminalStatuses = ["COMPLETED", "PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED", "FAILED"];
         const activeStatuses = ["PENDING", "QUEUED", "RUNNING"];
@@ -343,7 +382,7 @@ function RunDetailPage() {
           <Stat
             label="Events"
             value={String(report.events?.length ?? 0)}
-            hint={`${report.errors?.length ?? 0} errors`}
+            hint={`${report.errors?.length ?? 0} errors · lifecycle included`}
             tone={(report.errors?.length ?? 0) ? "danger" : undefined}
           />
         </div>
@@ -1015,8 +1054,8 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
   };
 
   return (
-    <section className="surface-card overflow-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+    <section className="overflow-hidden rounded-2xl border border-white/10 bg-surface/55 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 bg-background/20 px-5 py-4 backdrop-blur-md">
         <div>
           <div className="flex items-center gap-2">
             <h3 className="font-display text-sm font-semibold">Live Run Console</h3>
@@ -1078,14 +1117,14 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
               </div>
             </div>
           )}
-          <div className="max-h-[520px] space-y-4 overflow-auto bg-surface-2/30 px-5 py-5">
+          <div className="max-h-[520px] space-y-4 overflow-auto bg-background/20 px-5 py-5 backdrop-blur-sm">
             {loading && !messages.length ? (
               <div className="flex items-center gap-2 py-10 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading console transcript…</div>
             ) : messages.length ? messages.map((message) => <RunConsoleMessage key={message.id} message={message} />) : (
               <div className="py-10 text-center text-xs text-muted-foreground">No console messages yet. Worker updates and your instructions will appear here.</div>
             )}
           </div>
-          <div className="border-t border-border px-5 py-4">
+          <div className="border-t border-white/10 bg-background/15 px-5 py-4 backdrop-blur-md">
             <div className="flex flex-wrap gap-2">
               <ConsoleButton action="PAUSE" icon={Pause} disabled={!active || Boolean(activeAction)} pending={activeAction === "PAUSE"} onClick={sendControl} />
               <ConsoleButton action="RESUME" icon={Play} disabled={!active || Boolean(activeAction)} pending={activeAction === "RESUME"} onClick={sendControl} />
@@ -1123,7 +1162,7 @@ function RunConsoleMessage({ message }: { message: RunMessage }) {
   const safeObjective = rawSummary && typeof rawSummary.currentObjective === "string" ? rawSummary.currentObjective : null;
   const safeNextStep = rawSummary && typeof rawSummary.nextStep === "string" ? rawSummary.nextStep : null;
   return <article className={`flex ${user ? "justify-end" : "justify-start"}`}>
-    <div className={`max-w-[92%] rounded-md border px-4 py-3 ${summary ? "border-primary/35 bg-primary/5" : user ? "border-primary/25 bg-primary/5" : "border-border bg-background"}`}>
+    <div className={`max-w-[92%] rounded-2xl border px-4 py-3 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.95)] backdrop-blur-xl ${summary ? "border-primary/35 bg-primary/10" : user ? "border-primary/25 bg-primary/10" : "border-white/10 bg-surface/65"}`}>
       <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
         <span className={summary ? "text-primary" : user ? "text-primary" : "text-foreground/70"}>{authorLabel}</span>
         <span className="rounded-full bg-surface-2 px-1.5 py-0.5">{messageLabel}</span>
@@ -1142,7 +1181,8 @@ function EventsTab({ report }: { report: RunReport }) {
   return (
     <div className="surface-card overflow-hidden">
       <div className="border-b border-border px-5 py-3">
-        <h3 className="font-display text-sm font-semibold">Browser events</h3>
+        <h3 className="font-display text-sm font-semibold">Execution & browser events</h3>
+        <p className="mt-1 text-xs text-muted-foreground">Lifecycle events from the worker are shown alongside browser evidence events.</p>
       </div>
       <div className="max-h-[620px] overflow-auto">
         {events.map((e, i) => (
@@ -1353,6 +1393,10 @@ function eventTypeLabel(type: string) {
     "auth-failed-needs-review": "Authentication needs review",
   };
   if (labels[type]) return labels[type];
+  if (/^execution:/i.test(type)) {
+    const lifecycle = type.replace(/^execution:/i, "").replaceAll("-", " ");
+    return `Lifecycle · ${lifecycle}`;
+  }
   if (/^ai-agent-/i.test(type)) return "Test-worker activity";
   if (/^v2-/i.test(type)) return "Scenario activity";
   return "Browser activity";
