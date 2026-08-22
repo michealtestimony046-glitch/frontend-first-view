@@ -62,14 +62,14 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   const send = async (value = draft) => {
     const message = value.trim();
     if (!message || loading) return;
-    const nextHistory: GuidanceMessage[] = [...messages, { role: "user" as const, content: message }].slice(-10);
+    const nextHistory: GuidanceMessage[] = [...messages, { role: "user" as const, content: message.slice(0, 2_000) }].slice(-10);
     setMessages(nextHistory);
     setDraft("");
     setLoading(true);
     setError(null);
     try {
       const response = await guidanceApi.chat(message, messages.slice(-8));
-      setMessages((current) => [...current, { role: "assistant" as const, content: response.answer }].slice(-10));
+      setMessages((current) => [...current, { role: "assistant" as const, content: response.answer.slice(0, 2_000) }].slice(-10));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Mia could not respond right now.");
     } finally {
