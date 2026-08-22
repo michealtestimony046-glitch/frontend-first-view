@@ -19,18 +19,18 @@ export function MatrixMark({
   );
 }
 
-export function Logo({
-  className = "",
-  size = 26,
-}: {
-  className?: string;
-  size?: number;
-}) {
+export function Logo({ className = "", size = 26 }: { className?: string; size?: number }) {
   return (
-    <Link to="/" className={`inline-flex items-center gap-2 ${className}`}>
+    <Link to="/" aria-label="Matrix QA" className={`inline-flex items-center gap-2.5 ${className}`}>
       <MatrixMark size={size} />
-      <span className="font-display text-[15px] font-semibold tracking-tight">
-        Matrix<span className="text-primary">QA</span>
+      <span
+        aria-hidden="true"
+        className="inline-flex items-baseline whitespace-nowrap font-display text-[15px] font-medium uppercase leading-none"
+      >
+        <span className="tracking-[0.26em] text-foreground">MATRIX</span>
+        <span className="ml-2 bg-gradient-to-r from-primary via-emerald-300 to-cyan-400 bg-clip-text tracking-[0.18em] text-transparent">
+          QA
+        </span>
       </span>
     </Link>
   );
