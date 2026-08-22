@@ -28,7 +28,7 @@ function Landing() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Nav */}
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between px-6 lg:px-10 xl:px-12">
           <Logo />
           <nav className="hidden items-center gap-7 md:flex">
             <a href="#product" className="text-sm text-muted-foreground hover:text-foreground">
@@ -66,8 +66,8 @@ function Landing() {
       {/* Hero */}
       <section className="relative overflow-hidden bg-hero">
         <div className="absolute inset-0 bg-grid opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
-        <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-20 md:pt-28">
-          <div className="mx-auto max-w-3xl text-center">
+        <div className="relative mx-auto max-w-[1440px] px-6 pb-20 pt-16 sm:px-8 md:pt-24 lg:px-10 lg:pt-28 xl:px-12">
+          <div className="mx-auto max-w-5xl text-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inset-0 animate-ping rounded-full bg-primary/60" />
@@ -75,13 +75,13 @@ function Landing() {
               </span>
               Public Preview · Autonomous QA Worker
             </span>
-            <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-gradient sm:text-5xl md:text-7xl">
+            <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-gradient sm:text-5xl md:text-7xl lg:text-7xl xl:text-8xl">
               Proof your app works.
               <br />
               <span className="text-primary">Every deploy.</span>
             </h1>
 
-            <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground md:text-lg">
+            <p className="mx-auto mt-6 max-w-3xl text-base text-muted-foreground md:text-lg">
               Matrix QA walks your critical user journeys — login, signup,
               navigation, forms — and streams screenshots, console logs, network
               activity, and timestamps into an evidence-grade report.
@@ -109,7 +109,7 @@ function Landing() {
             </p>
 
             {/* Value strip — four product pillars */}
-            <div className="mx-auto mt-10 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mx-auto mt-10 grid max-w-5xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 {
                   t: "Core journeys, automated",
@@ -146,7 +146,7 @@ function Landing() {
 
 
           {/* Hero preview */}
-          <div className="relative mx-auto mt-16 max-w-5xl">
+          <div className="relative mx-auto mt-16 max-w-6xl">
             <div className="pointer-events-none absolute -inset-x-16 -top-8 -bottom-8 bg-[radial-gradient(600px_200px_at_50%_0%,var(--primary)/0.2,transparent)]" />
             <div className="relative rounded-2xl border border-border bg-surface/70 p-2 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] backdrop-blur">
               <HeroConsole />
@@ -157,7 +157,7 @@ function Landing() {
 
       {/* Feature grid */}
       <section id="product" className="border-t border-border bg-background">
-        <div className="mx-auto max-w-7xl px-6 py-24">
+        <div className="mx-auto max-w-[1440px] px-6 py-24 lg:px-10 xl:px-12">
           <div className="max-w-2xl">
             <span className="font-mono text-xs uppercase tracking-widest text-primary">
               The core loop
@@ -212,7 +212,7 @@ function Landing() {
 
       {/* Evidence showcase */}
       <section id="evidence" className="border-t border-border bg-surface/40">
-        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-24 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+        <div className="mx-auto grid max-w-[1440px] gap-12 px-6 py-24 lg:grid-cols-[1.1fr_1fr] lg:px-10 lg:items-center xl:px-12">
           <div>
             <span className="font-mono text-xs uppercase tracking-widest text-primary">
               Evidence-grade reports
@@ -248,7 +248,7 @@ function Landing() {
 
       {/* How it works */}
       <section id="how" className="border-t border-border bg-background">
-        <div className="mx-auto max-w-7xl px-6 py-24">
+        <div className="mx-auto max-w-[1440px] px-6 py-24 lg:px-10 xl:px-12">
           <div className="max-w-2xl">
             <span className="font-mono text-xs uppercase tracking-widest text-primary">
               How it works
@@ -324,7 +324,7 @@ function Landing() {
               ].map((f) => (
                 <div
                   key={f.title}
-                  className="rounded-xl border border-border bg-surface/50 p-5"
+                  className="min-w-0 rounded-xl border border-border bg-surface/50 p-5"
                 >
                   <h3 className="font-display text-base font-semibold">
                     {f.title}
@@ -360,7 +360,7 @@ function Landing() {
 
       {/* Roadmap */}
       <section id="roadmap" className="border-t border-border">
-        <div className="mx-auto max-w-7xl px-6 py-24">
+        <div className="mx-auto max-w-[1440px] px-6 py-24 lg:px-10 xl:px-12">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <span className="font-mono text-xs uppercase tracking-widest text-primary">
@@ -472,7 +472,7 @@ function Landing() {
 
       {/* CTA */}
       <section id="pricing" className="border-t border-border bg-hero">
-        <div className="mx-auto max-w-4xl px-6 py-24 text-center">
+        <div className="mx-auto max-w-5xl px-6 py-24 text-center lg:px-10 xl:px-12">
           <Sparkles className="mx-auto h-6 w-6 text-primary" />
           <h2 className="mt-4 font-display text-4xl font-semibold text-gradient md:text-5xl">
             Ship without shipping bugs.
@@ -499,7 +499,7 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border bg-background">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-8 md:flex-row">
+        <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-3 px-6 py-8 md:flex-row lg:px-10 xl:px-12">
           <Logo />
           <p className="font-mono text-xs text-muted-foreground">
             © {new Date().getFullYear()} Matrix QA · Autonomous QA infrastructure
