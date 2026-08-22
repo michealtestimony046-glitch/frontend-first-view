@@ -57,7 +57,7 @@ function BillingBody() {
               <h2 className="font-display text-xl font-semibold">Matrix QA Preview</h2>
               <span className="font-mono text-sm text-muted-foreground">$0 / mo</span>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">Free access while Matrix QA is in v1 Public Preview.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Free access while Matrix QA is in Public Preview.</p>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-primary">
             <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Active · Free Access
@@ -70,7 +70,7 @@ function BillingBody() {
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Usage and quotas</div>
           <h2 className="mt-1 font-display text-xl font-semibold">Managed during Preview</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            The v1 backend does not expose a billing-usage endpoint or plan quota editor. To keep this page honest, Matrix QA does not display simulated counters. Run availability is determined by the deployed backend when a run is queued.
+            Detailed usage counters and plan changes are not available during Preview. To keep this page honest, Matrix QA does not display simulated counters. Run availability is determined by the service when a run is queued.
           </p>
         </div>
         <div className="flex items-start gap-3 p-5 md:p-6">

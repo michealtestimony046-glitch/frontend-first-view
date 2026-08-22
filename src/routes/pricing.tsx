@@ -18,13 +18,13 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          "Matrix QA is free during Public Preview while we validate the Core Engine. No credit card. Paid plans launch with v2.",
+          "Matrix QA is free during Public Preview while we validate the Core Engine. No credit card. Paid plans will be introduced as the product expands.",
       },
       { property: "og:title", content: "Matrix QA · Preview pricing" },
       {
         property: "og:description",
         content:
-          "Free during Preview. Paid Starter and Pro plans launch with the v2 and v3 releases.",
+          "Free during Preview. Starter and Pro plans will be introduced as the product expands.",
       },
       { property: "og:type", content: "website" },
     ],
@@ -36,7 +36,6 @@ type ComingPlan = {
   name: string;
   price: string;
   cadence?: string;
-  version: string;
   audience: string;
   features: string[];
   cta: string;
@@ -47,7 +46,6 @@ const comingPlans: ComingPlan[] = [
     name: "Starter",
     price: "$49",
     cadence: "/month",
-    version: "V2",
     audience: "For solo developers and indie builders.",
     features: [
       "Multiple Projects",
@@ -58,43 +56,40 @@ const comingPlans: ComingPlan[] = [
       "Better Evidence",
       "Improved Worker Stability",
     ],
-    cta: "Coming in V2",
+    cta: "Planned",
   },
   {
     name: "Pro",
     price: "$129",
     cadence: "/month",
-    version: "V3",
     audience: "For teams building production software.",
     features: [
       "Everything in Starter",
       "Matrix Simulation",
       "Parallel Browser Workers",
       "Browser × Device × Role Testing",
-      "More Credits",
+      "More test capacity",
       "Faster Execution",
     ],
-    cta: "Coming in V3",
+    cta: "Planned",
   },
   {
     name: "Business",
     price: "—",
-    version: "V5",
     audience: "Built for startups and agencies.",
     features: [
       "Organizations",
       "Multiple Workspaces",
       "Team Members",
       "Permissions",
-      "Shared Credits",
+      "Shared test capacity",
       "Higher Concurrency",
     ],
-    cta: "Coming in V5",
+    cta: "Planned",
   },
   {
     name: "Enterprise",
     price: "Custom",
-    version: "V10",
     audience: "For larger engineering organizations.",
     features: [
       "Private Workers",
@@ -104,7 +99,7 @@ const comingPlans: ComingPlan[] = [
       "Enterprise Security",
       "SLA Support",
     ],
-    cta: "Contact sales (coming in V10)",
+    cta: "Planned · contact sales",
   },
 ];
 
@@ -148,7 +143,7 @@ function PricingPage() {
         <div className="relative mx-auto max-w-4xl px-6 pb-14 pt-20 text-center md:pt-24">
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-primary">
             <Sparkles className="h-3 w-3" />
-            v1 · Public Preview
+            Public Preview
           </span>
           <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-gradient sm:text-5xl md:text-6xl">
             Matrix QA is free
@@ -224,7 +219,7 @@ function PricingPage() {
                   $0
                 </div>
                 <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                  while in v1
+                  during Preview
                 </div>
               </div>
             </div>
@@ -265,8 +260,7 @@ function PricingPage() {
               Paid plans launch alongside the roadmap.
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Prices and features shown are directional. Availability tracks the
-              versions below.
+              Prices and features shown are directional. Availability tracks the roadmap below.
             </p>
           </div>
 
@@ -277,7 +271,7 @@ function PricingPage() {
                 className="relative flex flex-col rounded-xl border border-border bg-surface/60 p-5"
               >
                 <span className="absolute right-3 top-3 rounded-full border border-border bg-background/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Launching in {p.version}
+                  Planned
                 </span>
                 <h3 className="font-display text-lg font-semibold">{p.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
@@ -323,14 +317,14 @@ function PricingPage() {
               Our roadmap
             </span>
             <h2 className="mt-3 font-display text-2xl font-semibold md:text-3xl">
-              V1 today. Nine releases planned.
+              Available today. More capabilities are planned.
             </h2>
           </div>
 
           <ol className="mt-8 grid gap-2 sm:grid-cols-2 md:grid-cols-5">
             {ROADMAP.map((r) => (
               <li
-                key={r.version}
+                key={r.title}
                 className={`rounded-lg border p-3 ${
                   r.current
                     ? "border-primary/40 bg-primary/5"
@@ -343,7 +337,7 @@ function PricingPage() {
                       r.current ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
-                    {r.version}
+                    {r.current ? "Available" : "Planned"}
                   </span>
                   {r.current ? (
                     <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
@@ -378,7 +372,7 @@ function PricingPage() {
       <section className="border-t border-border">
         <div className="mx-auto max-w-4xl px-6 py-16 text-center md:py-20">
           <h3 className="font-display text-2xl font-semibold md:text-3xl">
-            Ready to see what v1 catches?
+            Ready to see what Matrix QA catches?
           </h3>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
             Point Matrix QA at a URL. Get an evidence-grade report back.
