@@ -224,6 +224,28 @@ export interface RunEvent {
   [key: string]: unknown;
 }
 
+export interface RunExecutionState {
+  run?: Pick<RunReport, "id" | "runId" | "projectId" | "status" | "startedAt" | "finishedAt" | "errorMessage"> & {
+    lastHeartbeatAt?: string | null;
+    attemptCount?: number;
+  } | null;
+  events: Array<{
+    sequence?: number;
+    eventType?: string;
+    phase?: string | null;
+    timestampMs?: number | null;
+    payload?: Record<string, unknown> | null;
+    [key: string]: unknown;
+  }>;
+  checkpoints: Array<{
+    sequence?: number;
+    checkpointType?: string;
+    eventSequence?: number | null;
+    state?: Record<string, unknown> | null;
+    [key: string]: unknown;
+  }>;
+}
+
 export interface RunAssertion {
   name: string;
   expected: unknown;
@@ -1267,6 +1289,13 @@ export const runsApi = {
     const encodedProjectId = encodeURIComponent(projectId);
     const encodedRunId = encodeURIComponent(runId);
     return apiRequest<RunReport>(`/projects/${encodedProjectId}/runs/${encodedRunId}/report`, {
+      requiresAuth: true,
+    });
+  },
+  getExecutionState: async (projectId: string, runId: string): Promise<RunExecutionState> => {
+    const encodedProjectId = encodeURIComponent(projectId);
+    const encodedRunId = encodeURIComponent(runId);
+    return apiRequest<RunExecutionState>(`/projects/${encodedProjectId}/runs/${encodedRunId}/execution-state`, {
       requiresAuth: true,
     });
   },
