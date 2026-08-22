@@ -261,9 +261,6 @@ function RunRow({
   mobile?: boolean;
 }) {
   const href = `/app/runs/${encodeURIComponent(run.id)}?projectId=${encodeURIComponent(project.id)}`;
-  const metadata = run.metadata && typeof run.metadata === "object" ? run.metadata : null;
-  const isV2 = metadata?.v2 === true;
-  const estimatedUnits = typeof metadata?.estimatedUnits === "number" ? metadata.estimatedUnits : null;
   if (mobile)
     return (
       <li>
@@ -272,7 +269,6 @@ function RunRow({
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs text-muted-foreground">#{index + 1}</span>
               <StatusPill status={run.status} />
-              {isV2 && <span className="rounded-full bg-primary/15 px-2 py-0.5 font-mono text-[10px] text-primary">V2 · {estimatedUnits ?? "—"} ⟐ est.</span>}
             </div>
             <div className="mt-1 truncate font-mono text-xs text-foreground">{run.targetUrl}</div>
             <div className="mt-0.5 text-[11px] text-muted-foreground">
@@ -292,7 +288,7 @@ function RunRow({
       >
         <span className="font-mono text-xs text-muted-foreground">#{index + 1}</span>
         <span className="truncate font-mono text-xs text-foreground">{run.targetUrl}</span>
-        <div className="flex flex-wrap items-center gap-1.5"><StatusPill status={run.status} />{isV2 && <span className="rounded-full bg-primary/15 px-2 py-0.5 font-mono text-[10px] text-primary">V2 · {estimatedUnits ?? "—"} ⟐ est.</span>}</div>
+        <div className="flex flex-wrap items-center gap-1.5"><StatusPill status={run.status} /></div>
         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <Chrome className="h-3.5 w-3.5" /> Chromium
         </span>

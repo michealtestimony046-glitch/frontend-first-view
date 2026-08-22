@@ -696,6 +696,25 @@ export interface NotificationItem {
   createdAt: string;
 }
 
+export interface GuidanceMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface GuidanceResponse {
+  answer: string;
+  degraded: boolean;
+  available: boolean;
+}
+
+export const guidanceApi = {
+  chat: (message: string, history: GuidanceMessage[] = []): Promise<GuidanceResponse> => apiRequest('/guidance/chat', {
+    method: 'POST',
+    body: JSON.stringify({ message, history: history.slice(-8) }),
+    requiresAuth: true,
+  }),
+};
+
 export const notificationsApi = {
   list: (): Promise<NotificationItem[]> => apiRequest('/notifications', { requiresAuth: true }),
   unreadCount: (): Promise<{ unreadCount: number }> => apiRequest('/notifications/unread-count', { requiresAuth: true }),
@@ -719,6 +738,22 @@ export interface TargetComplaint {
   reporter?: { id: string; email: string; fullName?: string | null; accountStatus?: string };
   project?: { id: string; name: string; organizationId: string } | null;
   reviewedBy?: { id: string; email: string; fullName?: string | null } | null;
+  targetSuspended?: boolean;
+  suspensionId?: string | null;
+}
+
+export interface TargetSuspension {
+  id: string;
+  normalizedOrigin: string;
+  targetUrl: string;
+  reason: string;
+  status: "ACTIVE" | "REVOKED" | string;
+  sourceComplaintId?: string | null;
+  createdById: string;
+  revokedById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  revokedAt?: string | null;
 }
 
 export const targetComplaintsApi = {
@@ -786,9 +821,12 @@ export interface AdminAiUsageSummary {
     billableMatrixUnits: number;
     latencyMs: number;
     averageLatencyMs: number;
+    fallbackAttempts?: number;
+    accountingSources?: Record<string, number>;
   };
-  providers: Array<{ provider: string; model: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
-  useCases: Array<{ useCase: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
+  providers: Array<{ provider: string; model: string; events: number; degradedEvents: number; fallbackAttempts?: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
+  useCases: Array<{ useCase: string; events: number; degradedEvents: number; fallbackAttempts?: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
+  providerChain?: Array<{ useCase: string; chainPosition: number; provider: string; model: string; attempts: number; successes: number; degradedAttempts: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
   organizations: Array<{ organizationId: string; organizationName: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
   recent: Array<{ id: string; organizationId: string; projectId?: string | null; scanId?: string | null; provider: string; model: string; inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number; latencyMs: number; degraded: boolean; createdAt: string }>;
 }
@@ -1064,7 +1102,9 @@ export const adminApi = {
   metrics: (days = 7): Promise<AdminOperationsMetrics> => apiRequest(`/admin/metrics?days=${encodeURIComponent(String(days))}`, { requiresAuth: true }),
   controlTower: (): Promise<AdminControlTowerSnapshot> => apiRequest('/admin/control-tower', { requiresAuth: true }),
   listTargetComplaints: (status?: TargetComplaintStatus): Promise<TargetComplaint[]> => apiRequest(`/target-complaints/staff${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
-  reviewTargetComplaint: (id: string, data: { status: TargetComplaintStatus; staffNote?: string }): Promise<TargetComplaint> => apiRequest(`/target-complaints/staff/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
+  reviewTargetComplaint: (id: string, data: { status: TargetComplaintStatus; staffNote?: string; suspendTarget?: boolean }): Promise<TargetComplaint> => apiRequest(`/target-complaints/staff/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
+  listTargetSuspensions: (): Promise<TargetSuspension[]> => apiRequest('/target-complaints/staff/suspensions', { requiresAuth: true }),
+  revokeTargetSuspension: (id: string, note?: string): Promise<TargetSuspension> => apiRequest(`/target-complaints/staff/suspensions/${encodeURIComponent(id)}/revoke`, { method: 'POST', body: JSON.stringify({ note }), requiresAuth: true }),
   listAiProviderConfigs: (): Promise<AdminAiProviderConfig[]> => apiRequest('/admin/ai-provider-configs', { requiresAuth: true }),
   listAiModelCatalog: (params: { provider: AdminAiProviderConfig["provider"]; secretRef: string; accountId?: string; baseUrl?: string; useCase?: AdminAiProviderConfig["useCase"]; refresh?: boolean }): Promise<AdminAiModelCatalogResponse> => {
     const search = new URLSearchParams({ provider: params.provider, secretRef: params.secretRef });

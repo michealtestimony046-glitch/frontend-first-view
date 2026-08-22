@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Logo, MatrixMark } from "./logo";
 import { useAuth } from "@/lib/auth-context";
 import { organizationsApi, notificationsApi, type Organization } from "@/lib/api-client";
+import { MiaGuide } from "./mia-guide";
 
 type NavItem = { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean };
 const nav: NavItem[] = [
@@ -18,7 +19,7 @@ const nav: NavItem[] = [
   { label: "Issues", to: "/app/issues", icon: Bug },
   { label: "Audit Log", to: "/app/audit", icon: ScrollText },
   { label: "Reports", to: "/app/reports", icon: FileText },
-  { label: "Credits", to: "/app/credits", icon: CircleDollarSign },
+  { label: "Test capacity", to: "/app/credits", icon: CircleDollarSign },
   { label: "Notifications", to: "/app/notifications", icon: Bell },
   { label: "Settings", to: "/app/settings", icon: Settings },
 ];
@@ -81,6 +82,7 @@ export function AppShell({ children, title = "Overview" }: { children: ReactNode
           {mobileTabs.map((t) => { const Icon = t.icon; const active = isActive(t); return <li key={t.label}><Link to={t.to} className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium ${active ? "text-primary" : "text-muted-foreground"}`}><Icon className="h-[18px] w-[18px]" />{t.label}</Link></li>; })}
           <li><button onClick={() => setDrawerOpen(true)} className="flex w-full flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium text-muted-foreground"><MoreHorizontal className="h-[18px] w-[18px]" />More</button></li>
         </ul></nav>
+        <MiaGuide />
       </div>
     </div>
   );
