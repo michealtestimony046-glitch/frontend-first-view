@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Copy, Download, ExternalLink, FileWarning } from "lucide-react";
+import { Copy, Download, FileWarning } from "lucide-react";
 import { formatLiveDate, formatLiveDuration, reportForRun, runNumber, useLivePortfolio } from "@/lib/live-data";
+import { videoEvidenceEnabled } from "@/lib/feature-flags";
 
 export const Route = createFileRoute("/app/reports")({
   head: () => ({ meta: [{ title: "Reports · Matrix QA" }, { name: "robots", content: "noindex" }] }),
@@ -15,7 +16,7 @@ function ReportsPage() {
   const [target, setTarget] = useState<"Cursor" | "Claude Code" | "GitHub" | "Raw">("Raw");
   const selectedRun = terminalRuns.find((run) => run.id === selectedRunId) ?? terminalRuns[0] ?? null;
   const report = reportForRun(live.reports, selectedRun?.id);
-  const videoStatus = report?.artifactStatus?.video?.status ?? (report?.finalVideo || report?.rawVideo ? "ready" : "not_available");
+  const videoStatus = videoEvidenceEnabled ? report?.artifactStatus?.video?.status ?? (report?.finalVideo || report?.rawVideo ? "ready" : "not_available") : "disabled";
   const confidenceScore = Number((report as Record<string, unknown> | null)?.confidenceScore ?? 0);
   const findings = useMemo(() => {
     if (!selectedRun) return [];
@@ -80,9 +81,8 @@ function ReportsPage() {
                   <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap px-5 py-4 font-mono text-[11px] leading-relaxed">{repairMarkdown}</pre>
                   <div className="flex flex-wrap items-center gap-2 border-t border-border bg-surface-2/40 px-5 py-3">
                     <button onClick={() => navigator.clipboard?.writeText(repairMarkdown)} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"><Copy className="h-3.5 w-3.5" /> Copy markdown</button>
-                    {videoStatus === "ready" && report.finalVideo && <a href={report.finalVideo} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary"><ExternalLink className="h-3 w-3" /> Evidence video</a>}
-                    {videoStatus === "raw_only" && report.rawVideo && <a href={report.rawVideo} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-warning"><ExternalLink className="h-3 w-3" /> Raw recording</a>}
-                    {videoStatus !== "ready" && videoStatus !== "raw_only" && <span className="text-[11px] text-warning">Video unavailable; run evidence is still retained</span>}
+                    {!videoEvidenceEnabled && <span className="text-[11px] text-muted-foreground">Screenshot-first evidence · screenshots and report retained</span>}
+                    {videoEvidenceEnabled && videoStatus !== "ready" && videoStatus !== "raw_only" && <span className="text-[11px] text-warning">Video unavailable; run evidence is still retained</span>}
                     {typeof report.reportUrl === "string" && report.reportUrl && <a href={report.reportUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary"><Download className="h-3 w-3" /> report.md</a>}
                     <Link to="/app/runs/$runId" params={{ runId: selectedRun.id }} search={{ projectId: selectedRun.projectId }} className="ml-auto text-xs text-primary">Open run</Link>
                   </div>

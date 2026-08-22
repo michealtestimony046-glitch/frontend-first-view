@@ -36,6 +36,7 @@ import {
   type V2Scenario,
   type V2TestPlan,
 } from "@/lib/api-client";
+import { videoEvidenceEnabled } from "@/lib/feature-flags";
 
 export const Route = createFileRoute("/app/runs/$runId")({
   head: ({ params }) => ({
@@ -147,11 +148,13 @@ function RunDetailPage() {
   const screenshots = report.screenshots ?? [];
   const selectedShot = screenshots[selected];
   const videoStatus = report.artifactStatus?.video?.status ?? (report.finalVideo || report.rawVideo ? "ready" : "not_available");
-  const videoUrl = videoStatus === "ready"
-    ? report.finalVideo ?? report.rawVideo ?? null
-    : videoStatus === "raw_only"
-      ? report.rawVideo ?? null
-      : null;
+  const videoUrl = videoEvidenceEnabled
+    ? videoStatus === "ready"
+      ? report.finalVideo ?? report.rawVideo ?? null
+      : videoStatus === "raw_only"
+        ? report.rawVideo ?? null
+        : null
+    : null;
 
   const copyMarkdown = async () => {
     try {
@@ -383,8 +386,8 @@ function OutcomeNotice({ report }: { report: RunReport }) {
 
 function ExecutionStatusNotice({ report }: { report: RunReport }) {
   if (!report.v2Plan) return null;
-  const videoStatus = report.artifactStatus?.video?.status ?? "not_available";
-  const videoDisabled = report.artifactStatus?.video?.reason === "disabled by configuration";
+  const videoStatus = videoEvidenceEnabled ? report.artifactStatus?.video?.status ?? "not_available" : "disabled";
+  const videoDisabled = !videoEvidenceEnabled || report.artifactStatus?.video?.reason === "disabled by configuration";
   const message = report.incomplete
     ? "Execution in progress"
     : videoDisabled && report.status !== "RUNNING" && report.status !== "PENDING"
@@ -515,9 +518,11 @@ function PlanBadge({ label, tone }: { label: string; tone: "success" | "danger" 
 
 function EvidenceStatus({ report }: { report: RunReport }) {
   const status = report.artifactStatus?.video?.status ?? "not_available";
-  const videoDisabled = report.artifactStatus?.video?.reason === "disabled by configuration";
-  const message = videoDisabled
-    ? "Video capture is intentionally disabled for screenshot-first runs."
+  const videoDisabled = !videoEvidenceEnabled || report.artifactStatus?.video?.reason === "disabled by configuration";
+  const message = !videoEvidenceEnabled
+    ? "Video replay is intentionally disabled for screenshot-first runs."
+    : videoDisabled
+      ? "Video capture is intentionally disabled for screenshot-first runs."
     : status === "failed"
       ? "Video evidence could not be prepared for this run."
       : status === "raw_only"
@@ -1225,7 +1230,7 @@ function buildReportMarkdown(report: RunReport, runId: string) {
     `- Bugs captured: ${summary.bugs}`,
     `- Screenshots: ${(report.screenshots ?? []).length}`,
     `- Events: ${(report.events ?? []).length}`,
-    `- Evidence video: ${report.artifactStatus?.video?.status === "ready" ? "processed video available" : report.artifactStatus?.video?.status === "raw_only" ? "raw recording available; processed video unavailable" : "not available"}`,
+    `- Evidence video: ${!videoEvidenceEnabled ? "disabled for screenshot-first mode; screenshots retained" : report.artifactStatus?.video?.status === "ready" ? "processed video available" : report.artifactStatus?.video?.status === "raw_only" ? "raw recording available; processed video unavailable" : "not available"}`,
   ];
 
   if (ai) {
