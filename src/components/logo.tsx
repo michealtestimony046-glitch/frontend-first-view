@@ -7,8 +7,6 @@ export function MatrixMark({
   size?: number;
   className?: string;
 }) {
-  // Hexagon vertices (pointy-top-flat-side style matching the reference)
-  // ViewBox 64x64, hexagon fills tight with a small inner padding.
   return (
     <svg
       viewBox="0 0 64 64"
@@ -17,68 +15,18 @@ export function MatrixMark({
       className={className}
       role="img"
       aria-label="Matrix QA"
+      shapeRendering="geometricPrecision"
     >
       <defs>
-        <linearGradient id="mqa-hex" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="oklch(0.86 0.19 148)" />
-          <stop offset="100%" stopColor="oklch(0.78 0.14 200)" />
+        <linearGradient id="matrixqa-brand-mark" x1="10" y1="10" x2="54" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#ff6b83" />
+          <stop offset="38%" stopColor="#ff9b62" />
+          <stop offset="68%" stopColor="#ffd166" />
+          <stop offset="100%" stopColor="#7c83ff" />
         </linearGradient>
       </defs>
-
-      {/* Hex outline */}
-      <polygon
-        points="32,4 58,18 58,46 32,60 6,46 6,18"
-        fill="none"
-        stroke="url(#mqa-hex)"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-
-      {/* Hex corner nodes */}
-      {[
-        [32, 4],
-        [58, 18],
-        [58, 46],
-        [32, 60],
-        [6, 46],
-        [6, 18],
-      ].map(([x, y], i) => (
-        <circle
-          key={i}
-          cx={x}
-          cy={y}
-          r={3}
-          fill="url(#mqa-hex)"
-        />
-      ))}
-
-      {/* Dashed inner grid connectors */}
-      <g stroke="oklch(0.86 0.19 148 / 0.45)" strokeWidth="1" strokeDasharray="1.5 2" strokeLinecap="round">
-        {/* horizontals */}
-        <line x1="20" y1="22" x2="44" y2="22" />
-        <line x1="20" y1="32" x2="44" y2="32" />
-        <line x1="20" y1="42" x2="44" y2="42" />
-        {/* verticals */}
-        <line x1="20" y1="22" x2="20" y2="42" />
-        <line x1="32" y1="22" x2="32" y2="42" />
-        <line x1="44" y1="22" x2="44" y2="42" />
-      </g>
-
-      {/* 3x3 grid nodes */}
-      {[20, 32, 44].flatMap((x) =>
-        [22, 32, 42].map((y) => {
-          const isCenter = x === 32 && y === 32;
-          return (
-            <circle
-              key={`${x}-${y}`}
-              cx={x}
-              cy={y}
-              r={isCenter ? 3 : 2.4}
-              fill={isCenter ? "oklch(0.86 0.19 148)" : "oklch(0.98 0.005 250)"}
-            />
-          );
-        }),
-      )}
+      <path fill="url(#matrixqa-brand-mark)" d="M12 10h14v26h24v14H26c-7.732 0-14-6.268-14-14V10Z" />
+      <path fill="#f7fbff" fillOpacity=".28" d="M19 17h7v18h17v7H25c-3.314 0-6-2.686-6-6V17Z" />
     </svg>
   );
 }

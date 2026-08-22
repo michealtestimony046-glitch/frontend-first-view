@@ -685,7 +685,7 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
   return (
     <section className="mt-6 surface-card overflow-hidden border border-primary/25">
       <div className="border-b border-border bg-primary/5 px-5 py-4">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Wow Report summary" : "Live test update"}</div>
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Evidence-backed report summary" : "Live test update"}</div>
         <h2 className="mt-2 font-display text-lg font-semibold">{narrative}</h2>
         {!final && <p className="mt-2 text-sm text-muted-foreground">{liveSummary?.currentObjective}</p>}
       </div>
