@@ -77,7 +77,12 @@ function AuthPage() {
     const code = params.get("code");
     const provider = params.get("provider");
     const state = params.get("state");
-    if (code && provider) {
+    const oauthError = params.get("oauth_error");
+    if (oauthError) {
+      window.history.replaceState({}, "", "/auth");
+      setErrorMessage("Social sign-in could not be completed. Please try again.");
+      authApi.oauthProviders().then((available) => { if (active) setOauthProviders(available); }).catch(() => undefined);
+    } else if (code && provider) {
       setOauthLoading(true);
       authApi.handleOAuthCallback(code, provider, state || undefined)
         .then((response) => {
@@ -93,7 +98,10 @@ function AuthPage() {
             navigate({ to: returnTo });
           }
         })
-        .catch((cause) => setErrorMessage(cause instanceof Error ? cause.message : "Social sign-in could not be completed."))
+        .catch((cause) => {
+          window.history.replaceState({}, "", "/auth");
+          setErrorMessage(cause instanceof Error ? cause.message : "Social sign-in could not be completed.");
+        })
         .finally(() => { if (active) setOauthLoading(false); });
     } else {
       authApi.oauthProviders().then((available) => { if (active) setOauthProviders(available); }).catch(() => undefined);
@@ -251,7 +259,7 @@ function AuthPage() {
 
 function OnboardingForm({ step, draft, updateDraft, loading, error, success, onSubmit, onBack, oauthProviders, oauthLoading, onOAuth }: { step: 1 | 2 | 3; draft: OnboardingDraft; updateDraft: <K extends keyof OnboardingDraft>(key: K, value: OnboardingDraft[K]) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onBack: () => void; oauthProviders: { google: boolean; github: boolean }; oauthLoading: boolean; onOAuth: (provider: "google" | "github") => void }) {
   const title = step === 1 ? "Create your account." : step === 2 ? "Shape your workspace." : "Test your first site.";
-  const description = step === 1 ? "Start with the account you will use to review evidence-backed Wow Reports." : step === 2 ? "A little context helps Matrix QA make future guidance feel relevant. It never controls access." : "Tell Matrix QA what to observe first. Email updates are on by default.";
+  const description = step === 1 ? "Start with the account you will use to review evidence-backed reports." : step === 2 ? "A little context helps Matrix QA make future guidance feel relevant. It never controls access." : "Tell Matrix QA what to observe first. Email updates are on by default.";
   return <form onSubmit={onSubmit} className="animate-in fade-in slide-in-from-right-3 duration-200 motion-reduce:animate-none" aria-label={`Onboarding screen ${step} of 3`}>
     <div className="flex items-center justify-between"><span className="font-mono text-xs uppercase tracking-[0.18em] text-primary">Screen {step} of 3</span><span className="font-mono text-[10px] text-muted-foreground">{step === 1 ? "Account" : step === 2 ? "Workspace" : "First test"}</span></div>
     <div className="mt-3 flex gap-1.5" aria-label="Onboarding progress">{[1, 2, 3].map((item) => <span key={item} className={`h-1 flex-1 rounded-full ${item <= step ? "bg-primary" : "bg-surface-2"}`} />)}</div>
