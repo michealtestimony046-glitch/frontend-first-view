@@ -7,7 +7,7 @@ export const Route = createFileRoute("/faq")({
   head: () => ({
     meta: [
       { title: "FAQ · Matrix QA" },
-      { name: "description", content: "Answers about Matrix QA Preview, evidence, usage, and the v1 console." },
+      { name: "description", content: "Answers about Matrix QA Preview, evidence, usage, and the current console." },
     ],
   }),
   component: FaqPage,
@@ -30,7 +30,7 @@ function FaqPage() {
         <div className="text-center">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-primary"><CircleHelp className="h-3 w-3" /> Help center</div>
           <h1 className="mt-5 font-display text-4xl font-semibold tracking-tight md:text-6xl">Questions developers ask first.</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground">A living guide to Matrix QA Preview, the browser worker, evidence reports, usage, and the first console release.</p>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground">A living guide to Matrix QA Preview, the browser worker, evidence reports, usage, and the current console.</p>
         </div>
 
         <div className="mt-12 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface/40">

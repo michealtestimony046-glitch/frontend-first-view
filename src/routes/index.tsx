@@ -73,7 +73,7 @@ function Landing() {
                 <span className="absolute inset-0 animate-ping rounded-full bg-primary/60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
               </span>
-              v1 · Autonomous QA Worker
+              Public Preview · Autonomous QA Worker
             </span>
             <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-gradient sm:text-5xl md:text-7xl">
               Proof your app works.
@@ -108,7 +108,7 @@ function Landing() {
               no card · no install · one URL is enough
             </p>
 
-            {/* Value strip — 4 v1 pillars */}
+            {/* Value strip — four product pillars */}
             <div className="mx-auto mt-10 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 {
@@ -166,9 +166,8 @@ function Landing() {
               One URL in. A full evidence report out.
             </h2>
             <p className="mt-3 text-muted-foreground">
-              v1 proves the foundation: sequential browser automation for auth,
-              signup, navigation, and forms — with every action captured as
-              indisputable evidence.
+              Matrix QA’s core workflow walks auth, signup, navigation, and forms
+              with every action captured as indisputable evidence.
             </p>
           </div>
 
@@ -297,12 +296,12 @@ function Landing() {
             ))}
           </ol>
 
-          {/* What v1 catches */}
+          {/* What Matrix QA catches */}
           <div className="mt-14">
             <div className="mb-4 flex items-center gap-2">
               <Bug className="h-4 w-4 text-primary" />
               <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
-                What v1 catches
+                What Matrix QA catches
               </span>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
@@ -384,7 +383,7 @@ function Landing() {
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
               </span>
               <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
-                Available now · v1
+                Available now
               </span>
             </div>
             <ol className="mt-4 grid gap-4 md:grid-cols-3">
@@ -435,23 +434,23 @@ function Landing() {
             <ol className="mt-4 grid gap-4 md:grid-cols-3">
               {[
                 {
-                  tag: "v2",
+                  tag: "Planned",
                   title: "Application Mapping",
                   body: "Project scanner, journey graph, and safety policy engine.",
                 },
                 {
-                  tag: "v3",
+                  tag: "Planned",
                   title: "Matrix Simulation",
                   body: "Roles × viewports × environments explored in parallel.",
                 },
                 {
-                  tag: "v4+",
+                  tag: "Planned",
                   title: "Repair Packages",
-                  body: "AI-authored fix bundles routed to your coding agent.",
+                  body: "Fix bundles routed to your coding agent.",
                 },
               ].map((s) => (
                 <li
-                  key={s.tag}
+                  key={`${s.title}-${s.tag}`}
                   className="relative rounded-xl border border-border bg-surface/40 p-5"
                 >
                   <div className="flex items-center justify-between">
@@ -479,7 +478,7 @@ function Landing() {
             Ship without shipping bugs.
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-            Join the early developer cohort. v1 is free while we prove the engine.
+            Join the early developer cohort. Matrix QA is free during Preview while we prove the engine.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link

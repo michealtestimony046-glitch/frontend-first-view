@@ -92,7 +92,7 @@ function ReportsPage() {
           )}
         </>
       )}
-      <p className="mt-6 text-[11px] text-muted-foreground"><span className="font-mono uppercase tracking-wider text-primary">v1 —</span> This page now reads live run/report data; export automation remains a later product capability.</p>
+      <p className="mt-6 text-[11px] text-muted-foreground">This page reads live run/report data; export automation remains a later product capability.</p>
     </div>
   );
 }
