@@ -9,8 +9,8 @@ self.addEventListener("push", (event) => {
   const title = typeof payload.title === "string" ? payload.title : "Matrix QA";
   const options = {
     body: typeof payload.body === "string" ? payload.body : "You have a new Matrix QA notification.",
-    icon: "/matrixqa-icon.svg",
-    badge: "/matrixqa-icon.svg",
+    icon: "/matrixqa-favicon.png",
+    badge: "/matrixqa-favicon-192.png",
     tag: typeof payload.type === "string" ? `matrixqa-${payload.type}` : "matrixqa-notification",
     data: { url: typeof payload.url === "string" ? payload.url : "/app/notifications" },
   };
