@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Chrome, Github, Loader2, Mail, ShieldCheck, Term
 import { Logo } from "@/components/logo";
 import { authApi, organizationsApi, projectsApi, workspacesApi, type Project } from "@/lib/api-client";
 import { useMutation } from "@/hooks/use-api";
+import { enrollBrowserPush } from "@/lib/push-notifications";
 
 const PENDING_ONBOARDING_KEY = "matrix_qa_pending_onboarding";
 const FIRST_TEST_READY_KEY = "matrix_qa_first_test_ready";
@@ -196,6 +197,9 @@ function AuthPage() {
     const project: Project = existing.find((item) => item.defaultTargetUrl === onboarding.targetUrl) ?? await projectsApi.create({ organizationId: activeOrganization.id, workspaceId: workspace.id, name: `${desiredOrganizationName} first test`, description: onboarding.focusArea.trim() || undefined, defaultTargetUrl: onboarding.targetUrl });
     localStorage.setItem("matrix_qa_active_project", project.id);
     localStorage.setItem(ONBOARDING_PROFILE_KEY, JSON.stringify({ userId, role: onboarding.role, notifications: onboarding.notifications, focusArea: onboarding.focusArea.trim() }));
+    if (onboarding.notifications === "email_push") {
+      await enrollBrowserPush().catch(() => undefined);
+    }
     localStorage.setItem(FIRST_TEST_READY_KEY, JSON.stringify({ projectId: project.id, targetUrl: onboarding.targetUrl, missionGoal: onboarding.focusArea.trim() || "Test this website thoroughly.", autoStart: true, targetAuthorizationConfirmed: onboarding.ownershipConfirmed }));
   };
 
