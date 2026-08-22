@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Component, type ErrorInfo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BrainCircuit,
@@ -37,6 +37,57 @@ import {
   type V2TestPlan,
 } from "@/lib/api-client";
 import { videoEvidenceEnabled } from "@/lib/feature-flags";
+import { reportLovableError } from "@/lib/lovable-error-reporting";
+
+function normalizeRunMessages(value: unknown): RunMessage[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const row = item as Record<string, unknown>;
+    const authorType = row.authorType === "USER" || row.authorType === "AGENT" || row.authorType === "SYSTEM" ? row.authorType : "SYSTEM";
+    const kind = row.kind === "CONTROL" || row.kind === "APPROVAL" || row.kind === "STATUS" || row.kind === "SUMMARY" || row.kind === "MESSAGE" ? row.kind : "MESSAGE";
+    return [{
+      id: typeof row.id === "string" && row.id ? row.id : `message-${index}`,
+      runId: typeof row.runId === "string" ? row.runId : "",
+      authorId: typeof row.authorId === "string" ? row.authorId : null,
+      authorType,
+      kind,
+      action: typeof row.action === "string" ? row.action : null,
+      body: typeof row.body === "string" ? row.body : String(row.body ?? ""),
+      metadata: row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? row.metadata as Record<string, unknown> : null,
+      idempotencyKey: typeof row.idempotencyKey === "string" ? row.idempotencyKey : null,
+      createdAt: typeof row.createdAt === "string" ? row.createdAt : new Date(0).toISOString(),
+      expiresAt: typeof row.expiresAt === "string" ? row.expiresAt : null,
+    } satisfies RunMessage];
+  });
+}
+
+class RunDetailErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    reportLovableError(error, { boundary: "run_detail_local_error_boundary", componentStack: info.componentStack });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="mx-auto max-w-7xl px-4 py-16 md:px-8">
+          <div className="surface-card border border-warning/30 bg-warning/5 p-6">
+            <div className="flex items-center gap-2 text-warning"><XCircle className="h-5 w-5" /><h2 className="font-display font-semibold">This run detail needs a refresh</h2></div>
+            <p className="mt-2 text-sm text-muted-foreground">The run evidence is still preserved. Refresh this section to try rendering the current report again.</p>
+            <button type="button" onClick={() => this.setState({ hasError: false })} className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"><RefreshCw className="h-4 w-4" />Retry run details</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export const Route = createFileRoute("/app/runs/$runId")({
   head: ({ params }) => ({
@@ -69,12 +120,13 @@ function reportSummary(r: RunReport) {
     bugCount: 0,
   };
   if (r.v2Plan) {
-    const outcomes = r.v2Plan.scenarios.map((scenario) => scenario.caseStatus ?? scenario.status);
+    const scenarios = Array.isArray(r.v2Plan.scenarios) ? r.v2Plan.scenarios : [];
+    const outcomes = scenarios.map((scenario) => scenario.caseStatus ?? scenario.status);
     return {
       passed: outcomes.filter((status) => status === "PASSED").length,
       failed: outcomes.filter((status) => status === "FAILED" || status === "BLOCKED").length,
       bugs: r.bugs ?? s.bugCount,
-      scenarios: r.v2Plan.scenarios.length,
+      scenarios: scenarios.length,
     };
   }
   return {
@@ -187,7 +239,8 @@ function RunDetailPage() {
   };
 
   return (
-    <div>
+    <RunDetailErrorBoundary>
+      <div>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
         <Link
           to="/app"
@@ -337,7 +390,8 @@ function RunDetailPage() {
           {tab === "scenarios" && <AssertionsTab report={report} />}
         </div>
       </div>
-    </div>
+      </div>
+    </RunDetailErrorBoundary>
   );
 }
 
@@ -626,6 +680,8 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
   const narrative = final
     ? ("summary" in summary && typeof summary.summary === "string" && summary.summary.trim() ? summary.summary : summary.headline)
     : ("message" in summary && typeof summary.message === "string" && summary.message.trim() ? summary.message : summary.headline);
+  const blockers = formatAiList(summary.blockers);
+  const findings = finalSummary && Array.isArray(finalSummary.findings) ? finalSummary.findings : [];
   return (
     <section className="mt-6 surface-card overflow-hidden border border-primary/25">
       <div className="border-b border-border bg-primary/5 px-5 py-4">
@@ -641,10 +697,10 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "Coverage" : "Next step"}</h3>
           <p className="mt-3 text-sm leading-6 text-foreground/85">{final ? formatAiValue(finalSummary?.coverage) || "Coverage summary unavailable." : liveSummary?.nextStep}</p>
-          {summary.blockers.length > 0 && <div className="mt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-warning">Blockers</h4><ul className="mt-2 space-y-1 text-xs text-muted-foreground">{summary.blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+          {blockers.length > 0 && <div className="mt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-warning">Blockers</h4><ul className="mt-2 space-y-1 text-xs text-muted-foreground">{blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
         </div>
       </div>
-      {finalSummary && finalSummary.findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Findings</h3><div className="mt-3 divide-y divide-border">{finalSummary.findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced"}</p></div>)}</div></div>}
+      {findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Findings</h3><div className="mt-3 divide-y divide-border">{findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {Array.isArray(finding.evidence) ? finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced" : "none referenced"}</p></div>)}</div></div>}
       <div className="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground">Evidence-backed test narrative · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
     </section>
   );
@@ -881,7 +937,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
 
   const loadMessages = async () => {
     try {
-      const next = await runsApi.listMessages(projectId, runId);
+      const next = normalizeRunMessages(await runsApi.listMessages(projectId, runId));
       setMessages(next);
       setExpired(successful && pastRetention && next.length === 0);
       setError(null);
@@ -916,8 +972,8 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
     setSending(true);
     setError(null);
     try {
-      const created = await runsApi.addMessage(projectId, runId, body);
-      setMessages((current) => [...current.filter((message) => message.id !== created.id), created]);
+      const created = normalizeRunMessages([await runsApi.addMessage(projectId, runId, body)])[0];
+      if (created) setMessages((current) => [...current.filter((message) => message.id !== created.id), created]);
       setDraft("");
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unable to send your message.";
@@ -948,7 +1004,8 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
     setError(null);
     try {
       const result = await runsApi.control(projectId, runId, action, undefined, metadata);
-      if (result.message) setMessages((current) => [...current.filter((message) => message.id !== result.message?.id), result.message!]);
+      const controlMessage = result.message ? normalizeRunMessages([result.message])[0] : null;
+      if (controlMessage) setMessages((current) => [...current.filter((message) => message.id !== controlMessage.id), controlMessage]);
     } catch (e) {
       setError(e instanceof Error ? e.message : `Unable to request ${action.toLowerCase()}.`);
     } finally {

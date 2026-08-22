@@ -457,6 +457,7 @@ export interface BrowserHandoff {
   completedAt?: string | null;
   cancelledAt?: string | null;
   hasCredentials?: boolean;
+  targetHost?: string | null;
 }
 
 export interface AiSummaryEvidenceRef {
