@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Eye, Loader2, Play, Radar, RefreshCw, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
 import {
   v2Api,
@@ -18,6 +18,9 @@ type Phase = "idle" | "scanning" | "planning" | "ready" | "starting";
 type Props = {
   project: Project;
   initialTargetUrl?: string;
+  initialMissionGoal?: string;
+  autoStart?: boolean;
+  initialTargetAuthorizationConfirmed?: boolean;
   onClose: () => void;
   onStarted: (response: TriggerRunResponse & { planId?: string }) => void;
 };
@@ -30,9 +33,9 @@ function normalizeTargetUrl(value: string) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
-export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }: Props) {
+export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, autoStart = false, initialTargetAuthorizationConfirmed = false, onClose, onStarted }: Props) {
   const [targetUrl, setTargetUrl] = useState(() => normalizeTargetUrl(initialTargetUrl || project.defaultTargetUrl || project.targetUrl || ""));
-  const [missionGoal, setMissionGoal] = useState("Test this website thoroughly.");
+  const [missionGoal, setMissionGoal] = useState(initialMissionGoal?.trim() || "Test this website thoroughly.");
   const [accessMode] = useState<V2MissionAccessMode>("ANONYMOUS");
   const [environments, setEnvironments] = useState<V2Environment[]>([]);
   const [environmentId, setEnvironmentId] = useState("");
@@ -40,8 +43,9 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
   const [planName, setPlanName] = useState("Fresh adaptive smoke plan");
   const [enableVision, setEnableVision] = useState(false);
   const [enableRecovery, setEnableRecovery] = useState(false);
-  const [targetAuthorizationConfirmed, setTargetAuthorizationConfirmed] = useState(false);
+  const [targetAuthorizationConfirmed, setTargetAuthorizationConfirmed] = useState(Boolean(initialTargetAuthorizationConfirmed));
   const [phase, setPhase] = useState<Phase>("idle");
+  const autoStarted = useRef(false);
   const [scan, setScan] = useState<V2ApplicationScan | null>(null);
   const [plan, setPlan] = useState<V2TestPlan | null>(null);
   const [capacityStatus, setCapacityStatus] = useState<ProviderCapacityDecision | null>(null);
@@ -64,8 +68,8 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
   const readyToStart = Boolean(plan && plan.status !== "FAILED" && plan.scenarios.length > 0 && blockedPolicies.length === 0 && targetAuthorizationConfirmed);
   const waitingForProvider = capacityStatus?.status === "WAITING" && Boolean(queuedResponse);
 
-  const prepare = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const prepare = async (event?: React.FormEvent) => {
+    event?.preventDefault();
     const normalizedTargetUrl = normalizeTargetUrl(targetUrl);
     if (!normalizedTargetUrl && !environmentId) {
       setError("Enter a target URL or choose an environment before starting fresh discovery.");
@@ -99,25 +103,33 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
         accessMode,
       });
       setPlan(createdPlan);
-      setPhase("ready");
+      const blocked = createdPlan.policyDecisions.some((decision) => decision.status !== "ALLOWED" && decision.status !== "APPROVED");
+      if (autoStart && createdPlan.scenarios.length > 0 && !blocked) {
+        await start(createdPlan);
+      } else {
+        setPhase("ready");
+      }
     } catch (cause) {
       setPhase("idle");
       setError(cause instanceof Error ? cause.message : "Unable to prepare the browser test.");
     }
   };
 
-  const start = async () => {
-    if (!plan || !readyToStart) return;
+  const start = async (planOverride?: V2TestPlan) => {
+    const candidate = planOverride ?? plan;
+    const blocked = candidate?.policyDecisions.some((decision) => decision.status !== "ALLOWED" && decision.status !== "APPROVED") ?? true;
+    if (!candidate || candidate.status === "FAILED" || candidate.scenarios.length === 0 || blocked || !targetAuthorizationConfirmed) return;
     setError(null);
     setPhase("starting");
     try {
-      const approved = plan.status === "APPROVED" ? plan : await v2Api.approvePlan(plan.id);
+      const approved = candidate.status === "APPROVED" ? candidate : await v2Api.approvePlan(candidate.id);
       const response = await v2Api.runPlan(approved.id, { targetUrl: normalizeTargetUrl(targetUrl) || undefined, accessMode, enableVision, enableRecovery, targetAuthorizationConfirmed });
       const providerCapacity = response.metadata?.providerCapacity;
       if (providerCapacity?.status === "WAITING") {
         setCapacityStatus(providerCapacity);
         setQueuedResponse(response);
         setPhase("ready");
+        if (autoStart) onStarted(response);
         return;
       }
       onStarted(response);
@@ -127,12 +139,18 @@ export function V2RunPreflight({ project, initialTargetUrl, onClose, onStarted }
     }
   };
 
+  useEffect(() => {
+    if (!autoStart || autoStarted.current) return;
+    autoStarted.current = true;
+    void prepare();
+  }, [autoStart]);
+
   const busy = phase === "scanning" || phase === "planning" || phase === "starting";
 
-  return <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/70 p-4 backdrop-blur-sm sm:items-center">
+  return <div role="dialog" aria-modal="true" aria-labelledby="matrixqa-preflight-title" className="fixed inset-0 z-50 flex items-end justify-center bg-background/70 p-4 backdrop-blur-sm sm:items-center">
     <div className="surface-card max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto sm:max-h-[calc(100vh-3rem)]">
       <header className="flex items-start justify-between gap-4 border-b border-border p-5">
-        <div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/15 text-primary"><Radar className="h-5 w-5" /></span><div><h2 className="font-display text-lg font-semibold">Prepare a browser test</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Every run maps the current product and creates a fresh plan before browser execution. Capacity and usage are managed automatically.</p></div></div>
+        <div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/15 text-primary"><Radar className="h-5 w-5" /></span><div><h2 id="matrixqa-preflight-title" className="font-display text-lg font-semibold">Prepare a browser test</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Every run maps the current product and creates a fresh plan before browser execution. Capacity and usage are managed automatically.</p></div></div>
         <button type="button" onClick={onClose} disabled={busy} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-40" aria-label="Close"><XCircle className="h-4 w-4" /></button>
       </header>
       <form onSubmit={(event) => { void prepare(event); }} className="space-y-4 p-5">

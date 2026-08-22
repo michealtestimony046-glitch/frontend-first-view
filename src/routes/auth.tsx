@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { z } from "zod";
-import { ArrowLeft, ArrowRight, Github, Loader2, Mail, ShieldCheck, Terminal, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Chrome, Github, Loader2, Mail, ShieldCheck, Terminal, CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { authApi, organizationsApi, projectsApi, workspacesApi, type Project } from "@/lib/api-client";
 import { useMutation } from "@/hooks/use-api";
@@ -59,22 +59,53 @@ function AuthPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [recoveryMode, setRecoveryMode] = useState(search.recover);
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthProviders, setOauthProviders] = useState({ google: false, github: false });
+  const [oauthUserId, setOauthUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const returnTo = search.returnTo === "/admin" ? "/admin" : "/app";
 
   const [loginMutate, loginState] = useMutation(authApi.login);
   const [signupMutate, signupState] = useMutation(authApi.signup);
   const [verifyMutate, verifyState] = useMutation(authApi.verifyEmail);
-  const isLoading = loginState.loading || signupState.loading || verifyState.loading;
+  const isLoading = loginState.loading || signupState.loading || verifyState.loading || oauthLoading;
 
   useEffect(() => {
+    let active = true;
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const provider = params.get("provider");
+    const state = params.get("state");
     if (code && provider) {
-      setErrorMessage(`${provider} sign-in is not available in this alpha yet. Use email and password instead.`);
+      setOauthLoading(true);
+      authApi.handleOAuthCallback(code, provider, state || undefined)
+        .then((response) => {
+          const oauthIntent = typeof window !== "undefined" ? window.sessionStorage.getItem("matrix_qa_oauth_intent") || selectedMode : selectedMode;
+          window.sessionStorage.removeItem("matrix_qa_oauth_intent");
+          window.history.replaceState({}, "", "/auth");
+          if (oauthIntent === "signup" && !adminSignInOnly) {
+            setOauthUserId(response.user.id);
+            setDraft((current) => ({ ...current, email: response.user.email, fullName: response.user.fullName || current.fullName }));
+            setOnboardingStep(2);
+            setSuccessMessage("Signed in. Finish the short workspace and first-test setup.");
+          } else {
+            navigate({ to: returnTo });
+          }
+        })
+        .catch((cause) => setErrorMessage(cause instanceof Error ? cause.message : "Social sign-in could not be completed."))
+        .finally(() => { if (active) setOauthLoading(false); });
+    } else {
+      authApi.oauthProviders().then((available) => { if (active) setOauthProviders(available); }).catch(() => undefined);
     }
-  }, []);
+    return () => { active = false; };
+  }, [navigate, returnTo]);
+
+  const startOAuth = (provider: "google" | "github") => {
+    setOauthLoading(true);
+    window.sessionStorage.setItem("matrix_qa_oauth_intent", mode);
+    if (provider === "google") authApi.loginWithGoogle();
+    else authApi.loginWithGithub();
+  };
 
   const updateDraft = <K extends keyof OnboardingDraft>(key: K, value: OnboardingDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -132,6 +163,13 @@ function AuthPage() {
     const cleanDraft = { ...draft, email: draft.email.trim().toLowerCase(), fullName: draft.fullName.trim(), workspaceName: draft.workspaceName.trim(), targetUrl: normalizeTargetUrl(draft.targetUrl), focusArea: draft.focusArea.trim() };
     try {
       localStorage.setItem(PENDING_ONBOARDING_KEY, JSON.stringify(cleanDraft));
+      if (oauthUserId) {
+        await provisionFirstTest(cleanDraft, oauthUserId);
+        localStorage.removeItem(PENDING_ONBOARDING_KEY);
+        setSuccessMessage("Your first test is being prepared now.");
+        window.setTimeout(() => navigate({ to: "/app" }), 450);
+        return;
+      }
       const response = await signupMutate({ email: cleanDraft.email, password: cleanDraft.password, fullName: cleanDraft.fullName, workspaceName: cleanDraft.workspaceName });
       setVerificationEmail(response.email || cleanDraft.email);
       setVerificationCode("");
@@ -146,15 +184,19 @@ function AuthPage() {
     const organizations = await organizationsApi.list();
     const organization = organizations[0];
     if (!organization) throw new Error("Your account is verified, but the organization could not be loaded yet. Please open the console and try again.");
-    localStorage.setItem("matrix_qa_active_organization", organization.id);
-    const workspaces = await workspacesApi.list(organization.id);
-    const workspace = workspaces[0] ?? await workspacesApi.create({ organizationId: organization.id, name: onboarding.workspaceName.trim() });
+    const desiredOrganizationName = onboarding.workspaceName.trim();
+    const activeOrganization = desiredOrganizationName && organization.name !== desiredOrganizationName
+      ? await organizationsApi.rename(organization.id, desiredOrganizationName)
+      : organization;
+    localStorage.setItem("matrix_qa_active_organization", activeOrganization.id);
+    const workspaces = await workspacesApi.list(activeOrganization.id);
+    const workspace = workspaces[0] ?? await workspacesApi.create({ organizationId: activeOrganization.id, name: desiredOrganizationName });
     localStorage.setItem("matrix_qa_active_workspace", workspace.id);
-    const existing = await projectsApi.list(organization.id, workspace.id);
-    const project: Project = existing.find((item) => item.defaultTargetUrl === onboarding.targetUrl) ?? await projectsApi.create({ organizationId: organization.id, workspaceId: workspace.id, name: `${onboarding.workspaceName.trim()} first test`, description: onboarding.focusArea.trim() || undefined, defaultTargetUrl: onboarding.targetUrl });
+    const existing = await projectsApi.list(activeOrganization.id, workspace.id);
+    const project: Project = existing.find((item) => item.defaultTargetUrl === onboarding.targetUrl) ?? await projectsApi.create({ organizationId: activeOrganization.id, workspaceId: workspace.id, name: `${desiredOrganizationName} first test`, description: onboarding.focusArea.trim() || undefined, defaultTargetUrl: onboarding.targetUrl });
     localStorage.setItem("matrix_qa_active_project", project.id);
     localStorage.setItem(ONBOARDING_PROFILE_KEY, JSON.stringify({ userId, role: onboarding.role, notifications: onboarding.notifications, focusArea: onboarding.focusArea.trim() }));
-    localStorage.setItem(FIRST_TEST_READY_KEY, JSON.stringify({ projectId: project.id, targetUrl: onboarding.targetUrl }));
+    localStorage.setItem(FIRST_TEST_READY_KEY, JSON.stringify({ projectId: project.id, targetUrl: onboarding.targetUrl, missionGoal: onboarding.focusArea.trim() || "Test this website thoroughly.", autoStart: true, targetAuthorizationConfirmed: onboarding.ownershipConfirmed }));
   };
 
   const handleVerify = async (event: FormEvent) => {
@@ -174,7 +216,7 @@ function AuthPage() {
       try {
         await provisionFirstTest(pending, response.user.id);
         localStorage.removeItem(PENDING_ONBOARDING_KEY);
-        setSuccessMessage("Email verified. Your first test is ready to prepare.");
+        setSuccessMessage("Email verified. Your first test is being prepared now.");
         window.setTimeout(() => navigate({ to: "/app" }), 450);
       } catch (cause) {
         setSuccessMessage("Email verified. Your console is ready; finish the first-test setup there.");
@@ -194,7 +236,7 @@ function AuthPage() {
     <div className="flex flex-col justify-between p-6 sm:p-8 md:p-12">
       <Logo />
       <div className="mx-auto w-full max-w-md">
-        {!verificationStep ? recoveryMode ? <RecoveryForm email={draft.email} setEmail={(value) => updateDraft("email", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleRequestReset} onBack={() => { setRecoveryMode(false); setErrorMessage(""); setSuccessMessage(""); }} /> : mode === "signin" ? <SignInForm adminSignInOnly={adminSignInOnly} email={draft.email} password={draft.password} setEmail={(value) => updateDraft("email", value)} setPassword={(value) => updateDraft("password", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleSignIn} onRecovery={() => { setRecoveryMode(true); setErrorMessage(""); setSuccessMessage(""); }} /> : <OnboardingForm key={`onboarding-${onboardingStep}`} step={onboardingStep} draft={draft} updateDraft={updateDraft} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={continueOnboarding} onBack={() => { setErrorMessage(""); setOnboardingStep((current) => current > 1 ? (current - 1) as 1 | 2 | 3 : 1); }} /> : <VerificationPanel email={verificationEmail} code={verificationCode} loading={isLoading} error={errorMessage} success={successMessage} onCodeChange={handleCodeChange} onSubmit={handleVerify} onBack={backToSignup} />}
+        {!verificationStep ? recoveryMode ? <RecoveryForm email={draft.email} setEmail={(value) => updateDraft("email", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleRequestReset} onBack={() => { setRecoveryMode(false); setErrorMessage(""); setSuccessMessage(""); }} /> : mode === "signin" ? <SignInForm adminSignInOnly={adminSignInOnly} email={draft.email} password={draft.password} setEmail={(value) => updateDraft("email", value)} setPassword={(value) => updateDraft("password", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleSignIn} onRecovery={() => { setRecoveryMode(true); setErrorMessage(""); setSuccessMessage(""); }} oauthProviders={oauthProviders} oauthLoading={oauthLoading} onOAuth={startOAuth} /> : <OnboardingForm key={`onboarding-${onboardingStep}`} step={onboardingStep} draft={draft} updateDraft={updateDraft} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={continueOnboarding} onBack={() => { setErrorMessage(""); setOnboardingStep((current) => current > 1 ? (current - 1) as 1 | 2 | 3 : 1); }} oauthProviders={oauthProviders} oauthLoading={oauthLoading} onOAuth={startOAuth} /> : <VerificationPanel email={verificationEmail} code={verificationCode} loading={isLoading} error={errorMessage} success={successMessage} onCodeChange={handleCodeChange} onSubmit={handleVerify} onBack={backToSignup} />}
         {!verificationStep && !recoveryMode && !adminSignInOnly && <p className="mt-7 text-center text-sm text-muted-foreground">{mode === "signin" ? "New to Matrix QA?" : "Already have an account?"}{" "}<button type="button" onClick={switchMode} className="text-primary hover:underline">{mode === "signin" ? "Create an account" : "Sign in"}</button></p>}
       </div>
       <p className="font-mono text-[11px] text-muted-foreground"><Link to="/" className="hover:text-foreground">← back to matrixqa.dev</Link></p>
@@ -203,7 +245,7 @@ function AuthPage() {
   </div>;
 }
 
-function OnboardingForm({ step, draft, updateDraft, loading, error, success, onSubmit, onBack }: { step: 1 | 2 | 3; draft: OnboardingDraft; updateDraft: <K extends keyof OnboardingDraft>(key: K, value: OnboardingDraft[K]) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onBack: () => void }) {
+function OnboardingForm({ step, draft, updateDraft, loading, error, success, onSubmit, onBack, oauthProviders, oauthLoading, onOAuth }: { step: 1 | 2 | 3; draft: OnboardingDraft; updateDraft: <K extends keyof OnboardingDraft>(key: K, value: OnboardingDraft[K]) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onBack: () => void; oauthProviders: { google: boolean; github: boolean }; oauthLoading: boolean; onOAuth: (provider: "google" | "github") => void }) {
   const title = step === 1 ? "Create your account." : step === 2 ? "Shape your workspace." : "Test your first site.";
   const description = step === 1 ? "Start with the account you will use to review evidence-backed Wow Reports." : step === 2 ? "A little context helps Matrix QA make future guidance feel relevant. It never controls access." : "Tell Matrix QA what to observe first. Email updates are on by default.";
   return <form onSubmit={onSubmit} className="animate-in fade-in slide-in-from-right-3 duration-200 motion-reduce:animate-none" aria-label={`Onboarding screen ${step} of 3`}>
@@ -212,7 +254,7 @@ function OnboardingForm({ step, draft, updateDraft, loading, error, success, onS
     <h1 className="mt-7 font-display text-3xl font-semibold text-gradient">{title}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
     {error && <div className="mt-5"><ErrorNotice>{error}</ErrorNotice></div>}{success && <div className="mt-5"><SuccessNotice>{success}</SuccessNotice></div>}
     <div className="mt-6 space-y-4">
-      {step === 1 && <><Field label="Your name" type="text" placeholder="Jane Cooper" autoComplete="name" value={draft.fullName} onChange={(event) => updateDraft("fullName", event.target.value)} disabled={loading} /><Field label="Work email" type="email" placeholder="jane@company.com" icon={<Mail className="h-4 w-4" />} autoComplete="email" value={draft.email} onChange={(event) => updateDraft("email", event.target.value)} disabled={loading} /><Field label="Password" type="password" placeholder="At least 8 characters" autoComplete="new-password" value={draft.password} onChange={(event) => updateDraft("password", event.target.value)} disabled={loading} /><div className="rounded-lg border border-border/70 bg-surface-2/30 px-3 py-2.5 text-xs leading-5 text-muted-foreground"><strong className="text-foreground">Email verification comes next.</strong> We’ll use it to activate your account before the first test is prepared.</div></>}
+      {step === 1 && <><div className="grid gap-2 sm:grid-cols-2">{oauthProviders.google && <button type="button" onClick={() => onOAuth("google")} disabled={loading || oauthLoading} className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface-2/50 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"><Chrome className="h-4 w-4" />Continue with Google</button>}{oauthProviders.github && <button type="button" onClick={() => onOAuth("github")} disabled={loading || oauthLoading} className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface-2/50 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"><Github className="h-4 w-4" />Continue with GitHub</button>}</div>{(oauthProviders.google || oauthProviders.github) && <div className="relative py-1 text-center text-[11px] text-muted-foreground"><span className="bg-background px-2">or use email</span></div>}<Field label="Your name" type="text" placeholder="Jane Cooper" autoComplete="name" value={draft.fullName} onChange={(event) => updateDraft("fullName", event.target.value)} disabled={loading} /><Field label="Work email" type="email" placeholder="jane@company.com" icon={<Mail className="h-4 w-4" />} autoComplete="email" value={draft.email} onChange={(event) => updateDraft("email", event.target.value)} disabled={loading} /><Field label="Password" type="password" placeholder="At least 8 characters" autoComplete="new-password" value={draft.password} onChange={(event) => updateDraft("password", event.target.value)} disabled={loading} /><div className="rounded-lg border border-border/70 bg-surface-2/30 px-3 py-2.5 text-xs leading-5 text-muted-foreground"><strong className="text-foreground">Email verification comes next.</strong> We’ll use it to activate your account before the first test is prepared.</div></>}
       {step === 2 && <><Field label="What should we call your workspace?" type="text" placeholder="Acme QA" autoComplete="organization" value={draft.workspaceName} onChange={(event) => updateDraft("workspaceName", event.target.value)} disabled={loading} /><fieldset><legend className="mb-2 text-xs font-medium text-foreground">What best describes you?</legend><div className="grid gap-2">{ROLE_OPTIONS.map((option) => <label key={option} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors ${draft.role === option ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-surface-2/30 text-muted-foreground hover:bg-accent/50"}`}><input type="radio" name="role" value={option} checked={draft.role === option} onChange={() => updateDraft("role", option)} className="accent-primary" />{option}</label>)}</div></fieldset></>}
       {step === 3 && <><Field label="What’s the first thing you want tested?" type="url" placeholder="https://staging.your-app.com" autoComplete="url" value={draft.targetUrl} onChange={(event) => updateDraft("targetUrl", event.target.value)} disabled={loading} /><label className="flex cursor-pointer items-start gap-3 rounded-lg border border-primary/25 bg-primary/5 px-3 py-3 text-sm"><input type="checkbox" checked={draft.ownershipConfirmed} onChange={(event) => updateDraft("ownershipConfirmed", event.target.checked)} disabled={loading} className="mt-0.5 accent-primary" /><span><span className="font-medium text-foreground">I own this website, or I have permission to test it.</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">This confirmation is required before Matrix QA prepares a test.</span></span></label><label className="block"><span className="mb-1.5 block text-xs font-medium text-foreground">Anything specific you’re worried about? <span className="font-normal text-muted-foreground">(optional)</span></span><textarea value={draft.focusArea} onChange={(event) => updateDraft("focusArea", event.target.value)} disabled={loading} maxLength={2_000} rows={3} placeholder="e.g. Check the sign-up flow and mobile layout" className="w-full resize-none rounded-lg border border-border bg-surface-2/60 px-3 py-2.5 text-sm leading-5 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15" /></label><fieldset><legend className="mb-2 text-xs font-medium text-foreground">Test updates</legend><div className="grid gap-2 sm:grid-cols-2"><label className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-xs ${draft.notifications === "email" ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-surface-2/30 text-muted-foreground"}`}><input type="radio" name="notifications" checked={draft.notifications === "email"} onChange={() => updateDraft("notifications", "email")} className="accent-primary" />Email only</label><label className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-xs ${draft.notifications === "email_push" ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-surface-2/30 text-muted-foreground"}`}><input type="radio" name="notifications" checked={draft.notifications === "email_push"} onChange={() => updateDraft("notifications", "email_push")} className="accent-primary" />Email + push</label></div><p className="mt-1.5 text-[11px] text-muted-foreground">Email is on by default. Push can be added when device permissions are available.</p></fieldset></>}
     </div>
@@ -220,8 +262,8 @@ function OnboardingForm({ step, draft, updateDraft, loading, error, success, onS
   </form>;
 }
 
-function SignInForm({ adminSignInOnly, email, password, setEmail, setPassword, loading, error, success, onSubmit, onRecovery }: { adminSignInOnly: boolean; email: string; password: string; setEmail: (value: string) => void; setPassword: (value: string) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onRecovery: () => void }) {
-  return <form onSubmit={onSubmit} className="animate-in fade-in duration-200 motion-reduce:animate-none"><span className="font-mono text-xs uppercase tracking-widest text-primary">{adminSignInOnly ? "Matrix QA staff" : "Welcome back"}</span><h1 className="mt-2 font-display text-3xl font-semibold text-gradient">{adminSignInOnly ? "Sign in to staff operations." : "Return to the console."}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{adminSignInOnly ? "Use an existing staff-enabled Matrix QA account. Customer accounts cannot grant themselves staff access." : "Sign in to see your latest runs, evidence, and reports."}</p>{error && <div className="mt-5"><ErrorNotice>{error}</ErrorNotice></div>}{success && <div className="mt-5"><SuccessNotice>{success}</SuccessNotice></div>}<div className="mt-6 space-y-4"><Field label="Work email" type="email" placeholder="jane@company.com" icon={<Mail className="h-4 w-4" />} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={loading} /><Field label="Password" type="password" placeholder="••••••••" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={loading} /></div><button type="submit" disabled={loading || !email || !password} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}Sign in{!loading && <ArrowRight className="h-4 w-4" />}</button>{!adminSignInOnly && <button type="button" onClick={onRecovery} className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-primary">Forgot your password?</button>}</form>;
+function SignInForm({ adminSignInOnly, email, password, setEmail, setPassword, loading, error, success, onSubmit, onRecovery, oauthProviders, oauthLoading, onOAuth }: { adminSignInOnly: boolean; email: string; password: string; setEmail: (value: string) => void; setPassword: (value: string) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onRecovery: () => void; oauthProviders: { google: boolean; github: boolean }; oauthLoading: boolean; onOAuth: (provider: "google" | "github") => void }) {
+  return <form onSubmit={onSubmit} className="animate-in fade-in duration-200 motion-reduce:animate-none"><span className="font-mono text-xs uppercase tracking-widest text-primary">{adminSignInOnly ? "Matrix QA staff" : "Welcome back"}</span><h1 className="mt-2 font-display text-3xl font-semibold text-gradient">{adminSignInOnly ? "Sign in to staff operations." : "Return to the console."}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{adminSignInOnly ? "Use an existing staff-enabled Matrix QA account. Customer accounts cannot grant themselves staff access." : "Sign in to see your latest runs, evidence, and reports."}</p>{error && <div className="mt-5"><ErrorNotice>{error}</ErrorNotice></div>}{success && <div className="mt-5"><SuccessNotice>{success}</SuccessNotice></div>}{!adminSignInOnly && (oauthProviders.google || oauthProviders.github) && <><div className="mt-6 grid gap-2 sm:grid-cols-2">{oauthProviders.google && <button type="button" onClick={() => onOAuth("google")} disabled={loading || oauthLoading} className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface-2/50 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"><Chrome className="h-4 w-4" />Google</button>}{oauthProviders.github && <button type="button" onClick={() => onOAuth("github")} disabled={loading || oauthLoading} className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface-2/50 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"><Github className="h-4 w-4" />GitHub</button>}</div><div className="relative py-1 text-center text-[11px] text-muted-foreground"><span className="bg-background px-2">or use email</span></div></>}<div className="mt-6 space-y-4"><Field label="Work email" type="email" placeholder="jane@company.com" icon={<Mail className="h-4 w-4" />} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={loading} /><Field label="Password" type="password" placeholder="••••••••" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={loading} /></div><button type="submit" disabled={loading || !email || !password} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}Sign in{!loading && <ArrowRight className="h-4 w-4" />}</button>{!adminSignInOnly && <button type="button" onClick={onRecovery} className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-primary">Forgot your password?</button>}</form>;
 }
 
 function RecoveryForm({ email, setEmail, loading, error, success, onSubmit, onBack }: { email: string; setEmail: (value: string) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onBack: () => void }) { return <form onSubmit={onSubmit} className="animate-in fade-in duration-200 motion-reduce:animate-none"><span className="font-mono text-xs uppercase tracking-widest text-primary">Account recovery</span><h1 className="mt-2 font-display text-3xl font-semibold text-gradient">Reset your password.</h1><p className="mt-2 text-sm text-muted-foreground">Enter your work email and we will send a single-use reset link.</p>{error && <div className="mt-5"><ErrorNotice>{error}</ErrorNotice></div>}{success && <div className="mt-5"><SuccessNotice>{success}</SuccessNotice></div>}<Field label="Work email" type="email" placeholder="jane@company.com" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={loading} /><button type="submit" disabled={loading || !email} className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}Send reset link <ArrowRight className="h-4 w-4" /></button><button type="button" onClick={onBack} className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground">Back to sign in</button></form>; }

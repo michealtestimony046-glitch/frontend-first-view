@@ -592,15 +592,19 @@ export const authApi = {
     apiRequest<{ message: string }>("/auth/request-email-change", { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
   confirmEmailChange: (token: string) =>
     apiRequest<{ message: string }>("/auth/confirm-email-change", { method: "POST", body: JSON.stringify({ token }) }),
+  oauthProviders: (): Promise<{ google: boolean; github: boolean }> =>
+    apiRequest("/auth/providers"),
   loginWithGithub: (): void => {
     window.location.href = `${API_BASE_URL}/auth/github`;
   },
   loginWithGoogle: (): void => {
     window.location.href = `${API_BASE_URL}/auth/google`;
   },
-  handleOAuthCallback: async (code: string, provider: string): Promise<AuthResponse> => {
+  handleOAuthCallback: async (code: string, provider: string, state?: string): Promise<AuthResponse> => {
+    const params = new URLSearchParams({ code, provider });
+    if (state) params.set("state", state);
     const response = await apiRequest<AuthResponse>(
-      `/auth/oauth/callback?code=${encodeURIComponent(code)}&provider=${encodeURIComponent(provider)}`,
+      `/auth/oauth/callback?${params.toString()}`,
     );
     if (response.accessToken) setAuthToken(response.accessToken);
     return response;
