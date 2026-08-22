@@ -707,10 +707,15 @@ export interface GuidanceResponse {
   available: boolean;
 }
 
+const normalizeGuidanceMessage = (item: GuidanceMessage): GuidanceMessage => ({
+  role: item.role,
+  content: item.content.trim().slice(0, 2_000),
+});
+
 export const guidanceApi = {
   chat: (message: string, history: GuidanceMessage[] = []): Promise<GuidanceResponse> => apiRequest('/guidance/chat', {
     method: 'POST',
-    body: JSON.stringify({ message, history: history.slice(-8) }),
+    body: JSON.stringify({ message: message.trim().slice(0, 2_000), history: history.slice(-8).map(normalizeGuidanceMessage) }),
     requiresAuth: true,
   }),
 };
