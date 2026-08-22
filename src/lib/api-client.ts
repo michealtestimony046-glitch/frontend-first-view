@@ -41,7 +41,10 @@ export const clearAuthToken = (): void => {
 
 interface RequestOptions extends RequestInit {
   requiresAuth?: boolean;
+  timeoutMs?: number;
 }
+
+const DEFAULT_API_TIMEOUT_MS = 30_000;
 
 export class ApiRequestError extends Error {
   constructor(message: string, public readonly status: number, public readonly endpoint: string) {
@@ -68,9 +71,16 @@ export const apiRequest = async <T>(endpoint: string, options: RequestOptions = 
     throw new Error("Matrix QA API endpoint is not configured. Set VITE_API_BASE_URL.");
   }
 
-  const { requiresAuth = false, ...fetchOptions } = options;
+  const { requiresAuth = false, timeoutMs = DEFAULT_API_TIMEOUT_MS, signal: callerSignal, ...fetchOptions } = options;
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = new Headers(fetchOptions.headers);
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timeout = controller ? setTimeout(() => controller.abort(), Math.max(1_000, timeoutMs)) : undefined;
+  const forwardAbort = () => controller?.abort();
+  if (controller && callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener("abort", forwardAbort, { once: true });
+  }
   const isMultipart = typeof FormData !== "undefined" && fetchOptions.body instanceof FormData;
   if (!isMultipart) headers.set("Content-Type", "application/json");
 
@@ -81,7 +91,7 @@ export const apiRequest = async <T>(endpoint: string, options: RequestOptions = 
   }
 
   try {
-    const response = await fetch(url, { ...fetchOptions, headers });
+    const response = await fetch(url, { ...fetchOptions, headers, ...(controller ? { signal: controller.signal } : callerSignal ? { signal: callerSignal } : {}) });
     if (!response.ok) {
       throw new ApiRequestError(getErrorMessage(await response.json().catch(() => ({})), response.status), response.status, endpoint);
     }
@@ -89,12 +99,18 @@ export const apiRequest = async <T>(endpoint: string, options: RequestOptions = 
     return await response.json();
   } catch (error) {
     console.error(`API Error [${endpoint}]:`, error);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Matrix QA request timed out after ${Math.max(1_000, timeoutMs)}ms.`);
+    }
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       throw new Error(
         "Service is currently unavailable. Please check your connection or try again later.",
       );
     }
     throw error;
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+    callerSignal?.removeEventListener("abort", forwardAbort);
   }
 };
 
@@ -1307,11 +1323,12 @@ export const runsApi = {
       body: JSON.stringify({ body, metadata }),
       requiresAuth: true,
     }),
-  control: (projectId: string, runId: string, action: RunConsoleControlAction, body?: string, metadata?: Record<string, unknown>): Promise<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage }> =>
-    apiRequest<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/console/control`, {
+  control: (projectId: string, runId: string, action: RunConsoleControlAction, body?: string, metadata?: Record<string, unknown>): Promise<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage; terminalized?: boolean }> =>
+    apiRequest<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage; terminalized?: boolean }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/console/control`, {
       method: "POST",
       body: JSON.stringify({ action, body, metadata }),
       requiresAuth: true,
+      timeoutMs: action === "STOP" ? 15_000 : 20_000,
     }),
   continue: (projectId: string, runId: string, instruction?: string): Promise<{ id: string; projectId: string; status: string; continuationOfRunId?: string | null; planId?: string | null }> =>
     apiRequest<{ id: string; projectId: string; status: string; continuationOfRunId?: string | null; planId?: string | null }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/continue`, {
