@@ -260,8 +260,7 @@ function PricingPage() {
               Paid plans launch alongside the roadmap.
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Prices and features shown are directional. Availability tracks the
-              the roadmap below.
+              Prices and features shown are directional. Availability tracks the roadmap below.
             </p>
           </div>
 
