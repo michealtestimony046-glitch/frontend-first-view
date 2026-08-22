@@ -30,6 +30,16 @@ const ROLE_OPTIONS = [
   "Just exploring",
 ] as const;
 
+type OAuthProvider = "google" | "github";
+
+function isOAuthProvider(value: string | null): value is OAuthProvider {
+  return value === "google" || value === "github";
+}
+
+function oauthProviderLabel(provider: OAuthProvider) {
+  return provider === "google" ? "Google" : "GitHub";
+}
+
 const authSearchSchema = z.object({
   mode: z.enum(["signin", "signup"]).optional().default("signup"),
   returnTo: z.enum(["/app", "/admin"]).optional().default("/app"),
@@ -76,39 +86,49 @@ function AuthPage() {
     let active = true;
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    const provider = params.get("provider");
+    const providerValue = params.get("provider");
     const state = params.get("state");
     const oauthError = params.get("oauth_error");
+    const clearCallbackParams = () => window.history.replaceState({}, "", "/auth");
     if (oauthError) {
-      window.history.replaceState({}, "", "/auth");
+      window.sessionStorage.removeItem("matrix_qa_oauth_intent");
+      clearCallbackParams();
       setErrorMessage("Social sign-in could not be completed. Please try again.");
       authApi.oauthProviders().then((available) => { if (active) { setOauthProviders(available); setOauthProvidersLoaded(true); } }).catch(() => { if (active) setOauthProvidersLoaded(true); });
-    } else if (code && provider) {
+    } else if (!code && !providerValue && !state) {
+      authApi.oauthProviders().then((available) => { if (active) { setOauthProviders(available); setOauthProvidersLoaded(true); } }).catch(() => { if (active) setOauthProvidersLoaded(true); });
+    } else if (!code || !state || !isOAuthProvider(providerValue)) {
+      window.sessionStorage.removeItem("matrix_qa_oauth_intent");
+      clearCallbackParams();
+      setErrorMessage("The social sign-in link is incomplete or expired. Please start again.");
+    } else {
+      const provider = providerValue;
       setOauthLoading(true);
-      authApi.handleOAuthCallback(code, provider, state || undefined)
+      authApi.handleOAuthCallback(code, provider, state)
         .then((response) => {
-          const oauthIntent = typeof window !== "undefined" ? window.sessionStorage.getItem("matrix_qa_oauth_intent") || selectedMode : selectedMode;
+          const oauthIntent = window.sessionStorage.getItem("matrix_qa_oauth_intent");
           window.sessionStorage.removeItem("matrix_qa_oauth_intent");
-          window.history.replaceState({}, "", "/auth");
-          if (oauthIntent === "signup" && !adminSignInOnly) {
+          clearCallbackParams();
+          const isFirstTimeOAuthUser = response.isNewUser === true || (response.isNewUser === undefined && oauthIntent === "signup");
+          if (isFirstTimeOAuthUser && !adminSignInOnly) {
             setOauthUserId(response.user.id);
-            setDraft((current) => ({ ...current, email: response.user.email, fullName: response.user.fullName || current.fullName }));
+            setDraft((current) => ({ ...current, email: response.user.email.trim().toLowerCase(), fullName: response.user.fullName?.trim() || current.fullName }));
+            setSelectedMode("signup");
             setOnboardingStep(2);
-            setSuccessMessage("Signed in. Finish the short workspace and first-test setup.");
+            setSuccessMessage(`Signed in with ${oauthProviderLabel(provider)}. Finish the short workspace and first-test setup.`);
           } else {
             navigate({ to: returnTo });
           }
         })
         .catch((cause) => {
-          window.history.replaceState({}, "", "/auth");
-          setErrorMessage(cause instanceof Error ? cause.message : "Social sign-in could not be completed.");
+          window.sessionStorage.removeItem("matrix_qa_oauth_intent");
+          clearCallbackParams();
+          setErrorMessage(cause instanceof Error ? cause.message : `${oauthProviderLabel(provider)} sign-in could not be completed.`);
         })
         .finally(() => { if (active) setOauthLoading(false); });
-    } else {
-      authApi.oauthProviders().then((available) => { if (active) { setOauthProviders(available); setOauthProvidersLoaded(true); } }).catch(() => { if (active) setOauthProvidersLoaded(true); });
     }
     return () => { active = false; };
-  }, [navigate, returnTo]);
+  }, [adminSignInOnly, navigate, returnTo]);
 
   const startOAuth = (provider: "google" | "github") => {
     setOauthLoading(true);
