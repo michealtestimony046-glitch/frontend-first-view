@@ -724,11 +724,25 @@ export const guidanceApi = {
   }),
 };
 
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  userAgent?: string;
+}
+
+export interface PushCapabilities {
+  enabled: boolean;
+  publicKey: string | null;
+}
+
 export const notificationsApi = {
   list: (): Promise<NotificationItem[]> => apiRequest('/notifications', { requiresAuth: true }),
   unreadCount: (): Promise<{ unreadCount: number }> => apiRequest('/notifications/unread-count', { requiresAuth: true }),
   markRead: (id: string) => apiRequest<{ updated: boolean }>(`/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH', requiresAuth: true }),
   markAllRead: () => apiRequest<{ updatedCount: number }>('/notifications/read', { method: 'DELETE', requiresAuth: true }),
+  pushCapabilities: (): Promise<PushCapabilities> => apiRequest('/notifications/push-capabilities', { requiresAuth: true }),
+  upsertPushSubscription: (data: PushSubscriptionPayload) => apiRequest<{ subscribed: boolean; enabled: boolean }>('/notifications/push-subscriptions', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  deletePushSubscription: (endpoint: string) => apiRequest<{ removed: boolean }>('/notifications/push-subscriptions', { method: 'DELETE', body: JSON.stringify({ endpoint }), requiresAuth: true }),
 };
 
 export type TargetComplaintStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "DISMISSED";
