@@ -193,6 +193,31 @@ export interface CreateProjectRequest {
   workspaceId: string;
   defaultTargetUrl?: string;
 }
+export type QuickScanVerificationStatus = "UNVERIFIED_LEAD" | "CONFIRMED" | "NOT_REPRODUCED" | "NOT_TESTED";
+
+export interface QuickScanHandoffFinding {
+  id: string;
+  category: "meta" | "accessibility" | "links" | "content";
+  code: string;
+  title: string;
+  evidence: string;
+  status: QuickScanVerificationStatus;
+  verificationNote?: string;
+  verificationEvidenceRefs?: string[];
+}
+
+export interface QuickScanHandoff {
+  source: "ONBOARDING_QUICK_SCAN";
+  targetUrl: string;
+  finalUrl: string | null;
+  targetOrigin: string;
+  httpStatus: number | null;
+  checkedAt: string;
+  summary: string | null;
+  summaryStatus: "AI_GENERATED" | "UNAVAILABLE";
+  findings: QuickScanHandoffFinding[];
+}
+
 export interface TriggerRunRequest {
   targetUrl?: string;
   idempotencyKey?: string;
@@ -203,6 +228,7 @@ export interface TriggerRunRequest {
   enableVision?: boolean;
   enableRecovery?: boolean;
   targetAuthorizationConfirmed?: boolean;
+  quickScanHandoff?: QuickScanHandoff;
 }
 export interface ProviderCapacityDecision {
   status: "RESERVED" | "WAITING" | string;
@@ -603,6 +629,7 @@ export interface RunReport {
   summary?: RunSummary;
   liveAiSummary?: AiLiveSummary | null;
   aiOverview?: AiRunOverview | null;
+  quickScanHandoff?: QuickScanHandoff | null;
   aiSummaryBillableMatrixUnits?: number;
   events?: RunEvent[];
   assertions?: RunAssertion[];
@@ -617,6 +644,7 @@ export interface RunReport {
     queue?: RunQueueMetadata;
     providerCapacity?: ProviderCapacityDecision;
     runCapabilities?: { enableVision?: boolean; enableRecovery?: boolean };
+    quickScanHandoff?: QuickScanHandoff | null;
     [key: string]: unknown;
   } | null;
   v2Plan?: V2TestPlan | null;

@@ -36,6 +36,28 @@ type RealUserTestState = "idle" | "preparing" | "running" | "queued" | "failed";
 
 const onboardingSleep = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
+function toQuickScanHandoff(result: OnboardingQuickScanResult) {
+  if (result.status !== "COMPLETED") return undefined;
+  return {
+    source: "ONBOARDING_QUICK_SCAN" as const,
+    targetUrl: result.targetUrl,
+    finalUrl: result.finalUrl,
+    targetOrigin: result.targetOrigin,
+    httpStatus: result.httpStatus,
+    checkedAt: result.checkedAt,
+    summary: result.summary,
+    summaryStatus: result.summaryStatus,
+    findings: result.findings.slice(0, 20).map((finding, index) => ({
+      id: `quick-scan:${finding.code}:${index + 1}`,
+      category: finding.category,
+      code: finding.code,
+      title: finding.title,
+      evidence: finding.evidence,
+      status: "UNVERIFIED_LEAD" as const,
+    })),
+  };
+}
+
 function isOAuthProvider(value: string | null): value is OAuthProvider {
   return value === "google" || value === "github";
 }
@@ -198,10 +220,10 @@ function AuthPage() {
     const cleanDraft = { ...draft, targetUrl: normalizeTargetUrl(draft.targetUrl), focusArea: draft.focusArea.trim() };
     void (async () => {
       try {
-        await runQuickScan(cleanDraft);
+        const completedQuickScan = await runQuickScan(cleanDraft);
         const userId = oauthUserId || verifiedUserId;
         if (!userId) throw new Error("Verify your email before preparing the first test.");
-        await provisionFirstTest(cleanDraft, userId);
+        await provisionFirstTest(cleanDraft, userId, completedQuickScan);
         setOnboardingComplete(true);
         setSuccessMessage("Quick Scan is complete. Your Real User Test is moving forward in the background.");
       } catch (cause) {
@@ -227,7 +249,7 @@ function AuthPage() {
     }
   };
 
-  const startRealUserTest = async (onboarding: OnboardingDraft, project: Project) => {
+  const startRealUserTest = async (onboarding: OnboardingDraft, project: Project, handoff: OnboardingQuickScanResult) => {
     setRealUserTestState("preparing");
     setRealUserTestError("");
     try {
@@ -242,7 +264,7 @@ function AuthPage() {
       const blockedPolicy = plan.policyDecisions.some((decision) => decision.status !== "ALLOWED" && decision.status !== "APPROVED");
       if (blockedPolicy || plan.scenarios.length === 0) throw new Error("The Real User Test needs a safe plan review before it can start.");
       const approvedPlan = plan.status === "APPROVED" ? plan : await v2Api.approvePlan(plan.id);
-      const response = await v2Api.runPlan(approvedPlan.id, { targetUrl: onboarding.targetUrl, accessMode: "ANONYMOUS", targetAuthorizationConfirmed: onboarding.ownershipConfirmed, enableVision: false, enableRecovery: false });
+      const response = await v2Api.runPlan(approvedPlan.id, { targetUrl: onboarding.targetUrl, accessMode: "ANONYMOUS", targetAuthorizationConfirmed: onboarding.ownershipConfirmed, enableVision: false, enableRecovery: false, quickScanHandoff: toQuickScanHandoff(handoff) });
       setRealUserTestResponse(response);
       setRealUserTestState(response.metadata?.providerCapacity?.status === "WAITING" ? "queued" : "running");
       localStorage.removeItem(FIRST_TEST_READY_KEY);
@@ -271,7 +293,7 @@ function AuthPage() {
     }
   };
 
-  const provisionFirstTest = async (onboarding: OnboardingDraft, userId: string) => {
+  const provisionFirstTest = async (onboarding: OnboardingDraft, userId: string, handoff: OnboardingQuickScanResult) => {
     const organizations = await organizationsApi.list();
     const organization = organizations[0];
     if (!organization) throw new Error("Your account is verified, but the organization could not be loaded yet. Please open the console and try again.");
@@ -288,7 +310,7 @@ function AuthPage() {
     localStorage.setItem("matrix_qa_active_project", project.id);
     localStorage.setItem(ONBOARDING_PROFILE_KEY, JSON.stringify({ userId, role: onboarding.role, notifications: onboarding.notifications, focusArea: onboarding.focusArea.trim() }));
     if (onboarding.notifications === "email_push") await enrollBrowserPush().catch(() => undefined);
-    void startRealUserTest(onboarding, project);
+    void startRealUserTest(onboarding, project, handoff);
   };
 
   const handleVerify = async (event: FormEvent) => {
