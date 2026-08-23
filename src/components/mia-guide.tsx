@@ -10,12 +10,18 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { guidanceApi, type GuidanceMessage } from "@/lib/api-client";
+import {
+  AUTH_EVENT,
+  clearLegacyClientMiaHistory,
+  guidanceApi,
+  type GuidanceMessage,
+} from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 
 type MiaGuideProps = { compact?: boolean };
 
 const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
+const MIA_MESSAGES_STORAGE_PREFIX = "matrixqa_mia_messages:v2:";
 const INTRO =
   "I’m Mia, your Matrix QA guide. Ask me about Matrix QA, your selected workspace, a focused run, Quick Scan, reports, notifications, projects, or settings. I explain what the product and your current workspace data support, but I do not change account data or execute runs.";
 const SUGGESTIONS = [
@@ -30,7 +36,7 @@ function activeWorkspaceId(): string | undefined {
 }
 
 function storageKey(userId: string, workspaceId?: string) {
-  return `matrixqa_mia_messages:${userId}:${workspaceId || "unscoped"}`;
+  return `${MIA_MESSAGES_STORAGE_PREFIX}${userId}:${workspaceId || "unscoped"}`;
 }
 function seenKey(userId: string) {
   return `matrixqa_mia_seen:${userId}`;
@@ -205,6 +211,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   const latestMessageRef = useRef<HTMLDivElement>(null);
   const shouldFollowLatestRef = useRef(true);
   const previousWorkspaceScopeRef = useRef(workspaceScope);
+  const previousUserIdRef = useRef<string | null>(null);
 
   const userId = user?.id ?? "";
   const hasConversation = messages.length > 0;
@@ -215,6 +222,34 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   const isFirstVisit = Boolean(
     userId && typeof window !== "undefined" && !localStorage.getItem(seenKey(userId)),
   );
+  const conversationReady = Boolean(userId && loadedStorageKey === scopedStorageKey);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") clearLegacyClientMiaHistory();
+  }, []);
+
+  useEffect(() => {
+    if (previousUserIdRef.current === userId) return;
+    previousUserIdRef.current = userId;
+    setMessages([]);
+    setError(null);
+    setLoadedStorageKey(null);
+  }, [userId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const resetConversation = () => {
+      setMessages([]);
+      setDraft("");
+      setError(null);
+      setLoadedStorageKey(null);
+      const nextWorkspaceScope = activeWorkspaceId();
+      previousWorkspaceScopeRef.current = nextWorkspaceScope;
+      setWorkspaceScope(nextWorkspaceScope);
+    };
+    window.addEventListener(AUTH_EVENT, resetConversation);
+    return () => window.removeEventListener(AUTH_EVENT, resetConversation);
+  }, []);
 
   useEffect(() => {
     if (!userId || typeof window === "undefined") return;
@@ -305,7 +340,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
 
   const send = async (value = draft) => {
     const message = value.trim();
-    if (!message || loading) return;
+    if (!message || loading || !conversationReady) return;
     const currentWorkspaceId = activeWorkspaceId();
     const baseMessages = currentWorkspaceId === workspaceScope ? messages : [];
     if (currentWorkspaceId !== workspaceScope) {
@@ -384,27 +419,28 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
             className="max-h-[min(430px,55vh)] space-y-3 overflow-y-auto bg-background/15 px-4 py-4"
             aria-live="polite"
           >
-            {!hasConversation && (
+            {conversationReady && !hasConversation && (
               <div className="mb-1 flex items-center gap-2 rounded-xl border border-primary/15 bg-primary/[0.06] px-3 py-2 text-[11px] text-primary backdrop-blur-md">
                 <Sparkles className="h-3.5 w-3.5" />
                 Start with a question about Matrix QA
               </div>
             )}
-            {visibleMessages.map((item, index) => (
-              <div
-                key={`${item.role}-${index}`}
-                className={
-                  item.role === "user"
-                    ? "ml-8 rounded-2xl border border-primary/25 bg-primary/10 px-3.5 py-3 text-[13px] leading-[1.6] text-foreground shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)] sm:text-sm"
-                    : "mr-3 rounded-2xl border border-white/10 bg-surface/65 px-3.5 py-3 text-[13px] leading-[1.6] text-foreground/90 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)] sm:text-sm"
-                }
-              >
-                <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-                  {item.role === "user" ? "You" : "Mia"}
+            {conversationReady &&
+              visibleMessages.map((item, index) => (
+                <div
+                  key={`${item.role}-${index}`}
+                  className={
+                    item.role === "user"
+                      ? "ml-8 rounded-2xl border border-primary/25 bg-primary/10 px-3.5 py-3 text-[13px] leading-[1.6] text-foreground shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)] sm:text-sm"
+                      : "mr-3 rounded-2xl border border-white/10 bg-surface/65 px-3.5 py-3 text-[13px] leading-[1.6] text-foreground/90 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)] sm:text-sm"
+                  }
+                >
+                  <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                    {item.role === "user" ? "You" : "Mia"}
+                  </div>
+                  <MiaMessageContent content={item.content} />
                 </div>
-                <MiaMessageContent content={item.content} />
-              </div>
-            ))}
+              ))}
             {loading && (
               <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground backdrop-blur-md">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
@@ -419,7 +455,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
                 </button>
               </div>
             )}
-            {!hasConversation && (
+            {conversationReady && !hasConversation && (
               <div className="grid gap-2 pt-1">
                 {SUGGESTIONS.map((suggestion) => (
                   <button
@@ -451,7 +487,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
               <input
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                disabled={loading}
+                disabled={loading || !conversationReady}
                 maxLength={2_000}
                 placeholder="Ask about this workspace or run…"
                 className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 text-xs text-foreground outline-none backdrop-blur-md placeholder:text-muted-foreground/70 focus:border-primary/55 focus:bg-primary/[0.06] focus:ring-2 focus:ring-primary/10"
@@ -459,7 +495,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
               />
               <button
                 type="submit"
-                disabled={loading || !draft.trim()}
+                disabled={loading || !conversationReady || !draft.trim()}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/35 bg-primary/75 text-primary-foreground shadow-[0_8px_24px_-12px_rgba(0,0,0,0.9)] backdrop-blur-md transition-transform duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Send question to Mia"
               >
