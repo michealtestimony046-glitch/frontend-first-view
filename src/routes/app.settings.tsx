@@ -10,7 +10,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { authApi, usersApi } from "@/lib/api-client";
+import { authApi, organizationsApi, usersApi, workspacesApi } from "@/lib/api-client";
+import { ACTIVE_WORKSPACE_KEY } from "@/lib/live-data";
 import { createFileRoute, Link, Outlet, useLocation, useMatches } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -323,6 +324,31 @@ function PolicyTab() {
 }
 
 function TokensTab() {
+  const [workspaceId, setWorkspaceId] = useState<string | null>(() => typeof window !== "undefined" ? localStorage.getItem(ACTIVE_WORKSPACE_KEY) : null);
+  const [workspaceName, setWorkspaceName] = useState<string | null>(null);
+  const [loadingWorkspace, setLoadingWorkspace] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const organizations = await organizationsApi.list();
+        const workspaceGroups = await Promise.all(organizations.slice(0, 10).map((organization) => workspacesApi.list(organization.id)));
+        const workspaces = workspaceGroups.flat();
+        const selected = workspaces.find((workspace) => workspace.id === workspaceId) ?? workspaces[0] ?? null;
+        if (cancelled) return;
+        setWorkspaceId(selected?.id ?? null);
+        setWorkspaceName(selected?.name ?? null);
+        if (selected) localStorage.setItem(ACTIVE_WORKSPACE_KEY, selected.id);
+      } catch {
+        if (!cancelled) setWorkspaceName(null);
+      } finally {
+        if (!cancelled) setLoadingWorkspace(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [workspaceId]);
+
   return (
     <div className="grid gap-4">
       <section className="surface-card overflow-hidden">
@@ -336,9 +362,23 @@ function TokensTab() {
             <div>
               <div className="text-sm font-medium">No API token is available</div>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Matrix QA does not currently issue workspace API tokens. The previous placeholder token UI has been removed so the console never presents a value that cannot authenticate against the live backend.
+                Matrix QA does not currently issue workspace API tokens. The workspace ID below identifies the selected workspace for Mia context; it is not a secret and cannot authenticate requests by itself.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="surface-card overflow-hidden">
+        <header className="border-b border-border px-5 py-3">
+          <h2 className="font-display text-sm font-semibold">Selected workspace identifier</h2>
+          <p className="text-[11px] text-muted-foreground">Use this non-secret ID when referring to the workspace in integrations or support requests</p>
+        </header>
+        <div className="p-5">
+          <div className="rounded-md border border-border bg-surface-2/30 p-4">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{workspaceName ?? "Current workspace"}</div>
+            <code className="mt-2 block select-all break-all text-sm text-foreground">{loadingWorkspace ? "Loading current workspace…" : workspaceId ?? "No workspace selected"}</code>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">Mia receives this workspace context through the authenticated request. The ID does not grant access without the signed-in session.</p>
           </div>
         </div>
       </section>
