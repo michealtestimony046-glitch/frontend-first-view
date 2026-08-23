@@ -146,6 +146,17 @@ function duration(sec?: number) {
   return `${Math.floor(sec / 60)}m ${Math.round(sec % 60)}s`;
 }
 
+const MAX_TRANSIENT_RUN_LOAD_RETRIES = 4;
+
+function isTransientRunLoadError(error: unknown): boolean {
+  const status = typeof error === "object" && error !== null && "status" in error
+    ? Number((error as { status?: unknown }).status)
+    : 0;
+  if ([404, 408, 409, 429].includes(status) || status >= 500) return true;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /run not found|request timed out|service is currently unavailable|failed to fetch|unable to load run/i.test(message);
+}
+
 function reportSummary(r: RunReport) {
   const s = r.summary ?? {
     assertionsPassed: 0,
@@ -191,6 +202,7 @@ function RunDetailPage() {
   useEffect(() => {
     let cancelled = false;
     let timer: number | undefined;
+    let transientLoadRetries = 0;
     setError(null);
 
     if (!projectId) {
@@ -209,6 +221,8 @@ function RunDetailPage() {
           runsApi.getExecutionState(projectId, runId).catch(() => null),
         ]);
         if (cancelled) return;
+        transientLoadRetries = 0;
+        setError(null);
         const mergedReport: RunReport = {
           ...data,
           events: mergeRunEvents(data.events, executionState?.events),
@@ -221,7 +235,14 @@ function RunDetailPage() {
           timer = window.setTimeout(loadReport, 2500);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Unable to load run report.");
+        if (cancelled) return;
+        if (isTransientRunLoadError(e) && transientLoadRetries < MAX_TRANSIENT_RUN_LOAD_RETRIES) {
+          transientLoadRetries += 1;
+          setError(null);
+          timer = window.setTimeout(loadReport, 1_000);
+          return;
+        }
+        setError(e instanceof Error ? e.message : "Unable to load run report.");
       }
     };
 
