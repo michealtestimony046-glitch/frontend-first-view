@@ -766,26 +766,30 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
     : ("message" in summary && typeof summary.message === "string" && summary.message.trim() ? summary.message : summary.headline);
   const blockers = formatAiList(summary.blockers);
   const findings = finalSummary && Array.isArray(finalSummary.findings) ? finalSummary.findings : [];
+  const live = !final;
   return (
-    <section className="mt-6 surface-card overflow-hidden border border-primary/25">
-      <div className="border-b border-border bg-primary/5 px-5 py-4">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Evidence-backed report summary" : "Live test update"}</div>
-        <h2 className={`mt-2 ${final ? "font-display text-lg font-semibold" : "font-mono text-base font-medium leading-7 sm:text-lg sm:font-semibold"}`}>{narrative}</h2>
-        {!final && <p className="mt-2 font-mono text-sm leading-6 text-muted-foreground">{liveSummary?.currentObjective}</p>}
+    <section className={`${live ? "mt-4" : "mt-6"} overflow-hidden rounded-xl border ${live ? "border-primary/30 bg-background/25" : "surface-card border-primary/25"}`}>
+      <div className={`border-b ${live ? "border-white/10 bg-background/20 px-3 py-2.5 sm:px-4" : "border-border bg-primary/5 px-5 py-4"}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {live ? "live-ai" : "Evidence-backed report summary"}</div>
+          {live && <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">streaming</span>}
+        </div>
+        <h2 className={`mt-2 break-words whitespace-pre-wrap ${live ? "font-mono text-[13px] font-medium leading-5 text-foreground sm:text-sm sm:leading-6" : "font-display text-lg font-semibold"}`}>{narrative}</h2>
+        {!final && <div className="mt-2 flex min-w-0 gap-2 border-t border-white/10 pt-2 font-mono text-[11px] leading-5 text-muted-foreground"><span className="shrink-0 text-primary/80">objective$</span><span className="min-w-0 break-words">{liveSummary?.currentObjective}</span></div>}
       </div>
-      <div className="grid gap-6 p-5 lg:grid-cols-2">
+      <div className={`grid lg:grid-cols-2 ${live ? "gap-4 p-3 sm:p-4" : "gap-6 p-5"}`}>
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "What was tested" : "What changed"}</h3>
-          <ul className={`mt-3 space-y-2 text-sm text-foreground/85 ${final ? "" : "font-mono"}`}>{formatAiList(final ? finalSummary?.whatWasTested : liveSummary?.whatChanged).map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul>
+          <h3 className="font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{final ? "What was tested" : "changed"}</h3>
+          <ul className={`mt-2 space-y-1.5 ${live ? "font-mono text-[11px] leading-5 text-foreground/85" : "text-sm text-foreground/85"}`}>{formatAiList(final ? finalSummary?.whatWasTested : liveSummary?.whatChanged).map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul>
         </div>
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "Coverage" : "Next step"}</h3>
-          <p className={`mt-3 text-sm leading-6 text-foreground/85 ${final ? "" : "font-mono"}`}>{final ? formatAiValue(finalSummary?.coverage) || "Coverage summary unavailable." : liveSummary?.nextStep}</p>
-          {blockers.length > 0 && <div className="mt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-warning">Blockers</h4><ul className={`mt-2 space-y-1 text-xs text-muted-foreground ${final ? "" : "font-mono"}`}>{blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+          <h3 className="font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{final ? "Coverage" : "next"}</h3>
+          <p className={`mt-2 break-words ${live ? "font-mono text-[11px] leading-5 text-foreground/85" : "text-sm leading-6 text-foreground/85"}`}>{final ? formatAiValue(finalSummary?.coverage) || "Coverage summary unavailable." : liveSummary?.nextStep}</p>
+          {blockers.length > 0 && <div className="mt-3"><h4 className="font-mono text-[10px] font-semibold uppercase tracking-wider text-warning">blockers</h4><ul className={`mt-1.5 space-y-1 ${live ? "font-mono text-[11px] leading-5" : "text-xs"} text-muted-foreground`}>{blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
         </div>
       </div>
       {findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Findings</h3><div className="mt-3 divide-y divide-border">{findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {Array.isArray(finding.evidence) ? finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced" : "none referenced"}</p></div>)}</div></div>}
-      <div className="border-t border-border px-5 py-3 font-mono text-[10px] text-muted-foreground">Evidence-backed test narrative · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
+      <div className={`border-t font-mono text-[10px] text-muted-foreground ${live ? "border-white/10 px-3 py-2 sm:px-4" : "border-border px-5 py-3"}`}>Evidence-backed test narrative · generated {new Date(summary.generatedAt).toLocaleTimeString()}</div>
     </section>
   );
 }
@@ -1102,18 +1106,23 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/15 bg-surface/55 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.9),0_0_0_1px_rgba(140,255,160,0.05)] backdrop-blur-2xl">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 bg-background/20 px-5 py-4 backdrop-blur-md">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="font-display text-sm font-semibold">Live Run Console</h3>
-            {active && <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-primary"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> listening</span>}
+    <section className="overflow-hidden rounded-xl border border-white/15 bg-surface/55 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.9),0_0_0_1px_rgba(140,255,160,0.05)] backdrop-blur-2xl">
+      <div className="border-b border-white/10 bg-background/20 px-3 py-2.5 backdrop-blur-md sm:px-4 sm:py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
+            <Terminal className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <h3 className="truncate font-semibold text-foreground">run-console</h3>
+            <span className="text-muted-foreground">·</span>
+            <span className={active ? "inline-flex items-center gap-1 text-primary" : "text-muted-foreground"}>{active && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />}{active ? "streaming" : successful ? "complete" : report.status.toLowerCase()}</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Guide the worker with a bounded instruction for its next decision, clarify scope, or approve a safe control request while this run is active.</p>
+          <button type="button" onClick={() => void loadMessages()} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-white/15 bg-white/[0.04] px-2 py-1 font-mono text-[10px] text-muted-foreground backdrop-blur-md hover:border-primary/35 hover:bg-primary/10 hover:text-foreground" aria-label="Refresh console">
+            <RefreshCw className="h-3 w-3" /> refresh
+          </button>
         </div>
-        <button type="button" onClick={() => void loadMessages()} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-2.5 py-1.5 text-xs text-muted-foreground backdrop-blur-md hover:border-primary/35 hover:bg-primary/10 hover:text-foreground" aria-label="Refresh console">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </button>
+        <div className="mt-2 flex min-w-0 items-center gap-1.5 overflow-hidden rounded-md border border-white/10 bg-black/20 px-2.5 py-1.5 font-mono text-[10px] leading-4">
+          <span className="shrink-0 text-primary">matrixqa</span><span className="shrink-0 text-muted-foreground">@</span><span className="truncate text-foreground/80">run:{runId.slice(0, 8)}</span><span className="shrink-0 text-primary">$</span><span className="truncate text-muted-foreground">tail --follow transcript</span>
+        </div>
+        <p className="mt-1.5 font-mono text-[10px] leading-4 text-muted-foreground">{active ? "live event stream · type a bounded instruction below" : "read-only transcript · report evidence remains available"}</p>
       </div>
 
       {error && <div className="border-b border-destructive/30 bg-destructive/10 px-5 py-3 text-xs text-destructive">{error}</div>}
@@ -1166,14 +1175,14 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
               </div>
             </div>
           )}
-          <div className="max-h-[520px] space-y-4 overflow-auto bg-background/20 px-5 py-5 backdrop-blur-sm">
+          <div className="max-h-[min(520px,52vh)] space-y-0 overflow-auto bg-background/20 px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-3">
             {loading && !messages.length ? (
-              <div className="flex items-center gap-2 py-10 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading console transcript…</div>
+              <div className="flex items-center gap-2 py-8 font-mono text-[11px] text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin text-primary" /> tailing worker transcript…</div>
             ) : messages.length ? messages.map((message) => <RunConsoleMessage key={message.id} message={message} />) : (
-              <div className="py-10 text-center text-xs text-muted-foreground">No console messages yet. Worker updates and your instructions will appear here.</div>
+              <div className="flex items-center gap-2 py-8 font-mono text-[11px] text-muted-foreground"><span className="text-primary">$</span> no output yet · worker updates will appear here</div>
             )}
           </div>
-          <div className="border-t border-white/10 bg-background/15 px-4 py-4 backdrop-blur-md sm:px-5">
+          <div className="border-t border-white/10 bg-background/15 px-3 py-3 backdrop-blur-md sm:px-4">
             <div className="flex flex-wrap gap-2">
               <ConsoleButton action="PAUSE" icon={Pause} disabled={!active || Boolean(activeAction)} pending={activeAction === "PAUSE"} onClick={sendControl} />
               <ConsoleButton action="RESUME" icon={Play} disabled={!active || Boolean(activeAction)} pending={activeAction === "RESUME"} onClick={sendControl} />
@@ -1181,12 +1190,13 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
               <ConsoleButton action="SKIP" icon={SkipForward} disabled={!active || Boolean(activeAction)} pending={activeAction === "SKIP"} onClick={sendControl} />
               <ConsoleButton action="STOP" icon={Square} disabled={!active || Boolean(activeAction)} pending={activeAction === "STOP"} onClick={sendControl} danger />
             </div>
-            <form onSubmit={submitMessage} className="mt-4 flex gap-2">
+            <form onSubmit={submitMessage} className="mt-3 flex gap-2">
               <label className="sr-only" htmlFor="run-console-message">Message the Run Console</label>
-              <input id="run-console-message" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!active || sending} maxLength={4000} placeholder={active ? "Tell the worker what to inspect next…" : "Console input is available while the run is active"} className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 font-mono text-sm outline-none placeholder:text-muted-foreground focus:border-primary" />
-              <button type="submit" disabled={!active || !draft.trim() || sending || expired} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/75 px-3 py-2 text-sm text-primary-foreground backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-50"><Send className="h-3.5 w-3.5" /> Send</button>
+              <span className="flex items-center font-mono text-xs text-primary" aria-hidden="true">$</span>
+              <input id="run-console-message" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!active || sending} maxLength={4000} placeholder={active ? "tell the worker what to inspect next…" : "console input is available while the run is active"} className="min-w-0 flex-1 rounded-md border border-white/15 bg-black/20 px-2.5 py-2 font-mono text-[12px] outline-none placeholder:text-muted-foreground focus:border-primary" />
+              <button type="submit" disabled={!active || !draft.trim() || sending || expired} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/35 bg-primary/75 px-2.5 py-2 font-mono text-[11px] text-primary-foreground backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-50"><Send className="h-3 w-3" /> send</button>
             </form>
-            <p className="mt-2 text-[11px] text-muted-foreground">Messages are added to the next test-worker decision. Stop preserves collected evidence and ends the active run; dangerous actions remain fail-closed.</p>
+            <p className="mt-2 font-mono text-[10px] leading-4 text-muted-foreground">stdin is added to the next test-worker decision · stop preserves evidence · dangerous actions remain fail-closed</p>
           </div>
         </>
       )}
@@ -1206,21 +1216,27 @@ function RunConsoleMessage({ message }: { message: RunMessage }) {
   const metadata = message.metadata && typeof message.metadata === "object" ? message.metadata : null;
   const rawSummary = metadata && "summary" in metadata && typeof metadata.summary === "object" && metadata.summary ? metadata.summary as Record<string, unknown> : null;
   const evidence = rawSummary && Array.isArray(rawSummary.evidenceRefs) ? rawSummary.evidenceRefs : [];
-  const authorLabel = user ? "You" : "Matrix QA";
-  const messageLabel = summary ? "Run summary" : message.kind === "APPROVAL" ? "Permission" : "Progress";
+  const authorLabel = user ? "you" : message.authorType === "SYSTEM" ? "system" : "agent";
+  const messageLabel = summary ? "summary" : message.kind === "APPROVAL" ? "permission" : message.kind === "CONTROL" ? "control" : message.kind === "STATUS" ? "status" : "output";
   const safeObjective = rawSummary && typeof rawSummary.currentObjective === "string" ? rawSummary.currentObjective : null;
   const safeNextStep = rawSummary && typeof rawSummary.nextStep === "string" ? rawSummary.nextStep : null;
-  return <article className={`flex ${user ? "justify-end" : "justify-start"}`}>
-    <div className={`max-w-[92%] rounded-2xl border px-4 py-3 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.95)] backdrop-blur-xl ${summary ? "border-primary/35 bg-primary/10" : user ? "border-primary/25 bg-primary/10" : "border-white/10 bg-surface/65"}`}>
-      <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-        <span className={summary ? "text-primary" : user ? "text-primary" : "text-foreground/70"}>{authorLabel}</span>
-        <span className="rounded-full bg-surface-2 px-1.5 py-0.5">{messageLabel}</span>
-        <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+  const prompt = user ? ">" : message.authorType === "SYSTEM" ? "!" : "✓";
+  const tone = summary ? "border-primary/35 bg-primary/10" : user ? "border-primary/25 bg-primary/[0.08]" : "border-white/10 bg-black/10";
+  return <article className="border-b border-white/[0.07] py-2.5 last:border-b-0 sm:py-3">
+    <div className="flex min-w-0 items-start gap-2.5">
+      <span className={`mt-0.5 w-3 shrink-0 text-center font-mono text-xs ${user || summary ? "text-primary" : message.authorType === "SYSTEM" ? "text-warning" : "text-success"}`} aria-hidden="true">{prompt}</span>
+      <div className={`min-w-0 flex-1 rounded-md border px-2.5 py-2 ${tone}`}>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+          <span className={user || summary ? "text-primary" : "text-foreground/70"}>{authorLabel}</span>
+          <span className="text-border">·</span>
+          <span>{messageLabel}</span>
+          <time className="ml-auto" dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+        </div>
+        <p className="mt-1.5 break-words whitespace-pre-wrap font-mono text-[12px] leading-5 text-foreground/90 sm:text-[13px] sm:leading-5">{message.body}</p>
+        {safeObjective && <div className="mt-2 flex min-w-0 gap-2 font-mono text-[10px] leading-4 text-muted-foreground"><span className="shrink-0 text-primary/80">objective$</span><span className="min-w-0 break-words">{safeObjective}</span></div>}
+        {safeNextStep && <div className="mt-1.5 flex min-w-0 gap-2 font-mono text-[10px] leading-4 text-muted-foreground"><span className="shrink-0 text-primary/80">next$</span><span className="min-w-0 break-words">{safeNextStep}</span></div>}
+        {evidence.length > 0 && <div className="mt-2 break-words font-mono text-[9px] leading-4 text-muted-foreground"><span className="text-primary/80">evidence$</span> {evidence.map((item) => typeof item === "object" && item && "label" in item ? String(item.label) : String(item)).join(", ")}</div>}
       </div>
-      <p className="mt-2 whitespace-pre-wrap font-mono text-sm leading-6 text-foreground/85">{message.body}</p>
-      {safeObjective && <p className="mt-3 text-xs leading-5 text-muted-foreground">{safeObjective}</p>}
-      {safeNextStep && <p className="mt-2 text-xs leading-5 text-muted-foreground"><span className="font-medium text-foreground/75">Next:</span> {safeNextStep}</p>}
-      {evidence.length > 0 && <p className="mt-3 font-mono text-[10px] text-muted-foreground">Evidence: {evidence.map((item) => typeof item === "object" && item && "label" in item ? String(item.label) : String(item)).join(", ")}</p>}
     </div>
   </article>;
 }
