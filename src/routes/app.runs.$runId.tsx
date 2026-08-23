@@ -725,6 +725,30 @@ function formatAiList(value: unknown): string[] {
   return Array.isArray(value) ? value.map((item) => formatAiValue(item)).filter(Boolean) : [];
 }
 
+function QuickScanHandoffPanel({ handoff, compact = false }: { handoff?: RunReport["quickScanHandoff"]; compact?: boolean }) {
+  if (!handoff) return null;
+  const findings = Array.isArray(handoff.findings) ? handoff.findings : [];
+  const counts = findings.reduce<Record<string, number>>((result, finding) => {
+    result[finding.status] = (result[finding.status] || 0) + 1;
+    return result;
+  }, {});
+  const statusLabel = (status: string) => status === "CONFIRMED" ? "Confirmed by browser" : status === "NOT_REPRODUCED" ? "Not reproduced" : status === "NOT_TESTED" ? "Not tested" : "Unverified lead";
+  return (
+    <section className={`${compact ? "mt-0" : "mt-6"} surface-card overflow-hidden border border-primary/25`}>
+      <div className="border-b border-border bg-primary/5 px-5 py-4">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><Globe className="h-3.5 w-3.5" /> Quick Scan → Real User handoff</div>
+        <h2 className="mt-2 font-display text-lg font-semibold">Structural leads are guiding the browser test</h2>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">These Quick Scan results are hypotheses, not automatic bugs. The Real User worker can verify, reject, or leave each lead untested using live browser evidence while continuing independent exploration.</p>
+      </div>
+      <div className="grid gap-4 border-b border-border px-5 py-4 sm:grid-cols-4">
+        {[['Total leads', findings.length], ['Confirmed', counts.CONFIRMED || 0], ['Not reproduced', counts.NOT_REPRODUCED || 0], ['Still open', (counts.UNVERIFIED_LEAD || 0) + (counts.NOT_TESTED || 0)]].map(([label, value]) => <div key={String(label)}><p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-1 text-lg font-semibold text-foreground">{value}</p></div>)}
+      </div>
+      {findings.length > 0 && <div className="divide-y divide-border">{findings.slice(0, compact ? 5 : 20).map((finding) => <div key={finding.id} className="px-5 py-3"><div className="flex flex-wrap items-center gap-2"><PlanBadge label={statusLabel(finding.status)} tone={finding.status === "CONFIRMED" ? "success" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span><span className="font-mono text-[10px] uppercase text-muted-foreground">{finding.category}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.evidence}</p>{finding.verificationNote && <p className="mt-1 text-xs leading-5 text-foreground/75"><span className="font-medium">Browser note:</span> {finding.verificationNote}</p>}</div>)}</div>}
+      {findings.length === 0 && <p className="px-5 py-4 text-sm text-muted-foreground">No structural leads were imported; the Real User worker is exploring independently.</p>}
+    </section>
+  );
+}
+
 function AiOverviewPanel({ report, final = false }: { report: RunReport; final?: boolean }) {
   const summary = final ? report.aiOverview : report.liveAiSummary;
   if (!summary) {
@@ -770,7 +794,9 @@ function OverviewTab({ report }: { report: RunReport }) {
   const errors = report.errors ?? [];
   const assertions = report.assertions ?? [];
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+    <div>
+      <QuickScanHandoffPanel handoff={report.quickScanHandoff} />
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
       <div className="surface-card overflow-hidden">
         <div className="border-b border-border px-5 py-3">
           <h3 className="font-display text-sm font-semibold">Real findings</h3>
@@ -835,6 +861,7 @@ function OverviewTab({ report }: { report: RunReport }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -1114,6 +1141,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
               </div>
             </div>
           )}
+          <QuickScanHandoffPanel handoff={report.quickScanHandoff} compact />
           <AiOverviewPanel report={report} />
           {pendingScopeRequest && active && (
             <div className="border-b border-warning/40 bg-warning/10 px-5 py-4" role="alert" aria-live="assertive">
