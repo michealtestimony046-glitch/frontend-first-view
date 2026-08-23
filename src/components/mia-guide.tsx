@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "@tanstack/react-router";
 import {
   ArrowUp,
@@ -34,6 +34,137 @@ function storageKey(userId: string, workspaceId?: string) {
 }
 function seenKey(userId: string) {
   return `matrixqa_mia_seen:${userId}`;
+}
+
+type MiaMarkdownBlock =
+  | { kind: "paragraph"; text: string }
+  | { kind: "heading"; text: string; level: number }
+  | { kind: "list"; ordered: boolean; items: string[] };
+
+function renderMiaInlineMarkdown(text: string): ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+?\*\*|`[^`]+`|\*[^*]+?\*)/g).filter(Boolean);
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={index} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code
+          key={index}
+          className="rounded bg-background/60 px-1 py-0.5 font-mono text-[0.9em] text-primary"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <em key={index}>{part.slice(1, -1)}</em>;
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
+
+function parseMiaMarkdown(content: string): MiaMarkdownBlock[] {
+  const normalized = content
+    .replace(/\r\n?/g, "\n")
+    .replace(/\s+(\d+)\.\s+(?=\*\*)/g, "\n$1. ")
+    .trim();
+  if (!normalized) return [];
+
+  const blocks: MiaMarkdownBlock[] = [];
+  let paragraph: string[] = [];
+  let list: Extract<MiaMarkdownBlock, { kind: "list" }> | null = null;
+
+  const flushParagraph = () => {
+    const text = paragraph.join(" ").trim();
+    if (text) blocks.push({ kind: "paragraph", text });
+    paragraph = [];
+  };
+  const flushList = () => {
+    if (list) blocks.push(list);
+    list = null;
+  };
+
+  for (const rawLine of normalized.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushList();
+      blocks.push({ kind: "heading", level: heading[1].length, text: heading[2] });
+      continue;
+    }
+
+    const orderedItem = line.match(/^\d+[.)]\s+(.+)$/);
+    const unorderedItem = line.match(/^[-*+]\s+(.+)$/);
+    if (orderedItem || unorderedItem) {
+      flushParagraph();
+      const ordered = Boolean(orderedItem);
+      if (!list || list.ordered !== ordered) {
+        flushList();
+        list = { kind: "list", ordered, items: [] };
+      }
+      list.items.push((orderedItem || unorderedItem)?.[1] || "");
+      continue;
+    }
+
+    flushList();
+    paragraph.push(line);
+  }
+
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+
+function MiaMessageContent({ content }: { content: string }) {
+  const blocks = parseMiaMarkdown(content);
+  return (
+    <div className="space-y-3 break-words">
+      {blocks.map((block, index) => {
+        if (block.kind === "heading") {
+          const headingClass =
+            block.level === 1
+              ? "text-base font-semibold"
+              : block.level === 2
+                ? "text-sm font-semibold"
+                : "text-sm font-medium";
+          const HeadingTag = block.level === 1 ? "h3" : "h4";
+          return (
+            <HeadingTag key={index} className={headingClass}>
+              {renderMiaInlineMarkdown(block.text)}
+            </HeadingTag>
+          );
+        }
+        if (block.kind === "list") {
+          const ListTag = block.ordered ? "ol" : "ul";
+          return (
+            <ListTag
+              key={index}
+              className={`${block.ordered ? "list-decimal" : "list-disc"} space-y-2 pl-5`}
+            >
+              {block.items.map((item, itemIndex) => (
+                <li key={itemIndex} className="pl-1">
+                  {renderMiaInlineMarkdown(item)}
+                </li>
+              ))}
+            </ListTag>
+          );
+        }
+        return <p key={index}>{renderMiaInlineMarkdown(block.text)}</p>;
+      })}
+    </div>
+  );
 }
 
 function sanitizeStoredMessage(value: string): string {
@@ -264,14 +395,14 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
                 key={`${item.role}-${index}`}
                 className={
                   item.role === "user"
-                    ? "ml-8 rounded-2xl border border-primary/25 bg-primary/10 px-3.5 py-3 text-sm text-foreground shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)]"
-                    : "mr-3 rounded-2xl border border-white/10 bg-surface/65 px-3.5 py-3 text-sm leading-5 text-foreground/90 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)]"
+                    ? "ml-8 rounded-2xl border border-primary/25 bg-primary/10 px-3.5 py-3 text-[13px] leading-[1.6] text-foreground shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)] sm:text-sm"
+                    : "mr-3 rounded-2xl border border-white/10 bg-surface/65 px-3.5 py-3 text-[13px] leading-[1.6] text-foreground/90 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)] sm:text-sm"
                 }
               >
                 <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
                   {item.role === "user" ? "You" : "Mia"}
                 </div>
-                {item.content}
+                <MiaMessageContent content={item.content} />
               </div>
             ))}
             {loading && (
