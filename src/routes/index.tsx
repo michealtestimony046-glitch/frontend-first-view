@@ -58,7 +58,7 @@ function Landing() {
             >
               Already a user? Sign in
             </Link>
-            <LaunchConsoleLink className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90" />
+            <LaunchConsoleLink className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border border-primary/35 bg-primary/80 px-2.5 py-2 text-xs font-semibold text-primary-foreground shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md transition-opacity hover:bg-primary/90 sm:gap-1.5 sm:rounded-md sm:px-3 sm:py-1.5 sm:text-sm" />
           </div>
         </div>
       </header>
