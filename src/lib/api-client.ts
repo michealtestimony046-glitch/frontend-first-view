@@ -878,6 +878,12 @@ export interface StaffNotificationRecipient {
 }
 
 export interface AdminAiUsageSummary {
+  directRunLedger?: {
+    totals: { calls: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number };
+    measuredRuns: number;
+    unmeasuredRuns: number;
+    recent: Array<{ id: string; status: string; type: string; createdAt: string; totalAiCalls: number; totalInputTokens: number; totalOutputTokens: number; providersUsed: string[]; estimatedAiCostUsd: number; aiCostCapturedAt?: string | null }>;
+  };
   totals: {
     events: number;
     degradedEvents: number;
@@ -1006,8 +1012,17 @@ export interface AdminAuditExport {
     aiEvents: number;
     linkedAiEvents: number;
     unlinkedAiEvents: number;
+    runsWithAiCost?: number;
+    runsWithoutAiCost?: number;
   };
-  runs: Array<Record<string, unknown>>;
+  runs: Array<Record<string, unknown> & {
+    totalAiCalls?: number;
+    totalInputTokens?: number;
+    totalOutputTokens?: number;
+    providersUsed?: string[];
+    estimatedAiCostUsd?: number;
+    aiCostCapturedAt?: string | null;
+  }>;
   telemetry: Array<Record<string, unknown>>;
   aiUsage: { events: Array<Record<string, unknown>> };
 }
@@ -1052,6 +1067,7 @@ export interface AdminOperationsMetricSnapshot {
   queueDepth: number;
   providerExhaustionFrequency: number;
   ai: { calls: number; tokens: number; estimatedCostUsd: number; costPerRunUsd: number; fallbackRate: number };
+  directRunLedger?: { measuredRuns: number; unmeasuredRuns: number; calls: number; tokens: number; estimatedCostUsd: number; costPerRunUsd: number };
 }
 export interface AdminOperationsMetrics {
   generatedAt: string;
