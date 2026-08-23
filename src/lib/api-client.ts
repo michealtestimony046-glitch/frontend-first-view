@@ -991,6 +991,27 @@ export interface ManagedSecretImportResult {
   errors: Array<{ name: string; message: string }>;
 }
 
+export interface AdminAuditExport {
+  schemaVersion: string;
+  generatedAt: string;
+  counts: {
+    runs: number;
+    statuses: Record<string, number>;
+    causes: Record<string, number>;
+    modes: Record<string, number>;
+    telemetryRows: number;
+    runsWithTelemetry: number;
+    runsWithoutTelemetry: number;
+    executionEvents: number;
+    aiEvents: number;
+    linkedAiEvents: number;
+    unlinkedAiEvents: number;
+  };
+  runs: Array<Record<string, unknown>>;
+  telemetry: Array<Record<string, unknown>>;
+  aiUsage: { events: Array<Record<string, unknown>> };
+}
+
 export interface AdminTelemetrySummary {
   version: { public: string; build: string };
   providerCapacity?: {
@@ -1075,7 +1096,8 @@ export interface AdminControlTowerSnapshot {
   organizations: { total: number; new30d: number };
   runs: {
     statusCounts: Record<string, number>;
-    recent: Array<{ id: string; projectId: string; workspaceId: string; triggeredById?: string | null; targetUrl: string; status: string; type: string; createdAt: string; startedAt?: string | null; finishedAt?: string | null; errorMessage?: string | null; metadata?: Record<string, unknown> | null }>;
+          recent: Array<{ id: string; projectId: string; workspaceId: string; triggeredById?: string | null; targetUrl: string; status: string; type: string; mode?: string | null; createdAt: string; startedAt?: string | null; finishedAt?: string | null; errorMessage?: string | null; metadata?: Record<string, unknown> | null }>;
+
   };
   queue: { pending: number; running: number; blocked: number; failed: number; completed: number; capacityByStatus: Record<string, { reservations: number; estimatedUnits: number; actualUnits: number }> };
   aiProviders: Array<{ id: string; provider: string; model: string; useCase: string; enabled: boolean; priority: number; lastHealthStatus?: string | null; lastHealthError?: string | null; lastHealthCheckedAt?: string | null; configVersion: number; updatedAt: string }>;
@@ -1165,6 +1187,7 @@ export const adminApi = {
   saveRecipient: (data: { email: string; label?: string }) => apiRequest<StaffNotificationRecipient>('/admin/notification-recipients', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   disableRecipient: (id: string) => apiRequest<StaffNotificationRecipient>(`/admin/notification-recipients/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
   broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  auditExport: (): Promise<AdminAuditExport> => apiRequest('/admin/audit-export', { requiresAuth: true }),
   telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
   metrics: (days = 7): Promise<AdminOperationsMetrics> => apiRequest(`/admin/metrics?days=${encodeURIComponent(String(days))}`, { requiresAuth: true }),
   controlTower: (): Promise<AdminControlTowerSnapshot> => apiRequest('/admin/control-tower', { requiresAuth: true }),
