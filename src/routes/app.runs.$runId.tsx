@@ -767,12 +767,13 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
   const blockers = formatAiList(summary.blockers);
   const findings = finalSummary && Array.isArray(finalSummary.findings) ? finalSummary.findings : [];
   const live = !final;
+  const liveState = live ? (ACTIVE_RUN_STATUSES.has(report.status) ? "streaming" : "snapshot") : null;
   return (
     <section className={`${live ? "mt-4" : "mt-6"} overflow-hidden rounded-xl border ${live ? "border-primary/30 bg-background/25" : "surface-card border-primary/25"}`}>
       <div className={`border-b ${live ? "border-white/10 bg-background/20 px-3 py-2.5 sm:px-4" : "border-border bg-primary/5 px-5 py-4"}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {live ? "live-ai" : "Evidence-backed report summary"}</div>
-          {live && <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">streaming</span>}
+          {liveState && <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{liveState}</span>}
         </div>
         <h2 className={`mt-2 break-words whitespace-pre-wrap ${live ? "font-mono text-[13px] font-medium leading-5 text-foreground sm:text-sm sm:leading-6" : "font-display text-lg font-semibold"}`}>{narrative}</h2>
         {!final && <div className="mt-2 flex min-w-0 gap-2 border-t border-white/10 pt-2 font-mono text-[11px] leading-5 text-muted-foreground"><span className="shrink-0 text-primary/80">objective$</span><span className="min-w-0 break-words">{liveSummary?.currentObjective}</span></div>}
