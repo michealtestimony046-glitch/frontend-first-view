@@ -748,6 +748,9 @@ export interface GuidanceResponse {
   answer: string;
   degraded: boolean;
   available: boolean;
+  workspaceId?: string | null;
+  memoryScope?: string;
+  citations?: Array<{ sourceId: string; claim: string }>;
 }
 
 const normalizeGuidanceMessage = (item: GuidanceMessage): GuidanceMessage => ({
