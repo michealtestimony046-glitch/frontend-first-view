@@ -118,7 +118,7 @@ export interface SignUpRequest {
   email: string;
   password: string;
   fullName: string;
-  workspaceName: string;
+  workspaceName?: string;
 }
 export interface SignUpResponse {
   message: string;

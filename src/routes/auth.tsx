@@ -260,7 +260,7 @@ function AuthPage() {
     setSuccessMessage("");
     const cleanDraft = { ...draft, email: draft.email.trim().toLowerCase(), fullName: draft.fullName.trim(), workspaceName: draft.workspaceName.trim(), targetUrl: normalizeTargetUrl(draft.targetUrl), focusArea: draft.focusArea.trim() };
     try {
-      const response = await signupMutate({ email: cleanDraft.email, password: cleanDraft.password, fullName: cleanDraft.fullName, workspaceName: cleanDraft.workspaceName });
+      const response = await signupMutate({ email: cleanDraft.email, password: cleanDraft.password, fullName: cleanDraft.fullName });
       setVerificationEmail(response.email || cleanDraft.email);
       setVerificationCode("");
       setVerificationStep(true);
