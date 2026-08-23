@@ -14,6 +14,19 @@ function normalizeTargetUrl(value: string | undefined) {
   }
 }
 
+function discoveryProgressLabel(phase: string | undefined) {
+  switch (phase) {
+    case "PRECHECK": return "Checking target reachability";
+    case "BROWSER_START": return "Starting isolated browser";
+    case "MAPPING": return "Mapping same-origin pages";
+    case "AI_ENRICHMENT": return "Summarizing discovery evidence";
+    case "FINALIZING": return "Saving the fresh map";
+    case "COMPLETED": return "Discovery complete";
+    case "FAILED": return "Discovery stopped";
+    default: return "Waiting for discovery progress";
+  }
+}
+
 export const Route = createFileRoute("/app/discovery")({
   head: () => ({
     meta: [
@@ -246,7 +259,13 @@ function PrecheckSummary({ precheck }: { precheck?: V2WebPrecheck | null }) {
 }
 
 function MapSummary({ scan, map }: { scan: V2ApplicationScan; map: V2ApplicationScan["projectMap"] }) {
-  if (scan.status !== "COMPLETED") return <div><PrecheckSummary precheck={scan.projectMap?.precheck ?? scan.summary?.precheck} /><div className="surface-card mt-5 flex min-h-[420px] items-center justify-center p-8 text-center"><div><Loader2 className="mx-auto h-9 w-9 animate-spin text-primary" /><h2 className="mt-4 font-display text-xl font-semibold">{scan.status === "FAILED" ? "Discovery could not finish" : "Mapping the application"}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">{scan.errorMessage || "The scanner is observing same-origin pages and waiting for a terminal result."}</p></div></div></div>;
+  if (scan.status !== "COMPLETED") {
+    const progress = scan.summary?.progress;
+    const pagesScanned = progress?.pagesScanned;
+    const maxPages = progress?.maxPages ?? 8;
+    const queuedUrls = progress?.queuedUrls;
+    return <div><PrecheckSummary precheck={scan.projectMap?.precheck ?? scan.summary?.precheck} /><div aria-live="polite" className="surface-card mt-5 flex min-h-[420px] items-center justify-center p-8 text-center"><div className="w-full max-w-md"><Loader2 className="mx-auto h-9 w-9 animate-spin text-primary" /><h2 className="mt-4 font-display text-xl font-semibold">{scan.status === "FAILED" ? "Discovery could not finish" : "Mapping the application"}</h2><p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">{scan.errorMessage || "The scanner is observing same-origin pages and waiting for a terminal result."}</p>{scan.status === "RUNNING" && <div className="mt-5 rounded-md border border-primary/20 bg-primary/5 p-4 text-left text-xs"><div className="font-medium text-foreground">{discoveryProgressLabel(progress?.phase)}</div>{typeof pagesScanned === "number" && <div className="mt-2 text-muted-foreground">{pagesScanned}/{maxPages} pages captured{typeof queuedUrls === "number" ? ` · ${queuedUrls} queued` : ""}</div>}{progress?.lastRoute && <div className="mt-1 truncate text-muted-foreground">Last route: {progress.lastRoute}</div>}</div>}</div></div></div>;
+  }
   const pages = map?.scannedPages ?? [];
   const actions = map?.actions ?? [];
   const features = map?.features ?? [];

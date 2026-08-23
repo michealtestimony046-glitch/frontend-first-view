@@ -420,7 +420,18 @@ export interface V2ApplicationScan {
   targetUrl: string;
   startedAt?: string | null;
   finishedAt?: string | null;
-  summary?: (Record<string, unknown> & { aiEnrichment?: V2AiEnrichment; precheck?: V2WebPrecheck }) | null;
+  summary?: (Record<string, unknown> & {
+    aiEnrichment?: V2AiEnrichment;
+    precheck?: V2WebPrecheck;
+    progress?: {
+      phase?: 'PRECHECK' | 'BROWSER_START' | 'MAPPING' | 'AI_ENRICHMENT' | 'FINALIZING' | 'COMPLETED' | 'FAILED' | string;
+      pagesScanned?: number;
+      maxPages?: number;
+      queuedUrls?: number;
+      lastRoute?: string;
+      updatedAt?: string;
+    };
+  }) | null;
   projectMap?: {
     targetOrigin?: string;
     precheck?: V2WebPrecheck;
