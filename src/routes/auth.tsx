@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ArrowLeft, ArrowRight, Chrome, Github, Loader2, Mail, ShieldCheck, Terminal, CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { authApi, organizationsApi, projectsApi, quickScanApi, v2Api, workspacesApi, type OnboardingQuickScanResult, type Project, type TriggerRunResponse } from "@/lib/api-client";
+import { toQuickScanHandoff } from "@/lib/quick-scan-handoff";
 import { useMutation } from "@/hooks/use-api";
 import { enrollBrowserPush } from "@/lib/push-notifications";
 
@@ -36,27 +37,6 @@ type RealUserTestState = "idle" | "preparing" | "running" | "queued" | "failed";
 
 const onboardingSleep = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
-function toQuickScanHandoff(result: OnboardingQuickScanResult) {
-  if (result.status !== "COMPLETED") return undefined;
-  return {
-    source: "ONBOARDING_QUICK_SCAN" as const,
-    targetUrl: result.targetUrl,
-    finalUrl: result.finalUrl,
-    targetOrigin: result.targetOrigin,
-    httpStatus: result.httpStatus,
-    checkedAt: result.checkedAt,
-    summary: result.summary,
-    summaryStatus: result.summaryStatus,
-    findings: result.findings.slice(0, 20).map((finding, index) => ({
-      id: `quick-scan:${finding.code}:${index + 1}`,
-      category: finding.category,
-      code: finding.code,
-      title: finding.title,
-      evidence: finding.evidence,
-      status: "UNVERIFIED_LEAD" as const,
-    })),
-  };
-}
 
 function isOAuthProvider(value: string | null): value is OAuthProvider {
   return value === "google" || value === "github";
