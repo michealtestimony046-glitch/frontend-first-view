@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Eye, Loader2, Play, Radar, RefreshCw, Shie
 import {
   quickScanApi,
   v2Api,
+  formatRunStartError,
   type OnboardingQuickScanResult,
   type Project,
   type ProviderCapacityDecision,
@@ -172,7 +173,7 @@ export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, 
       onStarted(response);
     } catch (cause) {
       setPhase("ready");
-      setError(cause instanceof Error ? cause.message : "Unable to start the browser test. Capacity is managed automatically; please try again when the current provider window is available.");
+      setError(formatRunStartError(cause, "Unable to start the browser test. Capacity is managed automatically; please try again when the current provider window is available."));
     }
   };
 
