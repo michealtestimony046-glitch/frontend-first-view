@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { ArrowUp, BookOpen, Check, Loader2, MessageCircle, ShieldCheck, Sparkles, X } from "lucide-react";
 import { guidanceApi, type GuidanceMessage } from "@/lib/api-client";
@@ -43,6 +43,9 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   const [messages, setMessages] = useState<GuidanceMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const messageViewportRef = useRef<HTMLDivElement>(null);
+  const latestMessageRef = useRef<HTMLDivElement>(null);
+  const shouldFollowLatestRef = useRef(true);
 
   const userId = user?.id ?? "";
   const hasConversation = messages.length > 0;
@@ -70,6 +73,12 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   }, [messages, userId]);
 
   const visibleMessages = useMemo(() => hasConversation ? messages : [{ role: "assistant" as const, content: INTRO }], [hasConversation, messages]);
+
+  useEffect(() => {
+    if (!open || !shouldFollowLatestRef.current) return;
+    const frame = window.requestAnimationFrame(() => latestMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, visibleMessages.length, loading, error]);
 
   if (!isAuthenticated || !user) return null;
 
@@ -109,12 +118,13 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
         <div className="flex min-w-0 items-start gap-2.5"><span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary"><MessageCircle className="h-4 w-4" /></span><div className="min-w-0"><div className="flex items-center gap-1.5 text-sm font-semibold">Mia <span className="rounded-full border border-primary/25 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-primary">Guide</span></div><p className="mt-0.5 text-[11px] text-muted-foreground">Read-only help for your Matrix QA account</p></div></div>
         <button type="button" onClick={closeGuide} className="rounded-lg border border-white/10 bg-white/[0.04] p-1.5 text-muted-foreground backdrop-blur-md hover:border-primary/30 hover:bg-primary/10 hover:text-foreground" aria-label="Close Mia guide"><X className="h-4 w-4" /></button>
       </header>
-      <div className="max-h-[min(430px,55vh)] space-y-3 overflow-y-auto bg-background/15 px-4 py-4" aria-live="polite">
+      <div ref={messageViewportRef} onScroll={() => { const viewport = messageViewportRef.current; if (!viewport) return; shouldFollowLatestRef.current = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 72; }} className="max-h-[min(430px,55vh)] space-y-3 overflow-y-auto bg-background/15 px-4 py-4" aria-live="polite">
         {!hasConversation && <div className="mb-1 flex items-center gap-2 rounded-xl border border-primary/15 bg-primary/[0.06] px-3 py-2 text-[11px] text-primary backdrop-blur-md"><Sparkles className="h-3.5 w-3.5" />Start with a question about Matrix QA</div>}
         {visibleMessages.map((item, index) => <div key={`${item.role}-${index}`} className={item.role === "user" ? "ml-8 rounded-2xl border border-primary/25 bg-primary/10 px-3.5 py-3 text-sm text-foreground shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)]" : "mr-3 rounded-2xl border border-white/10 bg-surface/65 px-3.5 py-3 text-sm leading-5 text-foreground/90 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.95)]"}><div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{item.role === "user" ? "You" : "Mia"}</div>{item.content}</div>)}
         {loading && <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground backdrop-blur-md"><Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />Mia is checking your selected workspace and current run…</div>}
         {error && <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive"><span className="flex-1">{error}</span><button type="button" onClick={() => setError(null)} className="shrink-0 underline">Dismiss</button></div>}
         {!hasConversation && <div className="grid gap-2 pt-1">{SUGGESTIONS.map((suggestion) => <button key={suggestion} type="button" onClick={() => void send(suggestion)} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs text-muted-foreground backdrop-blur-md hover:border-primary/40 hover:bg-primary/10 hover:text-foreground"><BookOpen className="h-3.5 w-3.5 text-primary" />{suggestion}</button>)}</div>}
+        <div ref={latestMessageRef} aria-hidden="true" className="h-px" />
       </div>
       <div className="border-t border-white/10 bg-background/20 px-3 py-3 backdrop-blur-md"><div className="mb-2 flex items-center gap-1.5 text-[10px] text-muted-foreground"><ShieldCheck className="h-3 w-3 text-primary" />Mia explains; she does not execute account actions.</div><form onSubmit={(event) => { event.preventDefault(); void send(); }} className="flex items-center gap-2"><input value={draft} onChange={(event) => setDraft(event.target.value)} disabled={loading} maxLength={2_000} placeholder="Ask about this workspace or run…" className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 text-xs text-foreground outline-none backdrop-blur-md placeholder:text-muted-foreground/70 focus:border-primary/55 focus:bg-primary/[0.06] focus:ring-2 focus:ring-primary/10" aria-label="Ask Mia a question" /><button type="submit" disabled={loading || !draft.trim()} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/35 bg-primary/75 text-primary-foreground shadow-[0_8px_24px_-12px_rgba(0,0,0,0.9)] backdrop-blur-md transition-transform duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Send question to Mia"><ArrowUp className="h-4 w-4" /></button></form></div>
     </div>}
