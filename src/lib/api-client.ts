@@ -364,6 +364,27 @@ export interface V2Environment {
   createdAt?: string;
   updatedAt?: string;
 }
+export type QuickScanFindingCategory = "meta" | "accessibility" | "links" | "content";
+export interface QuickScanFinding {
+  category: QuickScanFindingCategory;
+  code: string;
+  title: string;
+  evidence: string;
+}
+export interface OnboardingQuickScanResult {
+  status: "COMPLETED" | "FAILED";
+  targetUrl: string;
+  finalUrl: string | null;
+  targetOrigin: string;
+  httpStatus: number | null;
+  checkedAt: string;
+  findings: QuickScanFinding[];
+  findingCount: number;
+  summary: string | null;
+  summaryStatus: "AI_GENERATED" | "UNAVAILABLE";
+  errorMessage?: string;
+}
+
 export interface V2AiEnrichment {
   enabled: boolean;
   degraded: boolean;
@@ -1260,6 +1281,14 @@ const sleepForPlanRetry = (milliseconds: number) => new Promise((resolve) => glo
 
 const isRetryablePlanGenerationError = (error: unknown): error is ApiRequestError =>
   error instanceof ApiRequestError && error.status >= 500 && error.status < 600;
+
+export const quickScanApi = {
+  run: (data: { targetUrl: string; ownershipConfirmed: boolean }): Promise<OnboardingQuickScanResult> => apiRequest('/onboarding/quick-scan', {
+    method: 'POST',
+    body: JSON.stringify(data),
+    timeoutMs: 45_000,
+  }),
+};
 
 export const v2Api = {
   listEnvironments: (projectId: string): Promise<V2Environment[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),

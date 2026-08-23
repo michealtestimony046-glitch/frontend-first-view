@@ -3,13 +3,14 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, Chrome, Github, Loader2, Mail, ShieldCheck, Terminal, CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { authApi, organizationsApi, projectsApi, workspacesApi, type Project } from "@/lib/api-client";
+import { authApi, organizationsApi, projectsApi, quickScanApi, v2Api, workspacesApi, type OnboardingQuickScanResult, type Project, type TriggerRunResponse } from "@/lib/api-client";
 import { useMutation } from "@/hooks/use-api";
 import { enrollBrowserPush } from "@/lib/push-notifications";
 
 const PENDING_ONBOARDING_KEY = "matrix_qa_pending_onboarding";
 const FIRST_TEST_READY_KEY = "matrix_qa_first_test_ready";
 const ONBOARDING_PROFILE_KEY = "matrix_qa_onboarding_profile";
+const ONBOARDING_QUICK_SCAN_KEY = "matrix_qa_onboarding_quick_scan";
 
 type OnboardingDraft = {
   fullName: string;
@@ -31,6 +32,10 @@ const ROLE_OPTIONS = [
 ] as const;
 
 type OAuthProvider = "google" | "github";
+type QuickScanState = "idle" | "running" | "complete" | "failed";
+type RealUserTestState = "idle" | "preparing" | "running" | "queued" | "failed";
+
+const onboardingSleep = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 function isOAuthProvider(value: string | null): value is OAuthProvider {
   return value === "google" || value === "github";
@@ -74,13 +79,19 @@ function AuthPage() {
   const [oauthProviders, setOauthProviders] = useState({ google: false, github: false });
   const [oauthProvidersLoaded, setOauthProvidersLoaded] = useState(false);
   const [oauthUserId, setOauthUserId] = useState<string | null>(null);
+  const [quickScanState, setQuickScanState] = useState<QuickScanState>("idle");
+  const [quickScanResult, setQuickScanResult] = useState<OnboardingQuickScanResult | null>(null);
+  const [realUserTestState, setRealUserTestState] = useState<RealUserTestState>("idle");
+  const [realUserTestResponse, setRealUserTestResponse] = useState<TriggerRunResponse | null>(null);
+  const [realUserTestError, setRealUserTestError] = useState("");
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
   const navigate = useNavigate();
   const returnTo = search.returnTo === "/admin" ? "/admin" : "/app";
 
   const [loginMutate, loginState] = useMutation(authApi.login);
   const [signupMutate, signupState] = useMutation(authApi.signup);
   const [verifyMutate, verifyState] = useMutation(authApi.verifyEmail);
-  const isLoading = loginState.loading || signupState.loading || verifyState.loading || oauthLoading;
+  const isLoading = loginState.loading || signupState.loading || verifyState.loading || oauthLoading || quickScanState === "running" || realUserTestState === "preparing";
 
   useEffect(() => {
     let active = true;
@@ -184,7 +195,57 @@ function AuthPage() {
     if (!draft.targetUrl.trim()) { setErrorMessage("Add the website you want Matrix QA to test first."); return; }
     if (!isValidTargetUrl(draft.targetUrl)) { setErrorMessage("Use a valid http:// or https:// website address."); return; }
     if (!draft.ownershipConfirmed) { setErrorMessage("Confirm that you own this website or have permission to test it."); return; }
+    if (verificationEmail && quickScanState !== "complete") {
+      const cleanDraft = { ...draft, targetUrl: normalizeTargetUrl(draft.targetUrl), focusArea: draft.focusArea.trim() };
+      void runQuickScan(cleanDraft).then(() => { setOnboardingComplete(true); setSuccessMessage("Quick Scan is complete. Continue to email verification when you are ready."); }).catch((cause) => setErrorMessage(cause instanceof Error ? cause.message : "We could not start your Quick Scan. Please try again."));
+      return;
+    }
     void submitSignup();
+  };
+
+  const runQuickScan = async (onboarding: OnboardingDraft) => {
+    setQuickScanState("running");
+    setQuickScanResult(null);
+    setErrorMessage("");
+    try {
+      const result = await quickScanApi.run({ targetUrl: onboarding.targetUrl, ownershipConfirmed: onboarding.ownershipConfirmed });
+      setQuickScanResult(result);
+      setQuickScanState(result.status === "COMPLETED" ? "complete" : "failed");
+      localStorage.setItem(ONBOARDING_QUICK_SCAN_KEY, JSON.stringify(result));
+      if (result.status !== "COMPLETED") throw new Error(result.errorMessage || "Quick Scan could not reach this target.");
+      return result;
+    } catch (cause) {
+      setQuickScanState("failed");
+      throw cause;
+    }
+  };
+
+  const startRealUserTest = async (onboarding: OnboardingDraft, project: Project) => {
+    setRealUserTestState("preparing");
+    setRealUserTestError("");
+    try {
+      const createdScan = await v2Api.startScan(project.id, { targetUrl: onboarding.targetUrl, missionGoal: onboarding.focusArea.trim() || "Test this website thoroughly.", accessMode: "ANONYMOUS" });
+      let scan = createdScan;
+      while (scan.status === "PENDING" || scan.status === "RUNNING") {
+        await onboardingSleep(1_800);
+        scan = await v2Api.getScan(scan.id);
+      }
+      if (scan.status !== "COMPLETED") throw new Error(scan.errorMessage || "The Real User Test could not finish its fresh preparation.");
+      const plan = await v2Api.createPlanFromScan(scan.id, { name: "First Real User Test", mode: "QUICK_SMOKE", missionGoal: onboarding.focusArea.trim() || "Test this website thoroughly.", accessMode: "ANONYMOUS" });
+      const blockedPolicy = plan.policyDecisions.some((decision) => decision.status !== "ALLOWED" && decision.status !== "APPROVED");
+      if (blockedPolicy || plan.scenarios.length === 0) throw new Error("The Real User Test needs a safe plan review before it can start.");
+      const approvedPlan = plan.status === "APPROVED" ? plan : await v2Api.approvePlan(plan.id);
+      const response = await v2Api.runPlan(approvedPlan.id, { targetUrl: onboarding.targetUrl, accessMode: "ANONYMOUS", targetAuthorizationConfirmed: onboarding.ownershipConfirmed, enableVision: false, enableRecovery: false });
+      setRealUserTestResponse(response);
+      setRealUserTestState(response.metadata?.providerCapacity?.status === "WAITING" ? "queued" : "running");
+      localStorage.removeItem(FIRST_TEST_READY_KEY);
+      return response;
+    } catch (cause) {
+      setRealUserTestState("failed");
+      setRealUserTestError(cause instanceof Error ? cause.message : "The Real User Test could not start yet.");
+      localStorage.setItem(FIRST_TEST_READY_KEY, JSON.stringify({ projectId: project.id, targetUrl: onboarding.targetUrl, missionGoal: onboarding.focusArea.trim() || "Test this website thoroughly.", autoStart: true, targetAuthorizationConfirmed: onboarding.ownershipConfirmed }));
+      return null;
+    }
   };
 
   const submitSignup = async () => {
@@ -193,20 +254,33 @@ function AuthPage() {
     const cleanDraft = { ...draft, email: draft.email.trim().toLowerCase(), fullName: draft.fullName.trim(), workspaceName: draft.workspaceName.trim(), targetUrl: normalizeTargetUrl(draft.targetUrl), focusArea: draft.focusArea.trim() };
     try {
       localStorage.setItem(PENDING_ONBOARDING_KEY, JSON.stringify(cleanDraft));
+      const quickScanPromise = runQuickScan(cleanDraft);
       if (oauthUserId) {
         await provisionFirstTest(cleanDraft, oauthUserId);
+        await quickScanPromise;
         localStorage.removeItem(PENDING_ONBOARDING_KEY);
-        setSuccessMessage("Your first test is being prepared now.");
-        window.setTimeout(() => navigate({ to: "/app" }), 450);
+        setOnboardingComplete(true);
+        setSuccessMessage("Quick Scan is complete. Your Real User Test is moving forward in the background.");
         return;
       }
       const response = await signupMutate({ email: cleanDraft.email, password: cleanDraft.password, fullName: cleanDraft.fullName, workspaceName: cleanDraft.workspaceName });
       setVerificationEmail(response.email || cleanDraft.email);
       setVerificationCode("");
-      setVerificationStep(true);
-      setSuccessMessage("Check your email for the 6-digit verification code.");
+      setSuccessMessage("Quick Scan is running while we prepare email verification.");
+      await quickScanPromise;
+      setOnboardingComplete(true);
+      setSuccessMessage("Quick Scan is complete. Continue to email verification when you are ready.");
     } catch (cause) {
-      setErrorMessage(cause instanceof Error ? cause.message : "We could not create your account. Please try again.");
+      const message = cause instanceof Error ? cause.message : "We could not start your Quick Scan. Please try again.";
+      if (oauthUserId) {
+        setOnboardingComplete(true);
+        setRealUserTestState("failed");
+        setRealUserTestError(message);
+      } else if (!verificationEmail) {
+        setQuickScanState("idle");
+        setQuickScanResult(null);
+      }
+      setErrorMessage(message);
     }
   };
 
@@ -226,10 +300,8 @@ function AuthPage() {
     const project: Project = existing.find((item) => item.defaultTargetUrl === onboarding.targetUrl) ?? await projectsApi.create({ organizationId: activeOrganization.id, workspaceId: workspace.id, name: `${desiredOrganizationName} first test`, description: onboarding.focusArea.trim() || undefined, defaultTargetUrl: onboarding.targetUrl });
     localStorage.setItem("matrix_qa_active_project", project.id);
     localStorage.setItem(ONBOARDING_PROFILE_KEY, JSON.stringify({ userId, role: onboarding.role, notifications: onboarding.notifications, focusArea: onboarding.focusArea.trim() }));
-    if (onboarding.notifications === "email_push") {
-      await enrollBrowserPush().catch(() => undefined);
-    }
-    localStorage.setItem(FIRST_TEST_READY_KEY, JSON.stringify({ projectId: project.id, targetUrl: onboarding.targetUrl, missionGoal: onboarding.focusArea.trim() || "Test this website thoroughly.", autoStart: true, targetAuthorizationConfirmed: onboarding.ownershipConfirmed }));
+    if (onboarding.notifications === "email_push") await enrollBrowserPush().catch(() => undefined);
+    void startRealUserTest(onboarding, project);
   };
 
   const handleVerify = async (event: FormEvent) => {
@@ -249,12 +321,21 @@ function AuthPage() {
       try {
         await provisionFirstTest(pending, response.user.id);
         localStorage.removeItem(PENDING_ONBOARDING_KEY);
-        setSuccessMessage("Email verified. Your first test is being prepared now.");
-        window.setTimeout(() => navigate({ to: "/app" }), 450);
+        setVerificationEmail("");
+        setVerificationStep(false);
+        setOnboardingStep(3);
+        setOnboardingComplete(true);
+        setSuccessMessage("Email verified. Your Real User Test is moving forward in the background.");
       } catch (cause) {
-        setSuccessMessage("Email verified. Your console is ready; finish the first-test setup there.");
-        setErrorMessage(cause instanceof Error ? cause.message : "We could not finish the first-test setup yet.");
-        window.setTimeout(() => navigate({ to: "/app/projects" }), 900);
+        const message = cause instanceof Error ? cause.message : "We could not finish the first-test setup yet.";
+        setVerificationEmail("");
+        setVerificationStep(false);
+        setOnboardingStep(3);
+        setOnboardingComplete(true);
+        setRealUserTestState("failed");
+        setRealUserTestError(message);
+        setSuccessMessage("Email verified. Your Quick Scan remains here while the first test is repaired.");
+        setErrorMessage(message);
       }
     } catch (cause) {
       setErrorMessage(cause instanceof Error ? cause.message : "We could not verify your email. Please try again.");
@@ -262,6 +343,7 @@ function AuthPage() {
   };
 
   const handleCodeChange = (value: string) => { setVerificationCode(value.replace(/\D/g, "").slice(0, 6)); setErrorMessage(""); };
+  const continueToVerification = () => { setVerificationStep(true); setErrorMessage(""); setSuccessMessage("Enter the verification code we sent to finish account setup."); };
   const backToSignup = () => { setVerificationStep(false); setVerificationCode(""); setErrorMessage(""); setSuccessMessage(""); };
   const switchMode = () => { if (adminSignInOnly) return; setSelectedMode((current) => current === "signin" ? "signup" : "signin"); setRecoveryMode(false); setOnboardingStep(1); setErrorMessage(""); setSuccessMessage(""); };
 
@@ -269,7 +351,7 @@ function AuthPage() {
     <div className="flex flex-col justify-between p-6 sm:p-8 md:p-12">
       <Logo />
       <div className="mx-auto w-full max-w-md">
-        {!verificationStep ? recoveryMode ? <RecoveryForm email={draft.email} setEmail={(value) => updateDraft("email", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleRequestReset} onBack={() => { setRecoveryMode(false); setErrorMessage(""); setSuccessMessage(""); }} /> : mode === "signin" ? <SignInForm adminSignInOnly={adminSignInOnly} email={draft.email} password={draft.password} setEmail={(value) => updateDraft("email", value)} setPassword={(value) => updateDraft("password", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleSignIn} onRecovery={() => { setRecoveryMode(true); setErrorMessage(""); setSuccessMessage(""); }} oauthProviders={oauthProviders} oauthProvidersLoaded={oauthProvidersLoaded} oauthLoading={oauthLoading} onOAuth={startOAuth} /> : <OnboardingForm key={`onboarding-${onboardingStep}`} step={onboardingStep} draft={draft} updateDraft={updateDraft} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={continueOnboarding} onBack={() => { setErrorMessage(""); setOnboardingStep((current) => current > 1 ? (current - 1) as 1 | 2 | 3 : 1); }} oauthProviders={oauthProviders} oauthProvidersLoaded={oauthProvidersLoaded} oauthLoading={oauthLoading} onOAuth={startOAuth} /> : <VerificationPanel email={verificationEmail} code={verificationCode} loading={isLoading} error={errorMessage} success={successMessage} onCodeChange={handleCodeChange} onSubmit={handleVerify} onBack={backToSignup} />}
+        {!verificationStep ? recoveryMode ? <RecoveryForm email={draft.email} setEmail={(value) => updateDraft("email", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleRequestReset} onBack={() => { setRecoveryMode(false); setErrorMessage(""); setSuccessMessage(""); }} /> : mode === "signin" ? <SignInForm adminSignInOnly={adminSignInOnly} email={draft.email} password={draft.password} setEmail={(value) => updateDraft("email", value)} setPassword={(value) => updateDraft("password", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleSignIn} onRecovery={() => { setRecoveryMode(true); setErrorMessage(""); setSuccessMessage(""); }} oauthProviders={oauthProviders} oauthProvidersLoaded={oauthProvidersLoaded} oauthLoading={oauthLoading} onOAuth={startOAuth} /> : <OnboardingForm key={`onboarding-${onboardingStep}`} step={onboardingStep} draft={draft} updateDraft={updateDraft} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={continueOnboarding} onBack={() => { setErrorMessage(""); setOnboardingStep((current) => current > 1 ? (current - 1) as 1 | 2 | 3 : 1); }} oauthProviders={oauthProviders} oauthProvidersLoaded={oauthProvidersLoaded} oauthLoading={oauthLoading} onOAuth={startOAuth} quickScanState={quickScanState} quickScanResult={quickScanResult} realUserTestState={realUserTestState} realUserTestResponse={realUserTestResponse} realUserTestError={realUserTestError} onboardingComplete={onboardingComplete} verificationEmail={verificationEmail} onContinueToVerification={continueToVerification} onContinueToApp={() => navigate({ to: "/app" })} /> : <VerificationPanel email={verificationEmail} code={verificationCode} loading={isLoading} error={errorMessage} success={successMessage} onCodeChange={handleCodeChange} onSubmit={handleVerify} onBack={backToSignup} />}
         {!verificationStep && !recoveryMode && !adminSignInOnly && <p className="mt-7 text-center text-sm text-muted-foreground">{mode === "signin" ? "New to Matrix QA?" : "Already have an account?"}{" "}<button type="button" onClick={switchMode} className="text-primary hover:underline">{mode === "signin" ? "Create an account" : "Sign in"}</button></p>}
       </div>
       <p className="font-mono text-[11px] text-muted-foreground"><Link to="/" className="hover:text-foreground">← back to matrixqa.dev</Link></p>
@@ -292,9 +374,11 @@ function OAuthButtons({ providers, loaded, loading, onOAuth }: { providers: { go
   </div>;
 }
 
-function OnboardingForm({ step, draft, updateDraft, loading, error, success, onSubmit, onBack, oauthProviders, oauthProvidersLoaded, oauthLoading, onOAuth }: { step: 1 | 2 | 3; draft: OnboardingDraft; updateDraft: <K extends keyof OnboardingDraft>(key: K, value: OnboardingDraft[K]) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onBack: () => void; oauthProviders: { google: boolean; github: boolean }; oauthProvidersLoaded: boolean; oauthLoading: boolean; onOAuth: (provider: "google" | "github") => void }) {
+function OnboardingForm({ step, draft, updateDraft, loading, error, success, onSubmit, onBack, oauthProviders, oauthProvidersLoaded, oauthLoading, onOAuth, quickScanState, quickScanResult, realUserTestState, realUserTestResponse, realUserTestError, onboardingComplete, verificationEmail, onContinueToVerification, onContinueToApp }: { step: 1 | 2 | 3; draft: OnboardingDraft; updateDraft: <K extends keyof OnboardingDraft>(key: K, value: OnboardingDraft[K]) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onBack: () => void; oauthProviders: { google: boolean; github: boolean }; oauthProvidersLoaded: boolean; oauthLoading: boolean; onOAuth: (provider: "google" | "github") => void; quickScanState: QuickScanState; quickScanResult: OnboardingQuickScanResult | null; realUserTestState: RealUserTestState; realUserTestResponse: TriggerRunResponse | null; realUserTestError: string; onboardingComplete: boolean; verificationEmail: string; onContinueToVerification: () => void; onContinueToApp: () => void }) {
   const title = step === 1 ? "Create your account." : step === 2 ? "Shape your workspace." : "Test your first site.";
   const description = step === 1 ? "Start with the account you will use to review evidence-backed reports." : step === 2 ? "A little context helps Matrix QA make future guidance feel relevant. It never controls access." : "Tell Matrix QA what to observe first. Email updates are on by default.";
+  const completedScan = step === 3 && quickScanState === "complete" && Boolean(quickScanResult);
+  const runHref = realUserTestResponse?.id && realUserTestResponse.projectId ? `/app/runs/${encodeURIComponent(realUserTestResponse.id)}?projectId=${encodeURIComponent(realUserTestResponse.projectId)}` : null;
   return <form onSubmit={onSubmit} className="animate-in fade-in slide-in-from-right-3 duration-200 motion-reduce:animate-none" aria-label={`Onboarding screen ${step} of 3`}>
     <div className="flex items-center justify-between"><span className="font-mono text-xs uppercase tracking-[0.18em] text-primary">Screen {step} of 3</span><span className="font-mono text-[10px] text-muted-foreground">{step === 1 ? "Account" : step === 2 ? "Workspace" : "First test"}</span></div>
     <div className="mt-3 flex gap-1.5" aria-label="Onboarding progress">{[1, 2, 3].map((item) => <span key={item} className={`h-1 flex-1 rounded-full ${item <= step ? "bg-primary" : "bg-surface-2"}`} />)}</div>
@@ -305,7 +389,10 @@ function OnboardingForm({ step, draft, updateDraft, loading, error, success, onS
       {step === 2 && <><Field label="What should we call your workspace?" type="text" placeholder="Acme QA" autoComplete="organization" value={draft.workspaceName} onChange={(event) => updateDraft("workspaceName", event.target.value)} disabled={loading} /><fieldset><legend className="mb-2 text-xs font-medium text-foreground">What best describes you?</legend><div className="grid gap-2">{ROLE_OPTIONS.map((option) => <label key={option} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors ${draft.role === option ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-surface-2/30 text-muted-foreground hover:bg-accent/50"}`}><input type="radio" name="role" value={option} checked={draft.role === option} onChange={() => updateDraft("role", option)} className="accent-primary" />{option}</label>)}</div></fieldset></>}
       {step === 3 && <><Field label="What’s the first thing you want tested?" type="url" placeholder="https://staging.your-app.com" autoComplete="url" value={draft.targetUrl} onChange={(event) => updateDraft("targetUrl", event.target.value)} disabled={loading} /><div className="flex items-center justify-between gap-3 text-xs"><span className="text-muted-foreground">Don’t have a site to test yet?</span><a href="/sample-report" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">See a sample report ↗</a></div><label className="flex cursor-pointer items-start gap-3 rounded-lg border border-primary/25 bg-primary/5 px-3 py-3 text-sm"><input type="checkbox" checked={draft.ownershipConfirmed} onChange={(event) => updateDraft("ownershipConfirmed", event.target.checked)} disabled={loading} className="mt-0.5 accent-primary" /><span><span className="font-medium text-foreground">I own this website, or I have permission to test it.</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">This confirmation is required before Matrix QA prepares a test.</span></span></label><label className="block"><span className="mb-1.5 block text-xs font-medium text-foreground">Anything specific you’re worried about? <span className="font-normal text-muted-foreground">(optional)</span></span><textarea value={draft.focusArea} onChange={(event) => updateDraft("focusArea", event.target.value)} disabled={loading} maxLength={2_000} rows={3} placeholder="e.g. Check the sign-up flow and mobile layout" className="w-full resize-none rounded-lg border border-border bg-surface-2/60 px-3 py-2.5 text-sm leading-5 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15" /></label><fieldset><legend className="mb-2 text-xs font-medium text-foreground">Test updates</legend><div className="grid gap-2 sm:grid-cols-2"><label className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-xs ${draft.notifications === "email" ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-surface-2/30 text-muted-foreground"}`}><input type="radio" name="notifications" checked={draft.notifications === "email"} onChange={() => updateDraft("notifications", "email")} className="accent-primary" />Email only</label><label className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-xs ${draft.notifications === "email_push" ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-surface-2/30 text-muted-foreground"}`}><input type="radio" name="notifications" checked={draft.notifications === "email_push"} onChange={() => updateDraft("notifications", "email_push")} className="accent-primary" />Email + push</label></div><p className="mt-1.5 text-[11px] text-muted-foreground">Email is on by default. Push can be added when device permissions are available.</p></fieldset></>}
     </div>
-    <div className="mt-7 flex gap-2">{step > 1 && <button type="button" onClick={onBack} disabled={loading} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40"><ArrowLeft className="h-4 w-4" />Back</button>}<button type="submit" disabled={loading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{step < 3 ? "Continue" : "Create account & prepare first test"}{!loading && <ArrowRight className="h-4 w-4" />}</button></div>
+    {step === 3 && quickScanState === "failed" && <div className="mt-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4" role="alert"><div className="text-sm font-semibold text-destructive">Quick Scan could not complete.</div><p className="mt-2 text-xs leading-5 text-muted-foreground">The page was not scanned successfully. Fix the target or try the Quick Scan again; no Real User Test result has been claimed.</p></div>}
+    {step === 3 && quickScanState === "running" && <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4" role="status" aria-live="polite"><div className="flex items-center gap-2 text-sm font-semibold text-primary"><Loader2 className="h-4 w-4 animate-spin" />Quick Scan is checking the page now.</div><p className="mt-2 text-xs leading-5 text-muted-foreground">We are checking the page structure, metadata, links, and accessibility basics. This does not replace the Real User Test.</p></div>}
+    {step === 3 && completedScan && quickScanResult && <div className="mt-6 space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4" role="status" aria-live="polite"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-primary">Quick Scan complete</div><p className="mt-1 text-xs text-muted-foreground">{quickScanResult.findingCount} structural finding{quickScanResult.findingCount === 1 ? "" : "s"} found · {quickScanResult.summaryStatus === "AI_GENERATED" ? "summary written from the scan evidence" : "summary unavailable"}</p></div><span className="font-mono text-[10px] uppercase tracking-wider text-primary">HTTP {quickScanResult.httpStatus ?? "—"}</span></div><p className="rounded-lg border border-primary/20 bg-background/30 p-3 text-sm leading-6 text-foreground">{quickScanResult.summary ?? "The page checks completed, but the summary provider was unavailable. The scan evidence is still available in this flow."}</p>{quickScanResult.findings.length > 0 && <ul className="space-y-2">{quickScanResult.findings.slice(0, 5).map((finding) => <li key={`${finding.code}-${finding.evidence}`} className="text-xs leading-5 text-muted-foreground"><span className="font-medium text-foreground">{finding.title}:</span> {finding.evidence}</li>)}</ul>}<div className="border-t border-primary/20 pt-3"><p className="text-sm font-semibold leading-5 text-foreground">{realUserTestState === "running" || realUserTestState === "queued" ? "Your Real User Test is running now — this is where Matrix QA finds the bugs a scanner can’t see." : realUserTestState === "preparing" ? "Your Real User Test is being prepared now — keep this page open while the live run is admitted." : realUserTestState === "failed" ? "The Real User Test needs attention before it can start." : "Finish the short account step and your Real User Test will start in the background."}</p>{realUserTestState === "failed" && realUserTestError && <p className="mt-1 text-xs leading-5 text-destructive">{realUserTestError}</p>}{runHref ? <a href={runHref} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow"><ArrowRight className="h-4 w-4" />Watch the Real User Test live</a> : realUserTestState === "preparing" ? <a href="/app" className="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary/30 px-3.5 py-2.5 text-sm font-medium text-primary hover:bg-primary/10">Open the console</a> : null}{verificationEmail && realUserTestState === "idle" && <button type="button" onClick={onContinueToVerification} className="mt-3 block text-xs font-medium text-primary hover:underline">Continue to email verification →</button>}</div></div>}
+    <div className="mt-7 flex gap-2">{step > 1 && !completedScan && <button type="button" onClick={onBack} disabled={loading} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40"><ArrowLeft className="h-4 w-4" />Back</button>}{step < 3 && <button type="submit" disabled={loading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}Continue{!loading && <ArrowRight className="h-4 w-4" />}</button>}{step === 3 && !completedScan && <button type="submit" disabled={loading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{verificationEmail ? "Retry Quick Scan" : "Run Quick Scan"}{!loading && <ArrowRight className="h-4 w-4" />}</button>}{step === 3 && completedScan && onboardingComplete && <button type="button" onClick={verificationEmail ? onContinueToVerification : onContinueToApp} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/15">{verificationEmail ? "Continue to verification" : "Open the console"}<ArrowRight className="h-4 w-4" /></button>}{step === 3 && completedScan && !onboardingComplete && <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm text-primary"><Loader2 className="h-4 w-4 animate-spin" />Finishing setup…</span>}</div>
   </form>;
 }
 
