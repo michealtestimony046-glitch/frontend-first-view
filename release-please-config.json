@@ -1,0 +1,16 @@
+{
+  "bootstrap-sha": "60a8707e24bdc404053974bfa79396f3ec6dbeaf",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "revert", "section": "Reverts" }
+  ],
+  "packages": {
+    ".": {
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}

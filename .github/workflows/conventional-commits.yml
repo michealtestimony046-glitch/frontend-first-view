@@ -1,0 +1,29 @@
+name: Conventional Commits
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  commit-messages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit subjects
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eu
+          invalid="$(git log --no-merges --format=%s "${BASE_SHA}..HEAD" | awk '!/^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]*\))?!?: .+$/')"
+          if [ -n "${invalid}" ]; then
+            echo "These commit subjects are not Conventional Commits:"
+            printf '%s\n' "${invalid}"
+            echo "Use type(scope): description, for example: fix: improve Mia workspace grounding"
+            exit 1
+          fi
