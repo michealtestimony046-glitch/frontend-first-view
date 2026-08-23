@@ -7,7 +7,6 @@ import { authApi, organizationsApi, projectsApi, quickScanApi, v2Api, workspaces
 import { useMutation } from "@/hooks/use-api";
 import { enrollBrowserPush } from "@/lib/push-notifications";
 
-const PENDING_ONBOARDING_KEY = "matrix_qa_pending_onboarding";
 const FIRST_TEST_READY_KEY = "matrix_qa_first_test_ready";
 const ONBOARDING_PROFILE_KEY = "matrix_qa_onboarding_profile";
 const ONBOARDING_QUICK_SCAN_KEY = "matrix_qa_onboarding_quick_scan";
@@ -79,6 +78,7 @@ function AuthPage() {
   const [oauthProviders, setOauthProviders] = useState({ google: false, github: false });
   const [oauthProvidersLoaded, setOauthProvidersLoaded] = useState(false);
   const [oauthUserId, setOauthUserId] = useState<string | null>(null);
+  const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null);
   const [quickScanState, setQuickScanState] = useState<QuickScanState>("idle");
   const [quickScanResult, setQuickScanResult] = useState<OnboardingQuickScanResult | null>(null);
   const [realUserTestState, setRealUserTestState] = useState<RealUserTestState>("idle");
@@ -183,7 +183,7 @@ function AuthPage() {
     if (onboardingStep === 1) {
       if (!draft.email.trim() || !draft.password) { setErrorMessage("Enter your email and password to continue."); return; }
       if (draft.password.length < 8) { setErrorMessage("Use at least 8 characters for your password."); return; }
-      setOnboardingStep(2);
+      void submitSignup();
       return;
     }
     if (onboardingStep === 2) {
@@ -195,12 +195,19 @@ function AuthPage() {
     if (!draft.targetUrl.trim()) { setErrorMessage("Add the website you want Matrix QA to test first."); return; }
     if (!isValidTargetUrl(draft.targetUrl)) { setErrorMessage("Use a valid http:// or https:// website address."); return; }
     if (!draft.ownershipConfirmed) { setErrorMessage("Confirm that you own this website or have permission to test it."); return; }
-    if (verificationEmail && quickScanState !== "complete") {
-      const cleanDraft = { ...draft, targetUrl: normalizeTargetUrl(draft.targetUrl), focusArea: draft.focusArea.trim() };
-      void runQuickScan(cleanDraft).then(() => { setOnboardingComplete(true); setSuccessMessage("Quick Scan is complete. Continue to email verification when you are ready."); }).catch((cause) => setErrorMessage(cause instanceof Error ? cause.message : "We could not start your Quick Scan. Please try again."));
-      return;
-    }
-    void submitSignup();
+    const cleanDraft = { ...draft, targetUrl: normalizeTargetUrl(draft.targetUrl), focusArea: draft.focusArea.trim() };
+    void (async () => {
+      try {
+        await runQuickScan(cleanDraft);
+        const userId = oauthUserId || verifiedUserId;
+        if (!userId) throw new Error("Verify your email before preparing the first test.");
+        await provisionFirstTest(cleanDraft, userId);
+        setOnboardingComplete(true);
+        setSuccessMessage("Quick Scan is complete. Your Real User Test is moving forward in the background.");
+      } catch (cause) {
+        setErrorMessage(cause instanceof Error ? cause.message : "We could not start your Quick Scan. Please try again.");
+      }
+    })();
   };
 
   const runQuickScan = async (onboarding: OnboardingDraft) => {
@@ -253,33 +260,13 @@ function AuthPage() {
     setSuccessMessage("");
     const cleanDraft = { ...draft, email: draft.email.trim().toLowerCase(), fullName: draft.fullName.trim(), workspaceName: draft.workspaceName.trim(), targetUrl: normalizeTargetUrl(draft.targetUrl), focusArea: draft.focusArea.trim() };
     try {
-      localStorage.setItem(PENDING_ONBOARDING_KEY, JSON.stringify(cleanDraft));
-      const quickScanPromise = runQuickScan(cleanDraft);
-      if (oauthUserId) {
-        await provisionFirstTest(cleanDraft, oauthUserId);
-        await quickScanPromise;
-        localStorage.removeItem(PENDING_ONBOARDING_KEY);
-        setOnboardingComplete(true);
-        setSuccessMessage("Quick Scan is complete. Your Real User Test is moving forward in the background.");
-        return;
-      }
       const response = await signupMutate({ email: cleanDraft.email, password: cleanDraft.password, fullName: cleanDraft.fullName, workspaceName: cleanDraft.workspaceName });
       setVerificationEmail(response.email || cleanDraft.email);
       setVerificationCode("");
-      setSuccessMessage("Quick Scan is running while we prepare email verification.");
-      await quickScanPromise;
-      setOnboardingComplete(true);
-      setSuccessMessage("Quick Scan is complete. Continue to email verification when you are ready.");
+      setVerificationStep(true);
+      setSuccessMessage("Account created. Check your email for a verification code before continuing to workspace setup.");
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "We could not start your Quick Scan. Please try again.";
-      if (oauthUserId) {
-        setOnboardingComplete(true);
-        setRealUserTestState("failed");
-        setRealUserTestError(message);
-      } else if (!verificationEmail) {
-        setQuickScanState("idle");
-        setQuickScanResult(null);
-      }
+      const message = cause instanceof Error ? cause.message : "We could not create your account. Please try again.";
       setErrorMessage(message);
     }
   };
@@ -311,47 +298,25 @@ function AuthPage() {
     setSuccessMessage("");
     try {
       const response = await verifyMutate({ email: verificationEmail, code: verificationCode });
-      const raw = localStorage.getItem(PENDING_ONBOARDING_KEY);
-      const pending = raw ? JSON.parse(raw) as OnboardingDraft : null;
-      if (!pending) {
-        setSuccessMessage("Email verified. Welcome to Matrix QA.");
-        window.setTimeout(() => navigate({ to: returnTo }), 250);
-        return;
-      }
-      try {
-        await provisionFirstTest(pending, response.user.id);
-        localStorage.removeItem(PENDING_ONBOARDING_KEY);
-        setVerificationEmail("");
-        setVerificationStep(false);
-        setOnboardingStep(3);
-        setOnboardingComplete(true);
-        setSuccessMessage("Email verified. Your Real User Test is moving forward in the background.");
-      } catch (cause) {
-        const message = cause instanceof Error ? cause.message : "We could not finish the first-test setup yet.";
-        setVerificationEmail("");
-        setVerificationStep(false);
-        setOnboardingStep(3);
-        setOnboardingComplete(true);
-        setRealUserTestState("failed");
-        setRealUserTestError(message);
-        setSuccessMessage("Email verified. Your Quick Scan remains here while the first test is repaired.");
-        setErrorMessage(message);
-      }
+      setVerifiedUserId(response.user.id);
+      setVerificationEmail("");
+      setVerificationStep(false);
+      setOnboardingStep(2);
+      setSuccessMessage("Email verified. Continue with your workspace setup.");
     } catch (cause) {
       setErrorMessage(cause instanceof Error ? cause.message : "We could not verify your email. Please try again.");
     }
   };
 
   const handleCodeChange = (value: string) => { setVerificationCode(value.replace(/\D/g, "").slice(0, 6)); setErrorMessage(""); };
-  const continueToVerification = () => { setVerificationStep(true); setErrorMessage(""); setSuccessMessage("Enter the verification code we sent to finish account setup."); };
-  const backToSignup = () => { setVerificationStep(false); setVerificationCode(""); setErrorMessage(""); setSuccessMessage(""); };
+  const backToSignup = () => { setVerificationStep(false); setVerificationCode(""); setVerificationEmail(""); setErrorMessage(""); setSuccessMessage(""); };
   const switchMode = () => { if (adminSignInOnly) return; setSelectedMode((current) => current === "signin" ? "signup" : "signin"); setRecoveryMode(false); setOnboardingStep(1); setErrorMessage(""); setSuccessMessage(""); };
 
   return <div className="grid min-h-screen bg-background md:grid-cols-2">
     <div className="flex flex-col justify-between p-6 sm:p-8 md:p-12">
       <Logo />
       <div className="mx-auto w-full max-w-md">
-        {!verificationStep ? recoveryMode ? <RecoveryForm email={draft.email} setEmail={(value) => updateDraft("email", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleRequestReset} onBack={() => { setRecoveryMode(false); setErrorMessage(""); setSuccessMessage(""); }} /> : mode === "signin" ? <SignInForm adminSignInOnly={adminSignInOnly} email={draft.email} password={draft.password} setEmail={(value) => updateDraft("email", value)} setPassword={(value) => updateDraft("password", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleSignIn} onRecovery={() => { setRecoveryMode(true); setErrorMessage(""); setSuccessMessage(""); }} oauthProviders={oauthProviders} oauthProvidersLoaded={oauthProvidersLoaded} oauthLoading={oauthLoading} onOAuth={startOAuth} /> : <OnboardingForm key={`onboarding-${onboardingStep}`} step={onboardingStep} draft={draft} updateDraft={updateDraft} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={continueOnboarding} onBack={() => { setErrorMessage(""); setOnboardingStep((current) => current > 1 ? (current - 1) as 1 | 2 | 3 : 1); }} oauthProviders={oauthProviders} oauthProvidersLoaded={oauthProvidersLoaded} oauthLoading={oauthLoading} onOAuth={startOAuth} quickScanState={quickScanState} quickScanResult={quickScanResult} realUserTestState={realUserTestState} realUserTestResponse={realUserTestResponse} realUserTestError={realUserTestError} onboardingComplete={onboardingComplete} verificationEmail={verificationEmail} onContinueToVerification={continueToVerification} onContinueToApp={() => navigate({ to: "/app" })} /> : <VerificationPanel email={verificationEmail} code={verificationCode} loading={isLoading} error={errorMessage} success={successMessage} onCodeChange={handleCodeChange} onSubmit={handleVerify} onBack={backToSignup} />}
+        {!verificationStep ? recoveryMode ? <RecoveryForm email={draft.email} setEmail={(value) => updateDraft("email", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleRequestReset} onBack={() => { setRecoveryMode(false); setErrorMessage(""); setSuccessMessage(""); }} /> : mode === "signin" ? <SignInForm adminSignInOnly={adminSignInOnly} email={draft.email} password={draft.password} setEmail={(value) => updateDraft("email", value)} setPassword={(value) => updateDraft("password", value)} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={handleSignIn} onRecovery={() => { setRecoveryMode(true); setErrorMessage(""); setSuccessMessage(""); }} oauthProviders={oauthProviders} oauthProvidersLoaded={oauthProvidersLoaded} oauthLoading={oauthLoading} onOAuth={startOAuth} /> : <OnboardingForm key={`onboarding-${onboardingStep}`} step={onboardingStep} draft={draft} updateDraft={updateDraft} loading={isLoading} error={errorMessage} success={successMessage} onSubmit={continueOnboarding} onBack={() => { setErrorMessage(""); setOnboardingStep((current) => current > 1 ? (current - 1) as 1 | 2 | 3 : 1); }} oauthProviders={oauthProviders} oauthProvidersLoaded={oauthProvidersLoaded} oauthLoading={oauthLoading} onOAuth={startOAuth} quickScanState={quickScanState} quickScanResult={quickScanResult} realUserTestState={realUserTestState} realUserTestResponse={realUserTestResponse} realUserTestError={realUserTestError} onboardingComplete={onboardingComplete} onContinueToApp={() => navigate({ to: "/app" })} /> : <VerificationPanel email={verificationEmail} code={verificationCode} loading={isLoading} error={errorMessage} success={successMessage} onCodeChange={handleCodeChange} onSubmit={handleVerify} onBack={backToSignup} />}
         {!verificationStep && !recoveryMode && !adminSignInOnly && <p className="mt-7 text-center text-sm text-muted-foreground">{mode === "signin" ? "New to Matrix QA?" : "Already have an account?"}{" "}<button type="button" onClick={switchMode} className="text-primary hover:underline">{mode === "signin" ? "Create an account" : "Sign in"}</button></p>}
       </div>
       <p className="font-mono text-[11px] text-muted-foreground"><Link to="/" className="hover:text-foreground">← back to matrixqa.dev</Link></p>
@@ -374,7 +339,53 @@ function OAuthButtons({ providers, loaded, loading, onOAuth }: { providers: { go
   </div>;
 }
 
-function OnboardingForm({ step, draft, updateDraft, loading, error, success, onSubmit, onBack, oauthProviders, oauthProvidersLoaded, oauthLoading, onOAuth, quickScanState, quickScanResult, realUserTestState, realUserTestResponse, realUserTestError, onboardingComplete, verificationEmail, onContinueToVerification, onContinueToApp }: { step: 1 | 2 | 3; draft: OnboardingDraft; updateDraft: <K extends keyof OnboardingDraft>(key: K, value: OnboardingDraft[K]) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onBack: () => void; oauthProviders: { google: boolean; github: boolean }; oauthProvidersLoaded: boolean; oauthLoading: boolean; onOAuth: (provider: "google" | "github") => void; quickScanState: QuickScanState; quickScanResult: OnboardingQuickScanResult | null; realUserTestState: RealUserTestState; realUserTestResponse: TriggerRunResponse | null; realUserTestError: string; onboardingComplete: boolean; verificationEmail: string; onContinueToVerification: () => void; onContinueToApp: () => void }) {
+function renderInlineMarkdown(value: string): ReactNode {
+  return value.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean).map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) return <strong key={`${part}-${index}`} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+    if (part.startsWith("`") && part.endsWith("`")) return <code key={`${part}-${index}`} className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[0.9em] text-primary">{part.slice(1, -1)}</code>;
+    return <span key={`${part}-${index}`}>{part}</span>;
+  });
+}
+
+type QuickScanSummaryItem = { title?: string; body: string };
+
+function parseQuickScanItem(value: string): QuickScanSummaryItem {
+  const clean = value.replace(/^\s*(?:[-*]|\d+[.)])\s+/, "").trim();
+  const boldTitle = clean.match(/^\*\*(.+?)\*\*\s*(?:(?:[-–—:]\s*)|(\s+))(.+)$/);
+  if (boldTitle) return { title: boldTitle[1].trim(), body: boldTitle[3].trim() };
+  const title = clean.match(/^([^:]{3,90}):\s+(.+)$/);
+  if (title) return { title: title[1].trim(), body: title[2].trim() };
+  return { body: clean };
+}
+
+function QuickScanSummary({ summary }: { summary: string | null }) {
+  if (!summary?.trim()) return <p className="text-sm leading-6 text-muted-foreground">The page checks completed, but the summary provider was unavailable. The scan evidence is still available in this flow.</p>;
+  const normalizedSummary = summary.trim().replace(/\s+(?=\d+[.)]\s+(?:\*\*|[A-Z<`]))/g, "\n").replace(/\s+(?=[-*]\s+)/g, "\n");
+  const lines = normalizedSummary.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const blocks: Array<{ type: "heading" | "paragraph" | "list"; lines: string[] }> = [];
+  for (const line of lines) {
+    const isList = /^\s*(?:[-*]|\d+[.)])\s+/.test(line);
+    const isHeading = /^#{1,3}\s+/.test(line);
+    const type = isHeading ? "heading" : isList ? "list" : "paragraph";
+    const previous = blocks[blocks.length - 1];
+    if (previous?.type === type && type === "list") previous.lines.push(line);
+    else blocks.push({ type, lines: [line] });
+  }
+  return <div className="space-y-3 text-sm leading-6 text-foreground">
+    {blocks.map((block, blockIndex) => {
+      if (block.type === "heading") return <h3 key={`summary-heading-${blockIndex}`} className="font-display text-sm font-semibold text-foreground">{renderInlineMarkdown(block.lines[0].replace(/^#{1,3}\s+/, ""))}</h3>;
+      if (block.type === "list") return <ul key={`summary-list-${blockIndex}`} className="space-y-2">{block.lines.map((line, lineIndex) => { const item = parseQuickScanItem(line); return <li key={`summary-item-${lineIndex}`} className="rounded-lg border border-primary/15 bg-background/35 px-3 py-2.5">{item.title ? <><span className="font-semibold text-foreground">{renderInlineMarkdown(item.title)}</span>{item.body ? <span className="text-muted-foreground"> — {renderInlineMarkdown(item.body)}</span> : null}</> : <span>{renderInlineMarkdown(item.body)}</span>}</li>; })}</ul>;
+      return <p key={`summary-paragraph-${blockIndex}`}>{renderInlineMarkdown(block.lines.join(" "))}</p>;
+    })}
+  </div>;
+}
+
+function QuickScanFindingList({ findings }: { findings: OnboardingQuickScanResult["findings"] }) {
+  if (findings.length === 0) return null;
+  return <ul className="space-y-2">{findings.slice(0, 5).map((finding) => <li key={`${finding.code}-${finding.evidence}`} className="rounded-lg border border-primary/15 bg-background/35 px-3 py-2.5 text-xs leading-5 text-muted-foreground"><span className="font-semibold text-foreground">{finding.title}:</span> {finding.evidence}</li>)}</ul>;
+}
+
+function OnboardingForm({ step, draft, updateDraft, loading, error, success, onSubmit, onBack, oauthProviders, oauthProvidersLoaded, oauthLoading, onOAuth, quickScanState, quickScanResult, realUserTestState, realUserTestResponse, realUserTestError, onboardingComplete, onContinueToApp }: { step: 1 | 2 | 3; draft: OnboardingDraft; updateDraft: <K extends keyof OnboardingDraft>(key: K, value: OnboardingDraft[K]) => void; loading: boolean; error: string; success: string; onSubmit: (event: FormEvent) => void; onBack: () => void; oauthProviders: { google: boolean; github: boolean }; oauthProvidersLoaded: boolean; oauthLoading: boolean; onOAuth: (provider: "google" | "github") => void; quickScanState: QuickScanState; quickScanResult: OnboardingQuickScanResult | null; realUserTestState: RealUserTestState; realUserTestResponse: TriggerRunResponse | null; realUserTestError: string; onboardingComplete: boolean; onContinueToApp: () => void }) {
   const title = step === 1 ? "Create your account." : step === 2 ? "Shape your workspace." : "Test your first site.";
   const description = step === 1 ? "Start with the account you will use to review evidence-backed reports." : step === 2 ? "A little context helps Matrix QA make future guidance feel relevant. It never controls access." : "Tell Matrix QA what to observe first. Email updates are on by default.";
   const completedScan = step === 3 && quickScanState === "complete" && Boolean(quickScanResult);
@@ -391,8 +402,8 @@ function OnboardingForm({ step, draft, updateDraft, loading, error, success, onS
     </div>
     {step === 3 && quickScanState === "failed" && <div className="mt-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4" role="alert"><div className="text-sm font-semibold text-destructive">Quick Scan could not complete.</div><p className="mt-2 text-xs leading-5 text-muted-foreground">The page was not scanned successfully. Fix the target or try the Quick Scan again; no Real User Test result has been claimed.</p></div>}
     {step === 3 && quickScanState === "running" && <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4" role="status" aria-live="polite"><div className="flex items-center gap-2 text-sm font-semibold text-primary"><Loader2 className="h-4 w-4 animate-spin" />Quick Scan is checking the page now.</div><p className="mt-2 text-xs leading-5 text-muted-foreground">We are checking the page structure, metadata, links, and accessibility basics. This does not replace the Real User Test.</p></div>}
-    {step === 3 && completedScan && quickScanResult && <div className="mt-6 space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4" role="status" aria-live="polite"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-primary">Quick Scan complete</div><p className="mt-1 text-xs text-muted-foreground">{quickScanResult.findingCount} structural finding{quickScanResult.findingCount === 1 ? "" : "s"} found · {quickScanResult.summaryStatus === "AI_GENERATED" ? "summary written from the scan evidence" : "summary unavailable"}</p></div><span className="font-mono text-[10px] uppercase tracking-wider text-primary">HTTP {quickScanResult.httpStatus ?? "—"}</span></div><p className="rounded-lg border border-primary/20 bg-background/30 p-3 text-sm leading-6 text-foreground">{quickScanResult.summary ?? "The page checks completed, but the summary provider was unavailable. The scan evidence is still available in this flow."}</p>{quickScanResult.findings.length > 0 && <ul className="space-y-2">{quickScanResult.findings.slice(0, 5).map((finding) => <li key={`${finding.code}-${finding.evidence}`} className="text-xs leading-5 text-muted-foreground"><span className="font-medium text-foreground">{finding.title}:</span> {finding.evidence}</li>)}</ul>}<div className="border-t border-primary/20 pt-3"><p className="text-sm font-semibold leading-5 text-foreground">{realUserTestState === "running" || realUserTestState === "queued" ? "Your Real User Test is running now — this is where Matrix QA finds the bugs a scanner can’t see." : realUserTestState === "preparing" ? "Your Real User Test is being prepared now — keep this page open while the live run is admitted." : realUserTestState === "failed" ? "The Real User Test needs attention before it can start." : "Finish the short account step and your Real User Test will start in the background."}</p>{realUserTestState === "failed" && realUserTestError && <p className="mt-1 text-xs leading-5 text-destructive">{realUserTestError}</p>}{runHref ? <a href={runHref} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow"><ArrowRight className="h-4 w-4" />Watch the Real User Test live</a> : realUserTestState === "preparing" ? <a href="/app" className="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary/30 px-3.5 py-2.5 text-sm font-medium text-primary hover:bg-primary/10">Open the console</a> : null}{verificationEmail && realUserTestState === "idle" && <button type="button" onClick={onContinueToVerification} className="mt-3 block text-xs font-medium text-primary hover:underline">Continue to email verification →</button>}</div></div>}
-    <div className="mt-7 flex gap-2">{step > 1 && !completedScan && <button type="button" onClick={onBack} disabled={loading} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40"><ArrowLeft className="h-4 w-4" />Back</button>}{step < 3 && <button type="submit" disabled={loading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}Continue{!loading && <ArrowRight className="h-4 w-4" />}</button>}{step === 3 && !completedScan && <button type="submit" disabled={loading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{verificationEmail ? "Retry Quick Scan" : "Run Quick Scan"}{!loading && <ArrowRight className="h-4 w-4" />}</button>}{step === 3 && completedScan && onboardingComplete && <button type="button" onClick={verificationEmail ? onContinueToVerification : onContinueToApp} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/15">{verificationEmail ? "Continue to verification" : "Open the console"}<ArrowRight className="h-4 w-4" /></button>}{step === 3 && completedScan && !onboardingComplete && <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm text-primary"><Loader2 className="h-4 w-4 animate-spin" />Finishing setup…</span>}</div>
+    {step === 3 && completedScan && quickScanResult && <div className="mt-6 space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4" role="status" aria-live="polite"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-primary">Quick Scan complete</div><p className="mt-1 text-xs text-muted-foreground">{quickScanResult.findingCount} structural finding{quickScanResult.findingCount === 1 ? "" : "s"} found · {quickScanResult.summaryStatus === "AI_GENERATED" ? "summary written from the scan evidence" : "summary unavailable"}</p></div><span className="font-mono text-[10px] uppercase tracking-wider text-primary">HTTP {quickScanResult.httpStatus ?? "—"}</span></div><div className="rounded-lg border border-primary/20 bg-background/30 p-3"><QuickScanSummary summary={quickScanResult.summary} /></div><QuickScanFindingList findings={quickScanResult.findings} /><div className="border-t border-primary/20 pt-3"><p className="text-sm font-semibold leading-5 text-foreground">{realUserTestState === "running" || realUserTestState === "queued" ? "Your Real User Test is running now — this is where Matrix QA finds the bugs a scanner can’t see." : realUserTestState === "preparing" ? "Your Real User Test is being prepared now — keep this page open while the live run is admitted." : realUserTestState === "failed" ? "The Real User Test needs attention before it can start." : "Finish the short account step and your Real User Test will start in the background."}</p>{realUserTestState === "failed" && realUserTestError && <p className="mt-1 text-xs leading-5 text-destructive">{realUserTestError}</p>}{runHref ? <a href={runHref} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow"><ArrowRight className="h-4 w-4" />Watch the Real User Test live</a> : realUserTestState === "preparing" ? <a href="/app" className="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary/30 px-3.5 py-2.5 text-sm font-medium text-primary hover:bg-primary/10">Open the console</a> : null}</div></div>}
+    <div className="mt-7 flex gap-2">{step > 1 && !completedScan && <button type="button" onClick={onBack} disabled={loading} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40"><ArrowLeft className="h-4 w-4" />Back</button>}{step < 3 && <button type="submit" disabled={loading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}Continue{!loading && <ArrowRight className="h-4 w-4" />}</button>}{step === 3 && !completedScan && <button type="submit" disabled={loading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{quickScanState === "failed" ? "Retry Quick Scan" : "Run Quick Scan"}{!loading && <ArrowRight className="h-4 w-4" />}</button>}{step === 3 && completedScan && onboardingComplete && <button type="button" onClick={onContinueToApp} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/15">Open the console<ArrowRight className="h-4 w-4" /></button>}{step === 3 && completedScan && !onboardingComplete && <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm text-primary"><Loader2 className="h-4 w-4 animate-spin" />Finishing setup…</span>}</div>
   </form>;
 }
 
