@@ -7,12 +7,32 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "https://matrix-qa-backend.onrender.com"
 ).replace(/\/$/, "");
 const TOKEN_KEY = "matrix_qa_auth_token_v2";
-const AUTH_EVENT = "matrix-qa-auth-changed";
+export const AUTH_EVENT = "matrix-qa-auth-changed";
 const CLIENT_WORKSPACE_STATE_KEYS = [
   "matrix_qa_active_organization",
   "matrix_qa_active_workspace",
   "matrix_qa_active_project",
 ] as const;
+const MIA_MESSAGES_STORAGE_PREFIX = "matrixqa_mia_messages:";
+const VERSIONED_MIA_MESSAGES_STORAGE_PREFIX = `${MIA_MESSAGES_STORAGE_PREFIX}v2:`;
+
+export const clearLegacyClientMiaHistory = (): void => {
+  if (typeof window === "undefined") return;
+  Object.keys(localStorage)
+    .filter(
+      (key) =>
+        key.startsWith(MIA_MESSAGES_STORAGE_PREFIX) &&
+        !key.startsWith(VERSIONED_MIA_MESSAGES_STORAGE_PREFIX),
+    )
+    .forEach((key) => localStorage.removeItem(key));
+};
+
+export const clearClientMiaHistory = (): void => {
+  if (typeof window === "undefined") return;
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith(MIA_MESSAGES_STORAGE_PREFIX))
+    .forEach((key) => localStorage.removeItem(key));
+};
 
 export const clearClientWorkspaceContext = (): void => {
   if (typeof window !== "undefined") {
@@ -26,6 +46,7 @@ export const getAuthToken = (): string | null =>
 export const setAuthToken = (token: string): void => {
   if (typeof window !== "undefined") {
     clearClientWorkspaceContext();
+    clearClientMiaHistory();
     localStorage.setItem(TOKEN_KEY, token);
     window.dispatchEvent(new Event(AUTH_EVENT));
   }
@@ -35,6 +56,7 @@ export const clearAuthToken = (): void => {
   if (typeof window !== "undefined") {
     localStorage.removeItem(TOKEN_KEY);
     clearClientWorkspaceContext();
+    clearClientMiaHistory();
     window.dispatchEvent(new Event(AUTH_EVENT));
   }
 };
