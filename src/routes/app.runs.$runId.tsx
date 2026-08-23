@@ -770,18 +770,18 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
     <section className="mt-6 surface-card overflow-hidden border border-primary/25">
       <div className="border-b border-border bg-primary/5 px-5 py-4">
         <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-primary"><BrainCircuit className="h-3.5 w-3.5" /> {final ? "Evidence-backed report summary" : "Live test update"}</div>
-        <h2 className="mt-2 font-display text-lg font-semibold">{narrative}</h2>
-        {!final && <p className="mt-2 text-sm text-muted-foreground">{liveSummary?.currentObjective}</p>}
+        <h2 className={`mt-2 ${final ? "font-display text-lg font-semibold" : "font-mono text-base font-medium leading-7 sm:text-lg sm:font-semibold"}`}>{narrative}</h2>
+        {!final && <p className="mt-2 font-mono text-sm leading-6 text-muted-foreground">{liveSummary?.currentObjective}</p>}
       </div>
       <div className="grid gap-6 p-5 lg:grid-cols-2">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "What was tested" : "What changed"}</h3>
-          <ul className="mt-3 space-y-2 text-sm text-foreground/85">{formatAiList(final ? finalSummary?.whatWasTested : liveSummary?.whatChanged).map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul>
+          <ul className={`mt-3 space-y-2 text-sm text-foreground/85 ${final ? "" : "font-mono"}`}>{formatAiList(final ? finalSummary?.whatWasTested : liveSummary?.whatChanged).map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{item}</li>)}</ul>
         </div>
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{final ? "Coverage" : "Next step"}</h3>
-          <p className="mt-3 text-sm leading-6 text-foreground/85">{final ? formatAiValue(finalSummary?.coverage) || "Coverage summary unavailable." : liveSummary?.nextStep}</p>
-          {blockers.length > 0 && <div className="mt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-warning">Blockers</h4><ul className="mt-2 space-y-1 text-xs text-muted-foreground">{blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+          <p className={`mt-3 text-sm leading-6 text-foreground/85 ${final ? "" : "font-mono"}`}>{final ? formatAiValue(finalSummary?.coverage) || "Coverage summary unavailable." : liveSummary?.nextStep}</p>
+          {blockers.length > 0 && <div className="mt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-warning">Blockers</h4><ul className={`mt-2 space-y-1 text-xs text-muted-foreground ${final ? "" : "font-mono"}`}>{blockers.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
         </div>
       </div>
       {findings.length > 0 && <div className="border-t border-border px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Findings</h3><div className="mt-3 divide-y divide-border">{findings.map((finding, index) => <div key={index} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center gap-2"><PlanBadge label={finding.severity} tone={finding.severity.toLowerCase().includes("high") || finding.severity.toLowerCase().includes("critical") ? "danger" : "neutral"} /><span className="text-sm font-medium">{finding.title}</span></div><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.explanation}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">Evidence: {Array.isArray(finding.evidence) ? finding.evidence.map((evidence) => evidence.label).join(", ") || "none referenced" : "none referenced"}</p></div>)}</div></div>}
@@ -1183,7 +1183,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
             </div>
             <form onSubmit={submitMessage} className="mt-4 flex gap-2">
               <label className="sr-only" htmlFor="run-console-message">Message the Run Console</label>
-              <input id="run-console-message" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!active || sending} maxLength={4000} placeholder={active ? "Tell the worker what to inspect next…" : "Console input is available while the run is active"} className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary" />
+              <input id="run-console-message" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!active || sending} maxLength={4000} placeholder={active ? "Tell the worker what to inspect next…" : "Console input is available while the run is active"} className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 font-mono text-sm outline-none placeholder:text-muted-foreground focus:border-primary" />
               <button type="submit" disabled={!active || !draft.trim() || sending || expired} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/75 px-3 py-2 text-sm text-primary-foreground backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-50"><Send className="h-3.5 w-3.5" /> Send</button>
             </form>
             <p className="mt-2 text-[11px] text-muted-foreground">Messages are added to the next test-worker decision. Stop preserves collected evidence and ends the active run; dangerous actions remain fail-closed.</p>
@@ -1217,7 +1217,7 @@ function RunConsoleMessage({ message }: { message: RunMessage }) {
         <span className="rounded-full bg-surface-2 px-1.5 py-0.5">{messageLabel}</span>
         <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
       </div>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground/85">{message.body}</p>
+      <p className="mt-2 whitespace-pre-wrap font-mono text-sm leading-6 text-foreground/85">{message.body}</p>
       {safeObjective && <p className="mt-3 text-xs leading-5 text-muted-foreground">{safeObjective}</p>}
       {safeNextStep && <p className="mt-2 text-xs leading-5 text-muted-foreground"><span className="font-medium text-foreground/75">Next:</span> {safeNextStep}</p>}
       {evidence.length > 0 && <p className="mt-3 font-mono text-[10px] text-muted-foreground">Evidence: {evidence.map((item) => typeof item === "object" && item && "label" in item ? String(item.label) : String(item)).join(", ")}</p>}
