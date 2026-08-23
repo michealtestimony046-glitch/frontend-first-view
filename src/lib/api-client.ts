@@ -924,6 +924,7 @@ export interface AdminAiUsageSummary {
   providers: Array<{ provider: string; model: string; events: number; degradedEvents: number; fallbackAttempts?: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
   useCases: Array<{ useCase: string; events: number; degradedEvents: number; fallbackAttempts?: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
   providerChain?: Array<{ useCase: string; chainPosition: number; provider: string; model: string; attempts: number; successes: number; degradedAttempts: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
+  providerDiagnostics?: Array<{ usageEventId: string; runId?: string | null; provider: string; model: string; useCase: string; chainPosition: number; kind: 'INVALID_JSON' | 'SCHEMA_VALIDATION' | 'EMPTY_CONTENT'; schemaName: string; validationError: string; responseExcerpt: string; capturedAt: string; createdAt: string; degraded: boolean }>;
   organizations: Array<{ organizationId: string; organizationName: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
   recent: Array<{ id: string; organizationId: string; projectId?: string | null; scanId?: string | null; provider: string; model: string; inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number; latencyMs: number; degraded: boolean; createdAt: string }>;
 }
