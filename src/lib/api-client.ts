@@ -45,6 +45,8 @@ interface RequestOptions extends RequestInit {
 }
 
 const DEFAULT_API_TIMEOUT_MS = 30_000;
+const QUICK_SCAN_TIMEOUT_MS = 120_000;
+const PLAN_PREPARATION_TIMEOUT_MS = 120_000;
 
 export class ApiRequestError extends Error {
   constructor(message: string, public readonly status: number, public readonly endpoint: string) {
@@ -1349,7 +1351,7 @@ export const quickScanApi = {
   run: (data: { targetUrl: string; ownershipConfirmed: boolean }): Promise<OnboardingQuickScanResult> => apiRequest('/onboarding/quick-scan', {
     method: 'POST',
     body: JSON.stringify(data),
-    timeoutMs: 45_000,
+    timeoutMs: QUICK_SCAN_TIMEOUT_MS,
   }),
 };
 
@@ -1365,6 +1367,7 @@ export const v2Api = {
       method: 'POST',
       body: JSON.stringify(payload),
       requiresAuth: true,
+      timeoutMs: PLAN_PREPARATION_TIMEOUT_MS,
     });
 
     try {
