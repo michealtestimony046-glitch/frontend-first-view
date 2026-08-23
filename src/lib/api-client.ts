@@ -756,9 +756,14 @@ const normalizeGuidanceMessage = (item: GuidanceMessage): GuidanceMessage => ({
 });
 
 export const guidanceApi = {
-  chat: (message: string, history: GuidanceMessage[] = []): Promise<GuidanceResponse> => apiRequest('/guidance/chat', {
+  chat: (message: string, history: GuidanceMessage[] = [], context: { workspaceId?: string; runId?: string } = {}): Promise<GuidanceResponse> => apiRequest('/guidance/chat', {
     method: 'POST',
-    body: JSON.stringify({ message: message.trim().slice(0, 2_000), history: history.slice(-8).map(normalizeGuidanceMessage) }),
+    body: JSON.stringify({
+      message: message.trim().slice(0, 2_000),
+      history: history.slice(-8).map(normalizeGuidanceMessage),
+      ...(context.workspaceId ? { workspaceId: context.workspaceId } : {}),
+      ...(context.runId ? { runId: context.runId } : {}),
+    }),
     requiresAuth: true,
   }),
 };

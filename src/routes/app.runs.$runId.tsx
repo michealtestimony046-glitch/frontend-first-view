@@ -1054,7 +1054,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/10 bg-surface/55 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+    <section className="overflow-hidden rounded-2xl border border-white/15 bg-surface/55 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.9),0_0_0_1px_rgba(140,255,160,0.05)] backdrop-blur-2xl">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 bg-background/20 px-5 py-4 backdrop-blur-md">
         <div>
           <div className="flex items-center gap-2">
@@ -1063,7 +1063,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Guide the worker with a bounded instruction for its next decision, clarify scope, or approve a safe control request while this run is active.</p>
         </div>
-        <button type="button" onClick={() => void loadMessages()} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent" aria-label="Refresh console">
+        <button type="button" onClick={() => void loadMessages()} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-2.5 py-1.5 text-xs text-muted-foreground backdrop-blur-md hover:border-primary/35 hover:bg-primary/10 hover:text-foreground" aria-label="Refresh console">
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
         </button>
       </div>
@@ -1084,9 +1084,9 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-sm font-semibold text-foreground">The test worker needs another instruction</p>
                   <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">This run is closed, so the live worker cannot receive a message. Start a fresh continuation from the same test plan and tell the worker what to retry, inspect, or adapt. The original result remains unchanged for audit history.</p>
-                  <textarea id="run-continuation-instruction" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={continuing} rows={3} maxLength={4000} placeholder="Example: Re-open the Platform link, inspect the actual page heading, and adapt the assertion to the content you observe." className="mt-3 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary disabled:opacity-60" />
+                    <textarea id="run-continuation-instruction" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={continuing} rows={3} maxLength={4000} placeholder="Example: Re-open the Platform link, inspect the actual page heading, and adapt the assertion to the content you observe." className="mt-3 w-full resize-y rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm outline-none backdrop-blur-md placeholder:text-muted-foreground focus:border-primary disabled:opacity-60" />
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={() => void continueWithAi()} disabled={continuing} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{continuing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} Continue test</button>
+                    <button type="button" onClick={() => void continueWithAi()} disabled={continuing} className="inline-flex items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/75 px-3 py-2 text-xs font-semibold text-primary-foreground backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-50">{continuing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} Continue test</button>
                     <span className="text-[11px] text-muted-foreground">A new run will be created from the same approved test plan.</span>
                   </div>
                 </div>
@@ -1108,10 +1108,10 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
                     <div><dt className="font-mono uppercase tracking-wider">Risk classification</dt><dd className="mt-0.5 text-foreground/75">{pendingScopeRequest.risk}</dd></div>
                   </dl>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("ALLOW_ACTION", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"><Check className="h-3.5 w-3.5" /> Allow this action</button>
-                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("ALLOW_SCENARIO", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Allow this scenario</button>
-                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("SKIP", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground hover:bg-accent disabled:opacity-50"><SkipForward className="h-3.5 w-3.5" /> Continue without it</button>
-                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("STOP", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"><Square className="h-3.5 w-3.5" /> Stop run</button>
+                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("ALLOW_ACTION", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/75 px-3 py-2 text-xs font-semibold text-primary-foreground backdrop-blur-md disabled:opacity-50"><Check className="h-3.5 w-3.5" /> Allow this action</button>
+                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("ALLOW_SCENARIO", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-primary backdrop-blur-md hover:bg-primary/10 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Allow this scenario</button>
+                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("SKIP", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground backdrop-blur-md hover:border-primary/30 hover:bg-primary/10 disabled:opacity-50"><SkipForward className="h-3.5 w-3.5" /> Continue without it</button>
+                    <button type="button" disabled={Boolean(activeAction)} onClick={() => void sendControl("STOP", { requestId: pendingScopeRequest.requestId })} className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/[0.06] px-3 py-2 text-xs text-destructive backdrop-blur-md hover:bg-destructive/10 disabled:opacity-50"><Square className="h-3.5 w-3.5" /> Stop run</button>
                   </div>
                 </div>
               </div>
@@ -1124,7 +1124,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
               <div className="py-10 text-center text-xs text-muted-foreground">No console messages yet. Worker updates and your instructions will appear here.</div>
             )}
           </div>
-          <div className="border-t border-white/10 bg-background/15 px-5 py-4 backdrop-blur-md">
+          <div className="border-t border-white/10 bg-background/15 px-4 py-4 backdrop-blur-md sm:px-5">
             <div className="flex flex-wrap gap-2">
               <ConsoleButton action="PAUSE" icon={Pause} disabled={!active || Boolean(activeAction)} pending={activeAction === "PAUSE"} onClick={sendControl} />
               <ConsoleButton action="RESUME" icon={Play} disabled={!active || Boolean(activeAction)} pending={activeAction === "RESUME"} onClick={sendControl} />
@@ -1135,7 +1135,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
             <form onSubmit={submitMessage} className="mt-4 flex gap-2">
               <label className="sr-only" htmlFor="run-console-message">Message the Run Console</label>
               <input id="run-console-message" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!active || sending} maxLength={4000} placeholder={active ? "Tell the worker what to inspect next…" : "Console input is available while the run is active"} className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary" />
-              <button type="submit" disabled={!active || !draft.trim() || sending || expired} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><Send className="h-3.5 w-3.5" /> Send</button>
+              <button type="submit" disabled={!active || !draft.trim() || sending || expired} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/75 px-3 py-2 text-sm text-primary-foreground backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-50"><Send className="h-3.5 w-3.5" /> Send</button>
             </form>
             <p className="mt-2 text-[11px] text-muted-foreground">Messages are added to the next test-worker decision. Stop preserves collected evidence and ends the active run; dangerous actions remain fail-closed.</p>
           </div>
@@ -1146,7 +1146,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
 }
 
 function ConsoleButton({ action, icon: Icon, disabled, pending, onClick, danger = false }: { action: ConsoleAction; icon: typeof Pause; disabled: boolean; pending: boolean; onClick: (action: ConsoleAction) => void; danger?: boolean }) {
-  return <button type="button" disabled={disabled} onClick={() => onClick(action)} className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wide disabled:cursor-not-allowed disabled:opacity-45 ${danger ? "border-destructive/40 text-destructive hover:bg-destructive/10" : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"}`}>
+  return <button type="button" disabled={disabled} onClick={() => onClick(action)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wide backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-45 ${danger ? "border-destructive/40 bg-destructive/[0.06] text-destructive hover:bg-destructive/10" : "border-white/15 bg-white/[0.04] text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"}`}>
     {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />} {action}
   </button>;
 }
