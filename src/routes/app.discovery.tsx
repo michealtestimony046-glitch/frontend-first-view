@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, Eye, ExternalLink, Globe2, Loader2, Play, Radar, RefreshCw, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
-import { quickScanApi, v2Api, type OnboardingQuickScanResult, type ProviderCapacityDecision, type V2ApplicationScan, type V2Environment, type V2PlanStatus, type V2PlannerMode, type V2PolicyDecision, type V2TestPlan, type V2WebPrecheck } from "@/lib/api-client";
+import { formatRunStartError, quickScanApi, v2Api, type OnboardingQuickScanResult, type ProviderCapacityDecision, type V2ApplicationScan, type V2Environment, type V2PlanStatus, type V2PlannerMode, type V2PolicyDecision, type V2TestPlan, type V2WebPrecheck } from "@/lib/api-client";
 import { toQuickScanHandoff } from "@/lib/quick-scan-handoff";
 import { useLivePortfolio } from "@/lib/live-data";
 
@@ -229,7 +229,7 @@ function DiscoveryPage() {
       window.location.href = `/app/runs/${response.id}?projectId=${encodeURIComponent(plan.projectId)}`;
     } catch (cause) {
       setRunning(false);
-      setError(cause instanceof Error ? cause.message : "Unable to start the Quick Scan-backed adaptive run.");
+      setError(formatRunStartError(cause, "Unable to start the Quick Scan-backed adaptive run."));
     }
   };
 

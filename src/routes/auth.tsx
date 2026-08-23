@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, Chrome, Github, Loader2, Mail, ShieldCheck, Terminal, CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { authApi, organizationsApi, projectsApi, quickScanApi, v2Api, workspacesApi, type OnboardingQuickScanResult, type Project, type TriggerRunResponse } from "@/lib/api-client";
+import { authApi, formatRunStartError, organizationsApi, projectsApi, quickScanApi, v2Api, workspacesApi, type OnboardingQuickScanResult, type Project, type TriggerRunResponse } from "@/lib/api-client";
 import { toQuickScanHandoff } from "@/lib/quick-scan-handoff";
 import { useMutation } from "@/hooks/use-api";
 import { enrollBrowserPush } from "@/lib/push-notifications";
@@ -251,7 +251,7 @@ function AuthPage() {
       return response;
     } catch (cause) {
       setRealUserTestState("failed");
-      setRealUserTestError(cause instanceof Error ? cause.message : "The Real User Test could not start yet.");
+      setRealUserTestError(formatRunStartError(cause, "The Real User Test could not start yet."));
       localStorage.setItem(FIRST_TEST_READY_KEY, JSON.stringify({ projectId: project.id, targetUrl: onboarding.targetUrl, missionGoal: onboarding.focusArea.trim() || "Test this website thoroughly.", autoStart: true, targetAuthorizationConfirmed: onboarding.ownershipConfirmed }));
       return null;
     }

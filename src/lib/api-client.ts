@@ -66,6 +66,15 @@ const getErrorMessage = (data: unknown, status: number): string => {
   return `Server Error (${status}). Please try again later.`;
 };
 
+/** Convert backend validation details into safe, actionable UI copy without leaking implementation internals. */
+export const formatRunStartError = (cause: unknown, fallback: string): string => {
+  const message = cause instanceof Error ? cause.message : String(cause ?? "");
+  if (/quickScanHandoff(?:\.findings(?:\.\d+)?(?:\.property)?|[^\n]{0,160})[^\n]*property status should not exist/i.test(message)) {
+    return "This Quick Scan handoff is out of date. Refresh the page and run Quick Scan again; the browser test was not started.";
+  }
+  return message.trim() || fallback;
+};
+
 export const apiRequest = async <T>(endpoint: string, options: RequestOptions = {}): Promise<T> => {
   if (!API_BASE_URL) {
     throw new Error("Matrix QA API endpoint is not configured. Set VITE_API_BASE_URL.");
@@ -218,6 +227,20 @@ export interface QuickScanHandoff {
   findings: QuickScanHandoffFinding[];
 }
 
+/** Request shape accepted when a new run imports Quick Scan leads. The browser worker owns verification status. */
+export type QuickScanHandoffRequestFinding = Omit<QuickScanHandoffFinding, "status" | "verificationNote" | "verificationEvidenceRefs">;
+export interface QuickScanHandoffRequest {
+  source: "ONBOARDING_QUICK_SCAN";
+  targetUrl: string;
+  finalUrl: string | null;
+  targetOrigin: string;
+  httpStatus: number | null;
+  checkedAt: string;
+  summary: string | null;
+  summaryStatus: "AI_GENERATED" | "UNAVAILABLE";
+  findings: QuickScanHandoffRequestFinding[];
+}
+
 export interface TriggerRunRequest {
   targetUrl?: string;
   idempotencyKey?: string;
@@ -228,7 +251,7 @@ export interface TriggerRunRequest {
   enableVision?: boolean;
   enableRecovery?: boolean;
   targetAuthorizationConfirmed?: boolean;
-  quickScanHandoff?: QuickScanHandoff;
+  quickScanHandoff?: QuickScanHandoffRequest;
 }
 export interface ProviderCapacityDecision {
   status: "RESERVED" | "WAITING" | string;

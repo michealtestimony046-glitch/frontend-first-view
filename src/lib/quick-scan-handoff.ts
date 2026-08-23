@@ -1,4 +1,4 @@
-import type { OnboardingQuickScanResult, QuickScanHandoff } from "@/lib/api-client";
+import type { OnboardingQuickScanResult, QuickScanHandoffRequest } from "@/lib/api-client";
 
 /**
  * Convert a completed structural Quick Scan into bounded browser-agent context.
@@ -7,7 +7,7 @@ import type { OnboardingQuickScanResult, QuickScanHandoff } from "@/lib/api-clie
  */
 export function toQuickScanHandoff(
   result: OnboardingQuickScanResult | null | undefined,
-): QuickScanHandoff | undefined {
+): QuickScanHandoffRequest | undefined {
   if (!result || result.status !== "COMPLETED") return undefined;
 
   return {
@@ -25,7 +25,6 @@ export function toQuickScanHandoff(
       code: finding.code,
       title: finding.title,
       evidence: finding.evidence,
-      status: "UNVERIFIED_LEAD",
     })),
   };
 }
