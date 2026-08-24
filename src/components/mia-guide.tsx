@@ -21,7 +21,6 @@ import { useAuth } from "@/lib/auth-context";
 type MiaGuideProps = { compact?: boolean };
 
 const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
-const MIA_MESSAGES_STORAGE_PREFIX = "matrixqa_mia_messages:v2:";
 const INTRO =
   "I’m Mia, your Matrix QA guide. Ask me about Matrix QA, your selected workspace, a focused run, Quick Scan, reports, notifications, projects, or settings. I explain what the product and your current workspace data support, but I do not change account data or execute runs.";
 const SUGGESTIONS = [
@@ -35,8 +34,8 @@ function activeWorkspaceId(): string | undefined {
   return localStorage.getItem(ACTIVE_WORKSPACE_KEY) || undefined;
 }
 
-function storageKey(userId: string, workspaceId?: string) {
-  return `${MIA_MESSAGES_STORAGE_PREFIX}${userId}:${workspaceId || "unscoped"}`;
+function conversationScopeKey(userId: string, workspaceId?: string) {
+  return `${userId}:${workspaceId || "unscoped"}`;
 }
 function seenKey(userId: string) {
   return `matrixqa_mia_seen:${userId}`;
@@ -173,8 +172,25 @@ function MiaMessageContent({ content }: { content: string }) {
   );
 }
 
-function sanitizeStoredMessage(value: string): string {
-  const sanitized = value
+export function sanitizeMiaChatText(value: string): string {
+  return value
+    .replace(/-----BEGIN [^-]+-----[\s\S]*?-----END [^-]+-----/gi, "[REDACTED_SECRET_BLOCK]")
+    .replace(/\b(?:sk|rk|ghp|gho|github_pat|xox[baprs]-)[A-Za-z0-9_\-]{12,}\b/gi, "[REDACTED_TOKEN]")
+    .replace(/\b(?:eyJ)[A-Za-z0-9_\-]{20,}(?:\.[A-Za-z0-9_\-]+){1,2}\b/g, "[REDACTED_TOKEN]")
+    .replace(/\b(?:password|passwd|passcode|secret|token|cookie|authorization|credential|username|user[_ -]?name|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|client[_ -]?secret)\b\s*(?:is|[:=])\s*["']?[^\s,"';]+["']?/gi, "[REDACTED_SENSITIVE]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[REDACTED_EMAIL]")
+    .replace(/\b(?:\+?\d[\d .()\-]{7,}\d)\b/g, "[REDACTED_PHONE]")
+    .replace(/\b(?:\d[ -]*?){13,19}\b/g, "[REDACTED_PAYMENT_NUMBER]")
+    .replace(/https?:\/\/[^\s]+/gi, (url) => {
+      try {
+        const parsed = new URL(url);
+        parsed.search = "";
+        parsed.hash = "";
+        return parsed.toString().replace(/\/$/, "");
+      } catch {
+        return "[REDACTED_URL]";
+      }
+    })
     .replace(/\bevidence[-‑ ]backed\s+AI\s+pass\s+assertion\b/gi, "evidence-backed pass check")
     .replace(/\bAI browser test\b/gi, "adaptive browser test")
     .replace(/\bAI browser worker\b/gi, "test worker")
@@ -182,13 +198,12 @@ function sanitizeStoredMessage(value: string): string {
     .replace(/\bAI\b/gi, "test worker")
     .replace(/\bMatrix Units?\b/gi, "test capacity")
     .replace(/\b\d+(?:\.\d+)?\s*⟐/g, "additional test capacity")
-    .replace(
-      /\b(?:OpenRouter|Ollama|Groq|Cloudflare|Z\.ai|Gemini|Claude|GPT(?:-\d+(?:\.\d+)?)?)\b/gi,
-      "configured test capacity",
-    )
+    .replace(/\b(?:OpenRouter|Ollama|Groq|Cloudflare|Z\.ai|Gemini|Claude|GPT(?:-\d+(?:\.\d+)?)?)\b/gi, "configured test capacity")
+    .replace(/[^\S\r\n]+/g, " ")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
     .slice(0, 2_000);
-
-  return sanitized;
 }
 
 export function MiaGuide({ compact = false }: MiaGuideProps) {
@@ -204,7 +219,9 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
     activeWorkspaceId(),
   );
   const [messages, setMessages] = useState<GuidanceMessage[]>([]);
-  const [loadedStorageKey, setLoadedStorageKey] = useState<string | null>(null);
+  const [loadedHistoryKey, setLoadedHistoryKey] = useState<string | null>(null);
+  const [hydrating, setHydrating] = useState(false);
+  const [authRefreshVersion, setAuthRefreshVersion] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messageViewportRef = useRef<HTMLDivElement>(null);
@@ -215,14 +232,14 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
 
   const userId = user?.id ?? "";
   const hasConversation = messages.length > 0;
-  const scopedStorageKey = useMemo(
-    () => storageKey(userId, workspaceScope),
+  const historyScopeKey = useMemo(
+    () => conversationScopeKey(userId, workspaceScope),
     [userId, workspaceScope],
   );
   const isFirstVisit = Boolean(
     userId && typeof window !== "undefined" && !localStorage.getItem(seenKey(userId)),
   );
-  const conversationReady = Boolean(userId && loadedStorageKey === scopedStorageKey);
+  const conversationReady = Boolean(userId && !hydrating && loadedHistoryKey === historyScopeKey);
 
   useEffect(() => {
     if (typeof window !== "undefined") clearLegacyClientMiaHistory();
@@ -233,7 +250,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
     previousUserIdRef.current = userId;
     setMessages([]);
     setError(null);
-    setLoadedStorageKey(null);
+    setLoadedHistoryKey(null);
   }, [userId]);
 
   useEffect(() => {
@@ -242,7 +259,8 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
       setMessages([]);
       setDraft("");
       setError(null);
-      setLoadedStorageKey(null);
+      setLoadedHistoryKey(null);
+      setAuthRefreshVersion((current) => current + 1);
       const nextWorkspaceScope = activeWorkspaceId();
       previousWorkspaceScopeRef.current = nextWorkspaceScope;
       setWorkspaceScope(nextWorkspaceScope);
@@ -276,30 +294,41 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   }, [workspaceScope]);
 
   useEffect(() => {
-    if (!userId || typeof window === "undefined") return;
-    setLoadedStorageKey(null);
-    try {
-      const stored = JSON.parse(
-        localStorage.getItem(scopedStorageKey) || "[]",
-      ) as GuidanceMessage[];
-      setMessages(
-        Array.isArray(stored)
-          ? stored
-              .filter(
-                (item) =>
-                  (item.role === "user" || item.role === "assistant") &&
-                  typeof item.content === "string",
-              )
-              .map((item) => ({ role: item.role, content: sanitizeStoredMessage(item.content) }))
-              .slice(-10)
-          : [],
-      );
-    } catch {
+    if (!isAuthenticated || !userId || typeof window === "undefined") return;
+    if (!workspaceScope) {
       setMessages([]);
-    } finally {
-      setLoadedStorageKey(scopedStorageKey);
+      setLoadedHistoryKey(null);
+      setHydrating(false);
+      return;
     }
-  }, [scopedStorageKey, userId]);
+    let cancelled = false;
+    setHydrating(true);
+    setLoadedHistoryKey(null);
+    setError(null);
+    guidanceApi.history(workspaceScope)
+      .then((response) => {
+        if (cancelled) return;
+        setMessages(
+          response.messages
+            .filter((item) => item.role === "user" || item.role === "assistant")
+            .map((item) => ({ role: item.role, content: sanitizeMiaChatText(item.content) }))
+            .slice(-100),
+        );
+        setLoadedHistoryKey(historyScopeKey);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setMessages([]);
+        setError("Mia history is temporarily unavailable; new messages are still safe to send.");
+        setLoadedHistoryKey(historyScopeKey);
+      })
+      .finally(() => {
+        if (!cancelled) setHydrating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authRefreshVersion, historyScopeKey, isAuthenticated, userId, workspaceScope]);
 
   useEffect(() => {
     if (!isAuthenticated || !userId || !isFirstVisit || typeof window === "undefined") return;
@@ -307,10 +336,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
     return () => window.clearTimeout(timer);
   }, [isAuthenticated, isFirstVisit, userId]);
 
-  useEffect(() => {
-    if (!userId || typeof window === "undefined" || loadedStorageKey !== scopedStorageKey) return;
-    localStorage.setItem(scopedStorageKey, JSON.stringify(messages.slice(-10)));
-  }, [loadedStorageKey, messages, scopedStorageKey, userId]);
+
 
   const visibleMessages = useMemo(
     () => (hasConversation ? messages : [{ role: "assistant" as const, content: INTRO }]),
@@ -339,7 +365,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   };
 
   const send = async (value = draft) => {
-    const message = value.trim();
+    const message = sanitizeMiaChatText(value.trim());
     if (!message || loading || !conversationReady) return;
     const currentWorkspaceId = activeWorkspaceId();
     const baseMessages = currentWorkspaceId === workspaceScope ? messages : [];
@@ -363,7 +389,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
       setMessages((current) =>
         [
           ...current,
-          { role: "assistant" as const, content: sanitizeStoredMessage(response.answer) },
+          { role: "assistant" as const, content: sanitizeMiaChatText(response.answer) },
         ].slice(-10),
       );
     } catch (cause) {

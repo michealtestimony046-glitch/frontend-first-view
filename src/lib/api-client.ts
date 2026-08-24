@@ -14,20 +14,7 @@ const CLIENT_WORKSPACE_STATE_KEYS = [
   "matrix_qa_active_project",
 ] as const;
 const MIA_MESSAGES_STORAGE_PREFIX = "matrixqa_mia_messages:";
-const VERSIONED_MIA_MESSAGES_STORAGE_PREFIX = `${MIA_MESSAGES_STORAGE_PREFIX}v2:`;
-
 export const clearLegacyClientMiaHistory = (): void => {
-  if (typeof window === "undefined") return;
-  Object.keys(localStorage)
-    .filter(
-      (key) =>
-        key.startsWith(MIA_MESSAGES_STORAGE_PREFIX) &&
-        !key.startsWith(VERSIONED_MIA_MESSAGES_STORAGE_PREFIX),
-    )
-    .forEach((key) => localStorage.removeItem(key));
-};
-
-export const clearClientMiaHistory = (): void => {
   if (typeof window === "undefined") return;
   Object.keys(localStorage)
     .filter((key) => key.startsWith(MIA_MESSAGES_STORAGE_PREFIX))
@@ -46,7 +33,6 @@ export const getAuthToken = (): string | null =>
 export const setAuthToken = (token: string): void => {
   if (typeof window !== "undefined") {
     clearClientWorkspaceContext();
-    clearClientMiaHistory();
     localStorage.setItem(TOKEN_KEY, token);
     window.dispatchEvent(new Event(AUTH_EVENT));
   }
@@ -56,7 +42,6 @@ export const clearAuthToken = (): void => {
   if (typeof window !== "undefined") {
     localStorage.removeItem(TOKEN_KEY);
     clearClientWorkspaceContext();
-    clearClientMiaHistory();
     window.dispatchEvent(new Event(AUTH_EVENT));
   }
 };
@@ -937,12 +922,23 @@ export interface GuidanceResponse {
   citations?: Array<{ sourceId: string; claim: string }>;
 }
 
+export interface GuidanceHistoryResponse {
+  workspaceId: string | null;
+  messages: Array<GuidanceMessage & { createdAt: string }>;
+  redactionPolicyVersion: string;
+  persisted: boolean;
+}
+
 const normalizeGuidanceMessage = (item: GuidanceMessage): GuidanceMessage => ({
   role: item.role,
   content: item.content.trim().slice(0, 2_000),
 });
 
 export const guidanceApi = {
+  history: (workspaceId?: string): Promise<GuidanceHistoryResponse> => apiRequest(`/guidance/history${workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ''}`, {
+    requiresAuth: true,
+    cache: 'no-store',
+  }),
   chat: (message: string, history: GuidanceMessage[] = [], context: { workspaceId?: string; runId?: string } = {}): Promise<GuidanceResponse> => apiRequest('/guidance/chat', {
     method: 'POST',
     body: JSON.stringify({
