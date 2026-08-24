@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Component, type ErrorInfo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -23,6 +23,7 @@ import {
   SkipForward,
   Square,
   Terminal,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { BrowserHandoffPanel } from "@/components/browser-handoff-panel";
@@ -185,6 +186,7 @@ function reportSummary(r: RunReport) {
 
 function RunDetailPage() {
   const { runId } = Route.useParams();
+  const navigate = useNavigate();
   const projectId =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("projectId")
@@ -195,6 +197,8 @@ function RunDetailPage() {
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const markdown = useMemo(
     () => (report ? buildReportMarkdown(report, runId) : ""),
     [report, runId],
@@ -299,6 +303,23 @@ function RunDetailPage() {
     URL.revokeObjectURL(href);
   };
 
+  const deleteRun = async () => {
+    if (!projectId || deleting) return;
+    const confirmed = window.confirm("Delete this run's evidence, report, screenshots, video, events, and related operational data from Matrix QA? This cannot be undone.");
+    if (!confirmed) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await runsApi.deleteRun(projectId, runId);
+      await navigate({ to: "/app" });
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Unable to delete this run data.");
+      setDeleting(false);
+    }
+  };
+
+  const runIsActive = report.incomplete || ["PENDING", "RUNNING", "AWAITING_PERMISSION"].includes(report.status);
+
   return (
     <RunDetailErrorBoundary>
       <div>
@@ -361,6 +382,16 @@ function RunDetailPage() {
             >
               <Download className="h-3.5 w-3.5" /> Download
             </button>
+            {!runIsActive && (
+              <button
+                type="button"
+                onClick={() => void deleteRun()}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/20 disabled:cursor-wait disabled:opacity-60"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> {deleting ? "Deleting…" : "Delete run data"}
+              </button>
+            )}
             {videoUrl && (
               <a
                 href={videoUrl}
@@ -377,6 +408,11 @@ function RunDetailPage() {
         {report.errorMessage && (
           <div className="mt-5 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
             <strong>Run diagnostic:</strong> {report.errorMessage}
+          </div>
+        )}
+        {deleteError && (
+          <div className="mt-5 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+            <strong>Deletion failed:</strong> {deleteError}
           </div>
         )}
         {report.metadata?.queue && <QueueStateNotice queue={report.metadata.queue} />}

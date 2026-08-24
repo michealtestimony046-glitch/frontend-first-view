@@ -860,7 +860,9 @@ export const workspacesApi = {
     apiRequest(`/workspaces/${encodeURIComponent(id)}`, { requiresAuth: true }),
   rename: (id: string, name: string): Promise<Workspace> =>
     apiRequest(`/workspaces/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ name }), requiresAuth: true }),
-  remove: (id: string) => apiRequest<Workspace>(`/workspaces/${encodeURIComponent(id)}`, { method: "DELETE", requiresAuth: true }),
+  remove: (id: string) => apiRequest<Workspace>(`/workspaces/${encodeURIComponent(id)}`, { method: "DELETE", requiresAuth: true, timeoutMs: 120_000 }),
+  deleteData: (id: string): Promise<{ workspaceId: string; deletedRuns: number; r2ObjectsDeleted: number; databaseRecordsDeleted: number; preservedCreditLedgerEntries: number; workspaceMemoryEntriesDeleted: number; globalContributionsDeleted: number; workspaceDeleted: boolean }> =>
+    apiRequest<{ workspaceId: string; deletedRuns: number; r2ObjectsDeleted: number; databaseRecordsDeleted: number; preservedCreditLedgerEntries: number; workspaceMemoryEntriesDeleted: number; globalContributionsDeleted: number; workspaceDeleted: boolean }>(`/workspaces/${encodeURIComponent(id)}/data`, { method: "DELETE", requiresAuth: true, timeoutMs: 120_000 }),
 };
 
 export interface CreditsSummary {
@@ -1624,6 +1626,8 @@ export const runsApi = {
     }),
   deleteMessages: (projectId: string, runId: string): Promise<{ deleted: number }> =>
     apiRequest<{ deleted: number }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`, { method: "DELETE", requiresAuth: true }),
+  deleteRun: (projectId: string, runId: string): Promise<{ runId: string; deleted: boolean; r2ObjectsDeleted: number; databaseRecordsDeleted: number; preservedCreditLedgerEntries: number }> =>
+    apiRequest<{ runId: string; deleted: boolean; r2ObjectsDeleted: number; databaseRecordsDeleted: number; preservedCreditLedgerEntries: number }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}`, { method: "DELETE", requiresAuth: true, timeoutMs: 60_000 }),
   getHandoff: (projectId: string, runId: string): Promise<BrowserHandoff | null> =>
     apiRequest<BrowserHandoff | null>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff`, { requiresAuth: true }),
   claimHandoff: (projectId: string, runId: string): Promise<BrowserHandoff> =>
