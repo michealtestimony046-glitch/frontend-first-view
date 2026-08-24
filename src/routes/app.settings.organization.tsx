@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Building2, FolderKanban, Loader2, Plus, RefreshCw, Pencil, Trash2 } from "lucide-react";
+import { Building2, FolderKanban, Loader2, RefreshCw, Pencil, ShieldCheck, Trash2, Plus } from "lucide-react";
 import {
   organizationsApi,
   workspacesApi,
+  workspaceConsentApi,
   targetComplaintsApi,
   type Organization,
   type Workspace,
+  type WorkspaceMemoryConsent,
   type TargetComplaint,
 } from "@/lib/api-client";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -42,12 +44,18 @@ function OrganizationSettingsPage() {
   const [organizationEditName, setOrganizationEditName] = useState("");
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
   const [workspaceEditName, setWorkspaceEditName] = useState("");
+  const [consents, setConsents] = useState<Record<string, WorkspaceMemoryConsent>>({});
+  const [consentErrors, setConsentErrors] = useState<Record<string, boolean>>({});
+  const [loadingConsentFor, setLoadingConsentFor] = useState<string | null>(null);
+  const [savingConsentFor, setSavingConsentFor] = useState<string | null>(null);
+  const [consentMessage, setConsentMessage] = useState<string | null>(null);
 
   const activeOrganization = useMemo(
     () => organizations.find((organization) => organization.id === organizationId) ?? null,
     [organizations, organizationId],
   );
   const ownsOrganization = organizations.some((organization) => organization.ownerId === user?.id);
+  const canManageConsent = Boolean(activeOrganization && (activeOrganization.ownerId === user?.id || activeOrganization.members?.some((member) => member.userId === user?.id && ["OWNER", "ADMIN"].includes(member.role.toUpperCase()))));
 
   const loadOrganizations = async () => {
     setLoadingOrganizations(true);
@@ -98,6 +106,47 @@ function OrganizationSettingsPage() {
       cancelled = true;
     };
   }, [organizationId]);
+
+  useEffect(() => {
+    if (workspaces.length === 0) {
+      setConsents({});
+      setConsentErrors({});
+      return;
+    }
+    let cancelled = false;
+    setLoadingConsentFor("all");
+    Promise.all(workspaces.map(async (workspace) => {
+      try {
+        return { consent: await workspaceConsentApi.get(workspace.id), error: false, workspaceId: workspace.id };
+      } catch {
+        return { consent: null, error: true, workspaceId: workspace.id };
+      }
+    })).then((items) => {
+      if (cancelled) return;
+      setConsents(Object.fromEntries(items.flatMap((item) => item.consent ? [[item.consent.workspaceId, item.consent] as const] : [])));
+      setConsentErrors(Object.fromEntries(items.flatMap((item) => item.error && item.workspaceId ? [[item.workspaceId, true] as const] : [])));
+    }).finally(() => {
+      if (!cancelled) setLoadingConsentFor(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaces]);
+
+  const updateConsent = async (workspaceId: string, enabled: boolean) => {
+    if (!canManageConsent) return;
+    setSavingConsentFor(workspaceId);
+    setConsentMessage(null);
+    try {
+      const updated = await workspaceConsentApi.update(workspaceId, enabled);
+      setConsents((current) => ({ ...current, [workspaceId]: updated }));
+      setConsentMessage(`${enabled ? "Anonymized pattern sharing enabled" : "Anonymized pattern sharing disabled"}.`);
+    } catch (cause) {
+      setConsentMessage(toMessage(cause, "Unable to update the workspace data-sharing preference."));
+    } finally {
+      setSavingConsentFor(null);
+    }
+  };
 
   const createOrganization = async (event: FormEvent) => {
     event.preventDefault();
@@ -304,6 +353,21 @@ function OrganizationSettingsPage() {
               </div>
             )}
           </div>
+          {workspaces.length > 0 && <div className="border-t border-border p-4">
+            <div className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><h4 className="text-sm font-semibold">Privacy and improvement</h4><p className="mt-1 text-xs leading-5 text-muted-foreground">Your workspace data is private by default. This optional preference controls whether anonymized patterns may contribute to Matrix QA’s aggregate improvement memory; it never shares your site data, screenshots, or findings.</p></div></div>
+            <div className="mt-3 space-y-2">
+              {workspaces.map((workspace) => {
+                const consent = consents[workspace.id];
+                const consentUnavailable = consentErrors[workspace.id] === true;
+                const enabled = consent?.globalAggregateOptIn === true;
+                const isLoading = loadingConsentFor === "all" && !consent && !consentUnavailable;
+                const isSaving = savingConsentFor === workspace.id;
+                return <label key={`consent-${workspace.id}`} className={`flex items-start gap-3 rounded-md border px-3 py-3 text-sm ${canManageConsent && !consentUnavailable ? "cursor-pointer" : "cursor-not-allowed opacity-80"}`}><input type="checkbox" checked={enabled} onChange={(event) => void updateConsent(workspace.id, event.target.checked)} disabled={!canManageConsent || isLoading || isSaving || consentUnavailable} className="mt-0.5 accent-primary" /><span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-2 font-medium text-foreground"><span className="truncate">{workspace.name}</span><span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{isLoading ? "Loading" : consentUnavailable ? "Unavailable" : enabled ? "Opted in" : "Off by default"}</span></span><span className="mt-1 block text-xs leading-5 text-muted-foreground">{consentUnavailable ? "The workspace preference could not be loaded. Refresh before changing it." : "Allow anonymized patterns from this workspace’s test runs to help improve Matrix QA for everyone."}</span></span>{isSaving && <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" />}</label>;
+              })}
+            </div>
+            {consentMessage && <p className="mt-3 text-xs text-muted-foreground" role="status">{consentMessage}</p>}
+            {!canManageConsent && <p className="mt-3 text-[11px] leading-5 text-muted-foreground">Only the organization owner or an organization admin can change this preference.</p>}
+          </div>}
           <form onSubmit={createWorkspace} className="border-t border-border p-4">
             <label className="block text-xs font-medium text-muted-foreground">Create workspace in {activeOrganization?.name ?? "the selected organization"}</label>
             <div className="mt-1.5 flex gap-2">
