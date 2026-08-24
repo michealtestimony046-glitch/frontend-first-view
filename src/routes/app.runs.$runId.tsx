@@ -239,7 +239,7 @@ function RunDetailPage() {
           ...(durableTerminalStatus ? {
             status: durableTerminalStatus,
             incomplete: false,
-            finishedAt: data.finishedAt ?? executionState?.run?.finishedAt ?? null,
+            finishedAt: data.finishedAt ?? executionState?.run?.finishedAt ?? undefined,
             errorMessage: data.errorMessage ?? executionState?.run?.errorMessage ?? null,
           } : {}),
           events: mergeRunEvents(data.events, executionState?.events),
