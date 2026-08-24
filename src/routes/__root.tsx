@@ -58,7 +58,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:image:alt", content: "Matrix QA — Test smarter. Ship confidently." },
       { property: "og:image:type", content: "image/png" },
       { property: "og:image:width", content: "1200" },
-      { property: "og:image:height", content: "628" },
+      { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: "https://matrixqa.trlabs.tech/matrixqa-og-image.png" },
       { name: "twitter:image:alt", content: "Matrix QA — Test smarter. Ship confidently." },
