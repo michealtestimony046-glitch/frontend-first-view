@@ -1062,6 +1062,29 @@ export interface StaffNotificationRecipient {
   updatedAt?: string;
 }
 
+export interface AdminOllamaRequestDiagnostic {
+  provider: "ollama_cloud";
+  method: "GET" | "POST";
+  endpoint: string;
+  authorization: {
+    scheme: "Bearer";
+    value: "[REDACTED]";
+    keyReference: string;
+    keySource: "MANAGED" | "DEPLOYMENT" | "MISSING" | "UNKNOWN";
+    keyVersion: number;
+    keyLength: number;
+    trimmedOuterWhitespace: boolean;
+    containsInternalWhitespace: boolean;
+    fingerprint: string;
+  };
+  headers: Record<string, string>;
+  body?: {
+    contentType: "application/json";
+    keys: string[];
+    fields: Record<string, unknown>;
+  };
+}
+
 export interface AdminAiUsageSummary {
   directRunLedger?: {
     totals: { calls: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number };
@@ -1087,7 +1110,7 @@ export interface AdminAiUsageSummary {
   providerChain?: Array<{ useCase: string; chainPosition: number; provider: string; model: string; attempts: number; successes: number; degradedAttempts: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
   providerDiagnostics?: Array<{ usageEventId: string; runId?: string | null; provider: string; model: string; useCase: string; chainPosition: number; kind: 'INVALID_JSON' | 'SCHEMA_VALIDATION' | 'EMPTY_CONTENT'; schemaName: string; validationError: string; responseExcerpt: string; capturedAt: string; createdAt: string; degraded: boolean }>;
   organizations: Array<{ organizationId: string; organizationName: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
-  recent: Array<{ id: string; organizationId: string; projectId?: string | null; scanId?: string | null; provider: string; model: string; inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number; latencyMs: number; degraded: boolean; createdAt: string }>;
+  recent: Array<{ id: string; organizationId: string; workspaceId?: string | null; projectId?: string | null; scanId?: string | null; runId?: string | null; provider: string; model: string; useCase?: string; inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number; latencyMs: number; degraded: boolean; metadata?: { providerRequests?: AdminOllamaRequestDiagnostic[] } | Record<string, unknown>; createdAt: string }>;
 }
 
 export interface AdminAiProviderConfig {
