@@ -49,6 +49,8 @@ function OrganizationSettingsPage() {
   const [loadingConsentFor, setLoadingConsentFor] = useState<string | null>(null);
   const [savingConsentFor, setSavingConsentFor] = useState<string | null>(null);
   const [consentMessage, setConsentMessage] = useState<string | null>(null);
+  const [deletingWorkspaceDataId, setDeletingWorkspaceDataId] = useState<string | null>(null);
+  const [dataDeletionMessage, setDataDeletionMessage] = useState<string | null>(null);
 
   const activeOrganization = useMemo(
     () => organizations.find((organization) => organization.id === organizationId) ?? null,
@@ -56,6 +58,7 @@ function OrganizationSettingsPage() {
   );
   const ownsOrganization = organizations.some((organization) => organization.ownerId === user?.id);
   const canManageConsent = Boolean(activeOrganization && (activeOrganization.ownerId === user?.id || activeOrganization.members?.some((member) => member.userId === user?.id && ["OWNER", "ADMIN"].includes(member.role.toUpperCase()))));
+  const canManageWorkspace = canManageConsent;
 
   const loadOrganizations = async () => {
     setLoadingOrganizations(true);
@@ -219,6 +222,21 @@ function OrganizationSettingsPage() {
     }
   };
 
+  const deleteWorkspaceData = async (workspaceId: string, workspaceName: string) => {
+    if (deletingWorkspaceDataId || !window.confirm(`Delete all test runs, findings, screenshots, videos, reasoning logs, and workspace memory for “${workspaceName}”? This cannot be undone. The workspace itself will remain.`)) return;
+    setDeletingWorkspaceDataId(workspaceId);
+    setDataDeletionMessage(null);
+    setError(null);
+    try {
+      const result = await workspacesApi.deleteData(workspaceId);
+      setDataDeletionMessage(`Deleted ${result.deletedRuns} run(s), ${result.r2ObjectsDeleted} stored object(s), and ${result.databaseRecordsDeleted} database record(s). Preserved ${result.preservedCreditLedgerEntries} immutable credit-ledger record(s).`);
+    } catch (cause) {
+      setError(toMessage(cause, "Unable to delete workspace test data."));
+    } finally {
+      setDeletingWorkspaceDataId(null);
+    }
+  };
+
   const createWorkspace = async (event: FormEvent) => {
     event.preventDefault();
     const name = workspaceName.trim();
@@ -277,6 +295,7 @@ function OrganizationSettingsPage() {
       </div>
 
       {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {dataDeletionMessage && <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-primary" role="status">{dataDeletionMessage}</div>}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <section className="surface-card overflow-hidden">
@@ -347,7 +366,7 @@ function OrganizationSettingsPage() {
               <div className="space-y-2">
                 {workspaces.map((workspace) => (
                     <div key={workspace.id} className="rounded-md border border-border bg-surface-2/30 px-3 py-2.5">
-                      {editingWorkspaceId === workspace.id ? <form onSubmit={renameWorkspace} className="flex gap-2"><input value={workspaceEditName} onChange={(event) => setWorkspaceEditName(event.target.value)} className="min-w-0 flex-1 rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><button className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save</button></form> : <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="truncate text-sm font-medium">{workspace.name}</div><div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{workspace.id.slice(0, 8)}… · {workspace.projects?.length ?? 0} project(s)</div></div><div className="flex shrink-0 items-center gap-1.5"><Link to="/app/projects" className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">Open projects</Link><button type="button" onClick={() => { setEditingWorkspaceId(workspace.id); setWorkspaceEditName(workspace.name); }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-accent" aria-label={`Rename ${workspace.name}`}><Pencil className="h-3.5 w-3.5" /></button><button type="button" onClick={() => void deleteWorkspace(workspace.id)} className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10" aria-label={`Delete ${workspace.name}`}><Trash2 className="h-3.5 w-3.5" /></button></div></div>}
+                      {editingWorkspaceId === workspace.id ? <form onSubmit={renameWorkspace} className="flex gap-2"><input value={workspaceEditName} onChange={(event) => setWorkspaceEditName(event.target.value)} className="min-w-0 flex-1 rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm" /><button className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Save</button></form> : <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="truncate text-sm font-medium">{workspace.name}</div><div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{workspace.id.slice(0, 8)}… · {workspace.projects?.length ?? 0} project(s)</div></div><div className="flex shrink-0 items-center gap-1.5"><Link to="/app/projects" className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">Open projects</Link>{canManageWorkspace && <button type="button" onClick={() => void deleteWorkspaceData(workspace.id, workspace.name)} disabled={deletingWorkspaceDataId === workspace.id} className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:cursor-wait disabled:opacity-60" aria-label={`Delete test data from ${workspace.name}`}>{deletingWorkspaceDataId === workspace.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Delete data</button>}<button type="button" onClick={() => { setEditingWorkspaceId(workspace.id); setWorkspaceEditName(workspace.name); }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-accent" aria-label={`Rename ${workspace.name}`}><Pencil className="h-3.5 w-3.5" /></button><button type="button" onClick={() => void deleteWorkspace(workspace.id)} className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10" aria-label={`Delete ${workspace.name}`}><Trash2 className="h-3.5 w-3.5" /></button></div></div>}
                     </div>
                 ))}
               </div>
