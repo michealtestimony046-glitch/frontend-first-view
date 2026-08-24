@@ -510,6 +510,27 @@ export interface RunQueueMetadata {
   position?: number;
 }
 
+export interface RunExecutionStateEvent {
+  eventType?: string;
+  type?: string;
+  timestampMs?: number;
+  timestamp?: number;
+  payload?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface RunExecutionState {
+  run: {
+    id: string;
+    projectId: string;
+    workspaceId?: string | null;
+    status: string;
+    metadata?: Record<string, unknown> | null;
+  };
+  events: RunExecutionStateEvent[];
+  checkpoints: Array<Record<string, unknown>>;
+}
+
 export interface RunReport {
   id?: string;
   runId?: string;
@@ -707,10 +728,15 @@ export interface GuidanceResponse {
   available: boolean;
 }
 
+const normalizeGuidanceMessage = (item: GuidanceMessage): GuidanceMessage => ({
+  role: item.role,
+  content: item.content.trim().slice(0, 2_000),
+});
+
 export const guidanceApi = {
   chat: (message: string, history: GuidanceMessage[] = []): Promise<GuidanceResponse> => apiRequest('/guidance/chat', {
     method: 'POST',
-    body: JSON.stringify({ message, history: history.slice(-8) }),
+    body: JSON.stringify({ message: message.trim().slice(0, 2_000), history: history.slice(-8).map(normalizeGuidanceMessage) }),
     requiresAuth: true,
   }),
 };
@@ -1244,6 +1270,15 @@ export const runsApi = {
     const encodedRunId = encodeURIComponent(runId);
     return apiRequest<RunReport>(`/projects/${encodedProjectId}/runs/${encodedRunId}/report`, {
       requiresAuth: true,
+      cache: "no-store",
+    });
+  },
+  getExecutionState: async (projectId: string, runId: string): Promise<RunExecutionState> => {
+    const encodedProjectId = encodeURIComponent(projectId);
+    const encodedRunId = encodeURIComponent(runId);
+    return apiRequest<RunExecutionState>(`/projects/${encodedProjectId}/runs/${encodedRunId}/execution-state`, {
+      requiresAuth: true,
+      cache: "no-store",
     });
   },
   listMessages: (projectId: string, runId: string): Promise<RunMessage[]> =>

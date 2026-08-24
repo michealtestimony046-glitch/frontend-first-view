@@ -29,6 +29,7 @@ import { BrowserHandoffPanel } from "@/components/browser-handoff-panel";
 import {
   runsApi,
   type BrowserHandoff,
+  type RunExecutionState,
   type RunError,
   type RunMessage,
   type RunReport,
@@ -58,6 +59,38 @@ function msToClock(ms: number) {
 function duration(sec?: number) {
   if (sec == null) return "—";
   return `${Math.floor(sec / 60)}m ${Math.round(sec % 60)}s`;
+}
+
+const TERMINAL_RUN_STATUSES = new Set(["COMPLETED", "PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED", "FAILED", "REVIEW_REQUIRED"]);
+
+function executionEventKey(event: { type?: string; timestamp?: number; message?: string; label?: string }) {
+  return [event.type ?? "", event.timestamp ?? "", event.message ?? "", event.label ?? ""].join("|");
+}
+
+function reconcileRunReport(report: RunReport, executionState: RunExecutionState | null): RunReport {
+  const durableStatus = executionState?.run?.status;
+  if (!durableStatus || !TERMINAL_RUN_STATUSES.has(durableStatus)) return report;
+  const reportEvents = report.events ?? [];
+  const durableEvents = (executionState.events ?? []).map((event) => {
+    const payload = event.payload && typeof event.payload === "object" ? event.payload : {};
+    const timestampMs = Number(event.timestampMs ?? event.timestamp ?? 0);
+    return {
+      ...payload,
+      type: event.eventType ?? event.type ?? "execution-event",
+      timestamp: Number.isFinite(timestampMs) ? timestampMs : 0,
+    };
+  });
+  const knownEvents = new Set(reportEvents.map(executionEventKey));
+  const mergedEvents = reportEvents.length
+    ? [...reportEvents, ...durableEvents.filter((event) => !knownEvents.has(executionEventKey(event)))]
+    : durableEvents;
+  return {
+    ...report,
+    status: durableStatus,
+    incomplete: false,
+    events: mergedEvents,
+    reportReady: report.reportReady === true,
+  };
 }
 
 function reportSummary(r: RunReport) {
@@ -104,6 +137,7 @@ function RunDetailPage() {
   useEffect(() => {
     let cancelled = false;
     let timer: number | undefined;
+    let terminalRefreshAttempts = 0;
     setError(null);
 
     if (!projectId) {
@@ -116,16 +150,20 @@ function RunDetailPage() {
 
     const loadReport = async () => {
       try {
-        const [data, currentHandoff] = await Promise.all([
+        const [data, currentHandoff, executionState] = await Promise.all([
           runsApi.getReport(projectId, runId),
           runsApi.getHandoff(projectId, runId).catch(() => null),
+          runsApi.getExecutionState(projectId, runId).catch(() => null),
         ]);
         if (cancelled) return;
-        setReport(data);
+        const reconciled = reconcileRunReport(data, executionState);
+        setReport(reconciled);
         setHandoff(currentHandoff);
-        const terminalStatuses = ["COMPLETED", "PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED", "FAILED"];
-        const activeStatuses = ["PENDING", "QUEUED", "RUNNING"];
-        if (activeStatuses.includes(data.status) || (data.incomplete && !terminalStatuses.includes(data.status))) {
+        const terminalStatus = executionState?.run?.status && TERMINAL_RUN_STATUSES.has(executionState.run.status);
+        const activeStatuses = ["PENDING", "QUEUED", "RUNNING", "AWAITING_PERMISSION"];
+        const reportStillPending = terminalStatus && data.reportReady !== true && terminalRefreshAttempts < 8;
+        if (reportStillPending) terminalRefreshAttempts += 1;
+        if (activeStatuses.includes(reconciled.status) || (reconciled.incomplete && !TERMINAL_RUN_STATUSES.has(reconciled.status)) || reportStillPending) {
           timer = window.setTimeout(loadReport, 2500);
         }
       } catch (e) {
