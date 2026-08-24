@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, CircleHelp } from "lucide-react";
 import { useState } from "react";
 import { FAQS } from "@/lib/faq-data";
+import { canonicalLink } from "@/lib/seo";
 
 export const Route = createFileRoute("/faq")({
   head: () => ({
@@ -9,6 +10,7 @@ export const Route = createFileRoute("/faq")({
       { title: "FAQ · Matrix QA" },
       { name: "description", content: "Answers about Matrix QA Preview, evidence, usage, and the current console." },
     ],
+    links: [canonicalLink("/faq")],
   }),
   component: FaqPage,
 });

@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, CheckCircle2, CircleAlert, Clock3, FileSearch, Globe2, ShieldCheck } from "lucide-react";
+import { canonicalLink } from "@/lib/seo";
 
 export const Route = createFileRoute("/sample-report")({
   head: () => ({
@@ -7,6 +8,7 @@ export const Route = createFileRoute("/sample-report")({
       { title: "Sample report · Matrix QA" },
       { name: "description", content: "Explore a public, read-only Matrix QA sample report." },
     ],
+    links: [canonicalLink("/sample-report")],
   }),
   component: SampleReportPage,
 });

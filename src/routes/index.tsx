@@ -18,8 +18,12 @@ import {
 import { Logo } from "@/components/logo";
 import { BrowserFrame } from "@/components/browser-frame";
 import { LaunchConsoleLink } from "@/components/launch-console-link";
+import { canonicalLink } from "@/lib/seo";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    links: [canonicalLink("/")],
+  }),
   component: Landing,
 });
 

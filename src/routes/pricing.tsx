@@ -10,6 +10,7 @@ import {
 import { Logo } from "@/components/logo";
 import { PREVIEW_INCLUSIONS, ROADMAP } from "@/lib/mock-data";
 import { LaunchConsoleLink } from "@/components/launch-console-link";
+import { canonicalLink } from "@/lib/seo";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/pricing")({
       },
       { property: "og:type", content: "website" },
     ],
+    links: [canonicalLink("/pricing")],
   }),
   component: PricingPage,
 });
