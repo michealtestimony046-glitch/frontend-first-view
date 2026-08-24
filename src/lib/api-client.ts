@@ -1254,6 +1254,41 @@ export interface AdminAuditExport {
   aiUsage: { events: Array<Record<string, unknown>> };
 }
 
+export type AdminProviderCreditDimension = {
+  kind: "REQUESTS" | "TOKENS" | "INPUT_TOKENS" | "OUTPUT_TOKENS" | "CREDITS";
+  unit: "requests" | "tokens" | "credits";
+  limit: number | null;
+  remaining: number | null;
+  used: number | null;
+  resetAt: string | null;
+  resetAfterSeconds: number | null;
+  source: "PROVIDER_API" | "RESPONSE_HEADERS" | "INTERNAL_USAGE" | "UNAVAILABLE";
+};
+
+export type AdminProviderCreditRow = {
+  provider: AdminAiProviderConfig["provider"];
+  model: string;
+  useCases: string[];
+  enabled: boolean;
+  secretRef: string;
+  secretSource: "MANAGED" | "DEPLOYMENT" | "POOL" | "MISSING" | "UNKNOWN";
+  configuredPoolKeys: number;
+  status: "AVAILABLE" | "RATE_LIMITED" | "ERROR" | "UNAVAILABLE" | "MISSING_SECRET" | "DISABLED";
+  checkedAt: string;
+  latencyMs: number;
+  endpoint: string;
+  dimensions: AdminProviderCreditDimension[];
+  observed24h: { calls: number; inputTokens: number; outputTokens: number; totalTokens: number };
+  warning?: string;
+};
+
+export interface AdminProviderCreditSnapshot {
+  checkedAt: string;
+  cacheTtlSeconds: number;
+  rows: AdminProviderCreditRow[];
+  notes: string[];
+}
+
 export interface AdminTelemetrySummary {
   version: { public: string; build: string };
   providerCapacity?: {
@@ -1432,6 +1467,7 @@ export const adminApi = {
   broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   auditExport: (): Promise<AdminAuditExport> => apiRequest('/admin/audit-export', { requiresAuth: true }),
   telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
+  providerCredits: (refresh = false): Promise<AdminProviderCreditSnapshot> => apiRequest(`/admin/provider-credits${refresh ? '?refresh=true' : ''}`, { requiresAuth: true }),
   metrics: (days = 7): Promise<AdminOperationsMetrics> => apiRequest(`/admin/metrics?days=${encodeURIComponent(String(days))}`, { requiresAuth: true }),
   controlTower: (): Promise<AdminControlTowerSnapshot> => apiRequest('/admin/control-tower', { requiresAuth: true }),
   listTargetComplaints: (status?: TargetComplaintStatus): Promise<TargetComplaint[]> => apiRequest(`/target-complaints/staff${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
