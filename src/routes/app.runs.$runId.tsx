@@ -149,6 +149,8 @@ function duration(sec?: number) {
 }
 
 const MAX_TRANSIENT_RUN_LOAD_RETRIES = 4;
+const MAX_TERMINAL_REPORT_RECONCILIATION_RETRIES = 8;
+const TERMINAL_RUN_STATUSES = new Set(["COMPLETED", "PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED", "FAILED", "REVIEW_REQUIRED"]);
 
 function isTransientRunLoadError(error: unknown): boolean {
   const status = typeof error === "object" && error !== null && "status" in error
@@ -208,6 +210,7 @@ function RunDetailPage() {
     let cancelled = false;
     let timer: number | undefined;
     let transientLoadRetries = 0;
+    let terminalReportReconciliationRetries = 0;
     setError(null);
 
     if (!projectId) {
@@ -228,15 +231,29 @@ function RunDetailPage() {
         if (cancelled) return;
         transientLoadRetries = 0;
         setError(null);
+        const durableTerminalStatus = executionState?.run?.status && TERMINAL_RUN_STATUSES.has(executionState.run.status)
+          ? executionState.run.status
+          : null;
         const mergedReport: RunReport = {
           ...data,
+          ...(durableTerminalStatus ? {
+            status: durableTerminalStatus,
+            incomplete: false,
+            finishedAt: data.finishedAt ?? executionState?.run?.finishedAt ?? null,
+            errorMessage: data.errorMessage ?? executionState?.run?.errorMessage ?? null,
+          } : {}),
           events: mergeRunEvents(data.events, executionState?.events),
         };
         setReport(mergedReport);
         setHandoff(currentHandoff);
-        const terminalStatuses = ["COMPLETED", "PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED", "FAILED"];
-        const activeStatuses = ["PENDING", "QUEUED", "RUNNING"];
-        if (activeStatuses.includes(data.status) || (data.incomplete && !terminalStatuses.includes(data.status))) {
+        const activeStatuses = ["PENDING", "QUEUED", "RUNNING", "AWAITING_PERMISSION"];
+        const reportProjectionPending = Boolean(
+          durableTerminalStatus
+          && (data.status !== durableTerminalStatus || data.incomplete)
+          && terminalReportReconciliationRetries < MAX_TERMINAL_REPORT_RECONCILIATION_RETRIES,
+        );
+        if (reportProjectionPending) terminalReportReconciliationRetries += 1;
+        if (activeStatuses.includes(mergedReport.status) || (mergedReport.incomplete && !TERMINAL_RUN_STATUSES.has(mergedReport.status)) || reportProjectionPending) {
           timer = window.setTimeout(loadReport, 2500);
         }
       } catch (e) {

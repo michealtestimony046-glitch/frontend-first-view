@@ -1586,6 +1586,7 @@ export const runsApi = {
     const encodedRunId = encodeURIComponent(runId);
     return apiRequest<RunReport>(`/projects/${encodedProjectId}/runs/${encodedRunId}/report`, {
       requiresAuth: true,
+      cache: "no-store",
     });
   },
   getExecutionState: async (projectId: string, runId: string): Promise<RunExecutionState> => {
@@ -1593,6 +1594,7 @@ export const runsApi = {
     const encodedRunId = encodeURIComponent(runId);
     return apiRequest<RunExecutionState>(`/projects/${encodedProjectId}/runs/${encodedRunId}/execution-state`, {
       requiresAuth: true,
+      cache: "no-store",
     });
   },
   getQaState: async (projectId: string, runId: string, limit = 200): Promise<QaLiveState> => {
