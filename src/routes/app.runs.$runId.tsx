@@ -32,6 +32,7 @@ import {
   type RunError,
   type RunEvent,
   type RunExecutionState,
+  type QaLiveState,
   type RunMessage,
   type RunReport,
   type V2PolicyDecision,
@@ -1000,6 +1001,165 @@ function scopePermissionFromMessage(message: RunMessage): ScopePermissionRequest
   };
 }
 
+type QaMarkdownBlock =
+  | { type: "heading"; level: 1 | 2 | 3; text: string }
+  | { type: "paragraph"; text: string }
+  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "table"; headers: string[]; rows: string[][] }
+  | { type: "code"; text: string };
+
+function splitQaTableRow(line: string): string[] {
+  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+}
+
+function parseQaMarkdown(markdown: string): QaMarkdownBlock[] {
+  const lines = markdown.replace(/\r/g, "").split("\n");
+  const blocks: QaMarkdownBlock[] = [];
+  let paragraph: string[] = [];
+  let code: string[] | null = null;
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      blocks.push({ type: "paragraph", text: paragraph.join(" ").trim() });
+      paragraph = [];
+    }
+  };
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (code) {
+      if (/^```/.test(line.trim())) {
+        blocks.push({ type: "code", text: code.join("\n") });
+        code = null;
+      } else {
+        code.push(line);
+      }
+      continue;
+    }
+    if (/^```/.test(line.trim())) {
+      flushParagraph();
+      code = [];
+      continue;
+    }
+    const heading = line.match(/^(#{1,3})\s+(.+?)\s*$/);
+    if (heading) {
+      flushParagraph();
+      blocks.push({ type: "heading", level: heading[1].length as 1 | 2 | 3, text: heading[2] });
+      continue;
+    }
+    const nextLine = lines[index + 1] ?? "";
+    if (/^\s*\|/.test(line) && /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(nextLine)) {
+      flushParagraph();
+      const headers = splitQaTableRow(line);
+      const rows: string[][] = [];
+      index += 2;
+      while (index < lines.length && /^\s*\|/.test(lines[index] ?? "")) {
+        rows.push(splitQaTableRow(lines[index] ?? ""));
+        index += 1;
+      }
+      index -= 1;
+      blocks.push({ type: "table", headers, rows });
+      continue;
+    }
+    const listMatch = line.match(/^\s*([-*]|\d+[.)])\s+(.+)$/);
+    if (listMatch) {
+      flushParagraph();
+      const ordered = /\d/.test(listMatch[1]);
+      const items = [listMatch[2]];
+      while (index + 1 < lines.length) {
+        const nextList = (lines[index + 1] ?? "").match(/^\s*([-*]|\d+[.)])\s+(.+)$/);
+        if (!nextList || /\d/.test(nextList[1]) !== ordered) break;
+        items.push(nextList[2]);
+        index += 1;
+      }
+      blocks.push({ type: "list", ordered, items });
+      continue;
+    }
+    if (!line.trim()) {
+      flushParagraph();
+      continue;
+    }
+    paragraph.push(line.trim());
+  }
+  if (code) blocks.push({ type: "code", text: code.join("\n") });
+  flushParagraph();
+  return blocks.filter((block) => block.type !== "paragraph" || block.text.length > 0);
+}
+
+function renderQaInline(value: string, keyPrefix: string): ReactNode[] {
+  const parts = value.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={`${keyPrefix}-strong-${index}`} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return <code key={`${keyPrefix}-code-${index}`} className="rounded bg-black/25 px-1 py-0.5 font-mono text-[0.92em] text-primary">{part.slice(1, -1)}</code>;
+    }
+    return <span key={`${keyPrefix}-text-${index}`}>{part}</span>;
+  });
+}
+
+function SafeQaMarkdown({ markdown }: { markdown: string }) {
+  const blocks = parseQaMarkdown(markdown);
+  return (
+    <div className="space-y-3 text-[12px] leading-5 text-foreground/85 sm:text-[13px] sm:leading-5">
+      {blocks.map((block, index) => {
+        if (block.type === "heading") {
+          const className = block.level === 1
+            ? "font-display text-sm font-semibold text-foreground"
+            : "font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-primary";
+          return <div key={`qa-heading-${index}`} role={block.level === 1 ? "heading" : undefined} aria-level={block.level === 1 ? 2 : undefined} className={className}>{renderQaInline(block.text, `qa-heading-${index}`)}</div>;
+        }
+        if (block.type === "list") {
+          const ListTag = block.ordered ? "ol" : "ul";
+          return <ListTag key={`qa-list-${index}`} className={`${block.ordered ? "list-decimal" : "list-disc"} space-y-1 pl-5 marker:text-primary`}>{block.items.map((item, itemIndex) => <li key={`qa-item-${index}-${itemIndex}`}>{renderQaInline(item, `qa-item-${index}-${itemIndex}`)}</li>)}</ListTag>;
+        }
+        if (block.type === "table") {
+          return (
+            <div key={`qa-table-${index}`} className="overflow-x-auto rounded-md border border-white/10 bg-black/10" role="table" aria-label="QA activity timeline">
+              <div className="min-w-[560px] divide-y divide-white/10 font-mono text-[10px] leading-4">
+                <div className="grid grid-cols-[76px_1.2fr_1.6fr_1fr_1fr] gap-2 bg-white/[0.04] px-2.5 py-1.5 text-primary" role="row">
+                  {block.headers.map((header, headerIndex) => <span key={`qa-header-${index}-${headerIndex}`} role="columnheader">{renderQaInline(header, `qa-header-${index}-${headerIndex}`)}</span>)}
+                </div>
+                {block.rows.map((row, rowIndex) => <div key={`qa-row-${index}-${rowIndex}`} className="grid grid-cols-[76px_1.2fr_1.6fr_1fr_1fr] gap-2 px-2.5 py-1.5 text-muted-foreground" role="row">{block.headers.map((_, cellIndex) => <span key={`qa-cell-${index}-${rowIndex}-${cellIndex}`} role="cell">{renderQaInline(row[cellIndex] ?? "—", `qa-cell-${index}-${rowIndex}-${cellIndex}`)}</span>)}</div>)}
+              </div>
+            </div>
+          );
+        }
+        if (block.type === "code") return <pre key={`qa-code-${index}`} className="overflow-x-auto rounded-md border border-white/10 bg-black/25 px-2.5 py-2 font-mono text-[10px] leading-4 text-foreground/80">{block.text}</pre>;
+        return <p key={`qa-paragraph-${index}`} className="break-words">{renderQaInline(block.text, `qa-paragraph-${index}`)}</p>;
+      })}
+    </div>
+  );
+}
+
+function QaActivityPanel({ state }: { state: QaLiveState | null }) {
+  if (!state) return null;
+  const healthy = state.persistence.health === "healthy";
+  const viewport = state.run.currentViewport;
+  const viewportText = viewport && typeof viewport.width === "number" && typeof viewport.height === "number" ? `${viewport.width}×${viewport.height}` : "not recorded";
+  const syncedText = state.persistence.lastSyncedAt ? new Date(state.persistence.lastSyncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "pending";
+  return (
+    <section className="border-b border-white/10 bg-black/10 px-3 py-3 backdrop-blur-md sm:px-4" aria-label="QA Activity and Agent Notes" aria-live="polite">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-primary"><Terminal className="h-3.5 w-3.5 shrink-0" /><h3 className="truncate">agent-notes</h3><span className="text-muted-foreground">·</span><span className="text-muted-foreground">durable projection</span></div>
+          <p className="mt-1 max-w-2xl text-[11px] leading-4 text-muted-foreground">Readable state-summary generated from the durable event ledger. The note is a projection; the event history remains canonical.</p>
+        </div>
+        <div className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-wider ${healthy ? "border-primary/25 bg-primary/10 text-primary" : "border-warning/30 bg-warning/10 text-warning"}`}><span className={`h-1.5 w-1.5 rounded-full ${healthy ? "bg-primary" : "bg-warning"}`} />{healthy ? "persistence healthy" : "sync degraded"}</div>
+      </div>
+      <div className="mt-3 grid gap-1.5 font-mono text-[10px] leading-4 text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex min-w-0 gap-2"><span className="shrink-0 text-primary/80">phase$</span><span className="truncate text-foreground/80">{state.run.currentPhase || "not recorded"}</span></div>
+        <div className="flex min-w-0 gap-2"><span className="shrink-0 text-primary/80">route$</span><span className="truncate text-foreground/80">{state.run.currentRoute || state.run.targetUrl}</span></div>
+        <div className="flex min-w-0 gap-2"><span className="shrink-0 text-primary/80">viewport$</span><span className="text-foreground/80">{viewportText}</span></div>
+        <div className="flex min-w-0 gap-2"><span className="shrink-0 text-primary/80">sync$</span><span className="text-foreground/80">seq {state.persistence.latestSyncedSequence}/{state.persistence.latestEventSequence} · {syncedText}{state.persistence.backlog ? ` · ${state.persistence.backlog} pending` : ""}</span></div>
+      </div>
+      <div className="mt-3 max-h-[420px] overflow-auto rounded-md border border-white/10 bg-background/15 px-3 py-3 sm:max-h-[500px]">
+        <SafeQaMarkdown markdown={state.note.markdown} />
+      </div>
+    </section>
+  );
+}
+
 function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId: string; report: RunReport }) {
   const [messages, setMessages] = useState<RunMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -1007,6 +1167,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
   const [sending, setSending] = useState(false);
   const [activeAction, setActiveAction] = useState<ConsoleAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [qaState, setQaState] = useState<QaLiveState | null>(null);
   const [continuing, setContinuing] = useState(false);
   const pendingScopeRequest = useMemo(() => {
     let pending: ScopePermissionRequest | null = null;
@@ -1042,11 +1203,21 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
     }
   };
 
+  const loadQaState = async () => {
+    try {
+      const next = await runsApi.getQaState(projectId, runId);
+      setQaState(next);
+    } catch {
+      // The legacy execution-state stream remains the fallback if the projection is unavailable.
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       if (cancelled) return;
       await loadMessages();
+      await loadQaState();
     };
     void load();
     if (!active) return () => { cancelled = true; };
@@ -1152,6 +1323,7 @@ function RunConsoleTab({ projectId, runId, report }: { projectId: string; runId:
             </div>
           )}
           <QuickScanHandoffPanel handoff={report.quickScanHandoff} compact />
+          <QaActivityPanel state={qaState} />
           <AiOverviewPanel report={report} />
           {pendingScopeRequest && active && (
             <div className="border-b border-warning/40 bg-warning/10 px-5 py-4" role="alert" aria-live="assertive">

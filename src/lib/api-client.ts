@@ -335,6 +335,81 @@ export interface RunExecutionState {
   }>;
 }
 
+export interface QaLiveState {
+  run: {
+    id: string;
+    projectId: string;
+    workspaceId: string;
+    targetUrl: string;
+    status: string;
+    startedAt?: string | null;
+    finishedAt?: string | null;
+    currentPhase?: string | null;
+    currentRoute?: string | null;
+    currentViewport?: Record<string, unknown> | null;
+    resumable?: boolean;
+    legalHold?: boolean;
+    stopReason?: string | null;
+    errorMessage?: string | null;
+  };
+  note: {
+    markdown: string;
+    source: "DURABLE_QA_EVENTS" | string;
+    redactionStatus: string;
+    redactionVersion: string;
+  };
+  persistence: {
+    health: "healthy" | "degraded" | string;
+    latestEventSequence: number;
+    latestSyncedSequence: number;
+    backlog: number;
+    lastSyncedAt?: string | null;
+    projection?: {
+      sourceSequence: number;
+      objectVersion?: string | null;
+      contentHash: string;
+      byteSize: number;
+      status: string;
+      lastGeneratedAt?: string | null;
+      lastSyncedAt?: string | null;
+    } | null;
+  };
+  checkpoints: Array<{
+    id: string;
+    sequence: number;
+    eventSequence: number;
+    checkpointType: string;
+    route?: string | null;
+    uiStateSummary?: string | null;
+    pendingAction?: string | null;
+    planRevision?: string | null;
+    coverageWatermark: number;
+    evidenceWatermark: number;
+    localSpoolWatermark: number;
+    r2SyncWatermark: number;
+    resumable: boolean;
+    reason?: string | null;
+    createdAt: string;
+  }>;
+  events: Array<{
+    id: string;
+    sequence: number;
+    eventType: string;
+    phase?: string | null;
+    timestampMs: number;
+    payload?: Record<string, unknown> | null;
+    actionSummary?: string | null;
+    outcome?: string | null;
+    route?: string | null;
+    evidenceIds?: unknown;
+    coverageIds?: unknown;
+    findingIds?: unknown;
+    nextDecision?: string | null;
+    redactionStatus: string;
+    createdAt: string;
+  }>;
+}
+
 export interface RunAssertion {
   name: string;
   expected: unknown;
@@ -1477,6 +1552,14 @@ export const runsApi = {
     const encodedRunId = encodeURIComponent(runId);
     return apiRequest<RunExecutionState>(`/projects/${encodedProjectId}/runs/${encodedRunId}/execution-state`, {
       requiresAuth: true,
+    });
+  },
+  getQaState: async (projectId: string, runId: string, limit = 200): Promise<QaLiveState> => {
+    const encodedProjectId = encodeURIComponent(projectId);
+    const encodedRunId = encodeURIComponent(runId);
+    return apiRequest<QaLiveState>(`/projects/${encodedProjectId}/runs/${encodedRunId}/qa-state?limit=${Math.max(1, Math.min(500, Math.floor(limit)))}`, {
+      requiresAuth: true,
+      timeoutMs: 30_000,
     });
   },
   listMessages: (projectId: string, runId: string): Promise<RunMessage[]> =>
