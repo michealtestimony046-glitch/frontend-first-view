@@ -953,6 +953,22 @@ export const guidanceApi = {
   }),
 };
 
+export interface WorkspaceMemoryConsent {
+  workspaceId: string;
+  globalAggregateOptIn: boolean;
+  policyVersion: string;
+  changedAt: string | null;
+}
+
+export const workspaceConsentApi = {
+  get: (workspaceId: string): Promise<WorkspaceMemoryConsent> => apiRequest(`/guidance/memory/consent/${encodeURIComponent(workspaceId)}`, { requiresAuth: true }),
+  update: (workspaceId: string, globalAggregateOptIn: boolean): Promise<WorkspaceMemoryConsent> => apiRequest('/guidance/memory/consent', {
+    method: 'PATCH',
+    body: JSON.stringify({ workspaceId, globalAggregateOptIn }),
+    requiresAuth: true,
+  }),
+};
+
 export interface PushSubscriptionPayload {
   endpoint: string;
   keys: { p256dh: string; auth: string };
