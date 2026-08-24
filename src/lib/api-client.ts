@@ -1357,6 +1357,74 @@ export interface AdminOperationsMetrics {
   }>;
 }
 
+export interface AdminMatrixUnitConfig {
+  scopeKey: string;
+  version: number;
+  enabled: boolean;
+  muPriceUsd: number;
+  riskBufferRate: number;
+  targetMarginRate: number;
+  neonCuHourlyUsd: number;
+  defaultCuUsed: number;
+  renderMonthlyUsd: number;
+  vercelMonthlyUsd: number;
+  resendMonthlyUsd: number;
+  fixedCostRunWindowDays: number;
+  r2OperationUsd: number;
+  r2StorageUsdPerGbMonth: number;
+  defaultMonthlyAllocationMu: number;
+  decisionHoldBuffer: number;
+  decisionHoldMuPerDecision: number;
+  includeExtensionsInHold: boolean;
+  modeEstimateRanges: unknown;
+}
+
+export interface AdminMatrixUnitRun {
+  runId: string;
+  workspaceId: string;
+  mode: string;
+  status: string;
+  measurementStatus: string;
+  heldMu: number;
+  chargedMu: number;
+  refundedMu: number;
+  actualDecisionCount: number;
+  extensionCount: number;
+  aiCalls: number;
+  aiInputTokens: number;
+  aiOutputTokens: number;
+  aiTotalTokens: number;
+  providersUsed: string[];
+  aiTotalCostUsd: number;
+  internalCostUsd: number;
+  sellingPriceUsd: number;
+  createdAt: string;
+  settledAt?: string | null;
+}
+
+export interface AdminMatrixUnitAllocation {
+  organizationId: string;
+  workspaceId: string;
+  periodStart: string;
+  periodEnd: string;
+  regularMu: number;
+  bonusMu: number;
+  availableMu: number;
+  reservedMu: number;
+  settledMu: number;
+}
+
+export interface AdminMatrixUnitSnapshot {
+  generatedAt: string;
+  hiddenFromCustomers: true;
+  formulaVersion: string;
+  exchangeRateUsd: number;
+  config: AdminMatrixUnitConfig;
+  totals: { heldMu: number; chargedMu: number; refundedMu: number; internalCostUsd: number };
+  allocations: AdminMatrixUnitAllocation[];
+  recentRuns: AdminMatrixUnitRun[];
+}
+
 export interface AdminControlTowerSnapshot {
   generatedAt: string;
   product: { mission: string; runtime: string; deterministicCustomerFallback: boolean };
@@ -1464,6 +1532,8 @@ export const adminApi = {
   auditExport: (): Promise<AdminAuditExport> => apiRequest('/admin/audit-export', { requiresAuth: true }),
   telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
   providerCredits: (refresh = false): Promise<AdminProviderCreditSnapshot> => apiRequest(`/admin/provider-credits${refresh ? '?refresh=true' : ''}`, { requiresAuth: true }),
+  matrixUnits: (): Promise<AdminMatrixUnitSnapshot> => apiRequest('/admin/matrix-units', { requiresAuth: true }),
+  updateMatrixUnitConfig: (data: Partial<AdminMatrixUnitConfig> & { workspaceId?: string | null }): Promise<AdminMatrixUnitConfig> => apiRequest('/admin/matrix-units/config', { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   metrics: (days = 7): Promise<AdminOperationsMetrics> => apiRequest(`/admin/metrics?days=${encodeURIComponent(String(days))}`, { requiresAuth: true }),
   controlTower: (): Promise<AdminControlTowerSnapshot> => apiRequest('/admin/control-tower', { requiresAuth: true }),
   listTargetComplaints: (status?: TargetComplaintStatus): Promise<TargetComplaint[]> => apiRequest(`/target-complaints/staff${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
