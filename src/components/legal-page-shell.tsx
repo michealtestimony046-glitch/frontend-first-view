@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowUpRight, FileText, ShieldCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { Logo } from "@/components/logo";
 import type { ReactNode } from "react";
 
 export type LegalSection = {
@@ -32,12 +33,7 @@ export function LegalPageShell({
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-10">
-          <Link to="/" className="group inline-flex items-center gap-3" aria-label="Matrix QA home">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 font-mono text-xs font-semibold text-primary transition-colors group-hover:bg-primary/20">
-              M
-            </span>
-            <span className="font-display text-sm font-semibold tracking-tight">Matrix QA</span>
-          </Link>
+          <Logo size={26} />
           <nav className="flex items-center gap-2 sm:gap-4" aria-label="Primary navigation">
             <Link
               to="/pricing"
