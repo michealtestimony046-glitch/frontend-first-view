@@ -29,6 +29,7 @@ import {
 import { BrowserHandoffPanel } from "@/components/browser-handoff-panel";
 import {
   runsApi,
+  reliabilityApi,
   type BrowserHandoff,
   type RunError,
   type RunEvent,
@@ -194,6 +195,7 @@ function RunDetailPage() {
       ? new URLSearchParams(window.location.search).get("projectId")
       : null;
   const [report, setReport] = useState<RunReport | null>(null);
+  const [reliability, setReliability] = useState<Awaited<ReturnType<typeof reliabilityApi.run>> | null>(null);
   const [handoff, setHandoff] = useState<BrowserHandoff | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [selected, setSelected] = useState(0);
@@ -223,10 +225,11 @@ function RunDetailPage() {
 
     const loadReport = async () => {
       try {
-        const [data, currentHandoff, executionState] = await Promise.all([
+        const [data, currentHandoff, executionState, reliabilityState] = await Promise.all([
           runsApi.getReport(projectId, runId),
           runsApi.getHandoff(projectId, runId).catch(() => null),
           runsApi.getExecutionState(projectId, runId).catch(() => null),
+          reliabilityApi.run(runId).catch(() => null),
         ]);
         if (cancelled) return;
         transientLoadRetries = 0;
@@ -246,6 +249,7 @@ function RunDetailPage() {
         };
         setReport(mergedReport);
         setHandoff(currentHandoff);
+        setReliability(reliabilityState);
         const activeStatuses = ["PENDING", "QUEUED", "RUNNING", "AWAITING_PERMISSION"];
         const reportProjectionPending = Boolean(
           durableTerminalStatus
@@ -462,6 +466,7 @@ function RunDetailPage() {
           />
         </div>
 
+        {reliability && <RunReliabilityPanel reliability={reliability} />}
         {videoUrl ? <EvidenceVideo report={report} url={videoUrl} /> : <EvidenceStatus report={report} />}
         {projectId && <BrowserHandoffPanel projectId={projectId} runId={runId} handoff={handoff} onChange={setHandoff} />}
         <ExecutionStatusNotice report={report} />
@@ -507,6 +512,14 @@ function RunDetailPage() {
       </div>
     </RunDetailErrorBoundary>
   );
+}
+
+function RunReliabilityPanel({ reliability }: { reliability: Awaited<ReturnType<typeof reliabilityApi.run>> }) {
+  const attempts = reliability.attempts || [];
+  const firstFailure = attempts.find((attempt) => attempt.outcome && attempt.outcome !== 'pass');
+  const passes = attempts.filter((attempt) => attempt.outcome === 'pass').length;
+  const gate = reliability.releaseGateDecisions?.[0] as { status?: string; decisionReason?: string } | undefined;
+  return <section className="mt-5 rounded-md border border-primary/20 bg-primary/5 p-4" aria-label="Reliability summary"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Reliability history</div><h2 className="mt-1 font-display text-base font-semibold">Original result stays visible</h2><p className="mt-1 text-xs text-muted-foreground">{attempts.length} linked attempt{attempts.length === 1 ? "" : "s"} · {passes} pass{passes === 1 ? "" : "es"} · {firstFailure ? `first non-pass: ${String(firstFailure.outcome).replaceAll("_", " ")}` : "no non-pass attempt recorded"}</p></div>{gate?.status && <span className={`rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-wider ${gate.status === "TRUSTED" ? "border-success/30 bg-success/10 text-success" : gate.status === "BLOCKED" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-warning/30 bg-warning/10 text-warning"}`}>{gate.status.replaceAll("_", " ")}</span>}</div>{gate?.decisionReason && <p className="mt-3 text-xs text-muted-foreground">{gate.decisionReason}</p>}<div className="mt-3 flex flex-wrap gap-2">{attempts.slice(0, 5).map((attempt) => <span key={attempt.id} className="rounded border border-border bg-surface/50 px-2 py-1 font-mono text-[10px] text-muted-foreground">attempt {attempt.attemptNumber}: {String(attempt.outcome || "inconclusive").replaceAll("_", " ")}{attempt.evidenceComplete ? " · evidence" : " · evidence incomplete"}</span>)}<Link to="/app/reliability" className="ml-auto text-xs font-semibold text-primary">Open reliability history</Link></div></section>;
 }
 
 function QueueStateNotice({ queue }: { queue: NonNullable<RunReport["metadata"]>["queue"] }) {

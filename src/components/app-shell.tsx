@@ -1,6 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
-  LayoutDashboard, FolderKanban, ListChecks, Bug, FileText, Settings, ScrollText, Database,
+  LayoutDashboard, FolderKanban, ListChecks, Bug, FileText, Settings, ScrollText, Activity, Database,
   ChevronDown, ChevronUp, Bell, HelpCircle, Menu, X, MoreHorizontal, Check, Plus,
   Search, Cog, LogOut, KeyRound, UserCircle, Loader2, PlusCircle, CircleDollarSign, ShieldCheck,
 } from "lucide-react";
@@ -20,6 +20,7 @@ const nav: NavItem[] = [
   { label: "Issues", to: "/app/issues", icon: Bug },
   { label: "Audit Log", to: "/app/audit", icon: ScrollText },
   { label: "Reports", to: "/app/reports", icon: FileText },
+  { label: "Reliability", to: "/app/reliability", icon: Activity },
   { label: "Test capacity", to: "/app/credits", icon: CircleDollarSign },
   { label: "Notifications", to: "/app/notifications", icon: Bell },
   { label: "Settings", to: "/app/settings", icon: Settings },
