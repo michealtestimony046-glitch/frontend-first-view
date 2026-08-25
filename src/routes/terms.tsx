@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { seoHead } from "@/lib/seo";
 import {
   LegalList,
   LegalPageShell,
@@ -9,12 +10,12 @@ import {
 } from "@/components/legal-page-shell";
 
 export const Route = createFileRoute("/terms")({
-  head: () => ({
-    meta: [
-      { title: "Terms of Service · Matrix QA" },
-      { name: "description", content: "Terms governing use of Matrix QA." },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: "Terms of Service · Matrix QA",
+      description: "Terms governing use of Matrix QA.",
+      path: "/terms",
+    }),
   component: TermsPage,
 });
 

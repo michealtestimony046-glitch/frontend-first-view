@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { seoHead } from "@/lib/seo";
 import {
   ArrowRight,
   BookOpen,
@@ -11,31 +12,15 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/mia")({
-  head: () => ({
-    meta: [
-      { title: "Meet Mia, Your Matrix QA Guide | Workspace-Aware QA Help" },
-      {
-        name: "description",
-        content:
-          "Meet Mia, the Matrix QA guide for understanding your workspace, runs, reports, projects, notifications, and settings without changing account data or executing runs.",
-      },
-      { property: "og:title", content: "Meet Mia, Your Matrix QA Guide | Matrix QA" },
-      {
-        property: "og:description",
-        content:
-          "A calm, workspace-aware guide for understanding Matrix QA and the evidence around your browser tests.",
-      },
-      { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://matrixqa.trlabs.tech/mia" },
-      { property: "og:image", content: "https://matrixqa.trlabs.tech/mia-og.png" },
-      {
-        property: "og:image:alt",
-        content: "A glowing guide orb beside a Matrix QA evidence workspace",
-      },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://matrixqa.trlabs.tech/mia-og.png" },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: "Meet Mia, Your Matrix QA Guide | Workspace-Aware QA Help",
+      description:
+        "Meet Mia, the Matrix QA guide for understanding your workspace, runs, reports, projects, notifications, and settings without changing account data or executing runs.",
+      path: "/mia",
+      image: "https://matrixqa.trlabs.tech/mia-og.png",
+      imageAlt: "A glowing guide orb beside a Matrix QA evidence workspace",
+    }),
   component: MiaPage,
 });
 
