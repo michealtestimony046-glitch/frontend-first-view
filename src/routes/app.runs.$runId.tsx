@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+
 import { Component, type ErrorInfo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -93,6 +94,19 @@ class RunDetailErrorBoundary extends Component<{ children: ReactNode }, { hasErr
     return this.props.children;
   }
 }
+
+const formatViewportLabel = (viewport: unknown): string => {
+  if (!viewport || typeof viewport !== "object") return "not recorded";
+  const value = viewport as { width?: unknown; height?: unknown; deviceMode?: unknown; isMobile?: unknown };
+  if (typeof value.width !== "number" || typeof value.height !== "number") return "not recorded";
+  const mode = String(value.deviceMode || "").toLowerCase();
+  const device = value.isMobile === true || mode.includes("mobile") || value.width < 600
+    ? "Mobile"
+    : mode.includes("tablet") || value.width < 1100
+      ? "Tablet"
+      : "Desktop";
+  return `${device} · ${value.width}×${value.height}`;
+};
 
 export const Route = createFileRoute("/app/runs/$runId")({
   head: ({ params }) => ({
@@ -959,6 +973,7 @@ function ScreenshotsTab({
   setSelected: (n: number) => void;
 }) {
   const shots = report.screenshots ?? [];
+  const [showBugFocus, setShowBugFocus] = useState(false);
   if (!shots.length)
     return (
       <EmptyState
@@ -975,12 +990,22 @@ function ScreenshotsTab({
           <h3 className="font-display text-sm font-semibold">{shot.label}</h3>
           <p className="font-mono text-[10px] text-muted-foreground">
             captured at {msToClock(shot.t ?? shot.timestamp)}
+            {shot.viewport ? ` · ${formatViewportLabel(shot.viewport)}` : ""}
+            {shot.redactionStatus ? ` · ${shot.redactionStatus.toLowerCase().replaceAll("_", " ")}` : ""}
           </p>
+          {shot.annotatedUrl && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => setShowBugFocus((value) => !value)} className="rounded-md border border-primary/30 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10">
+                {showBugFocus ? "Show normal frame" : "Show bug focus"}
+              </button>
+              <span className="text-[11px] text-muted-foreground">The bug-focus view is an annotated derivative; the normal redacted frame remains the source evidence.</span>
+            </div>
+          )}
         </div>
-        {shot.url ? (
+        {(showBugFocus ? shot.annotatedUrl : shot.url) ? (
           <img
-            src={shot.url}
-            alt={shot.label}
+            src={(showBugFocus ? shot.annotatedUrl : shot.url) || undefined}
+            alt={showBugFocus ? `${shot.label} — bug focus` : shot.label}
             className="max-h-[680px] w-full object-contain bg-surface-2"
           />
         ) : (
@@ -1011,6 +1036,7 @@ function ScreenshotsTab({
                   <p className="font-mono text-[10px] text-muted-foreground">
                     {msToClock(s.t ?? s.timestamp)}
                   </p>
+                  {s.viewport && <p className="text-[10px] text-primary/80">{formatViewportLabel(s.viewport)}</p>}
                 </div>
               </button>
             </li>
@@ -1213,7 +1239,7 @@ function QaActivityPanel({ state }: { state: QaLiveState | null }) {
   if (!state) return null;
   const healthy = state.persistence.health === "healthy";
   const viewport = state.run.currentViewport;
-  const viewportText = viewport && typeof viewport.width === "number" && typeof viewport.height === "number" ? `${viewport.width}×${viewport.height}` : "not recorded";
+  const viewportText = formatViewportLabel(viewport);
   const syncedText = state.persistence.lastSyncedAt ? new Date(state.persistence.lastSyncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "pending";
   return (
     <section className="border-b border-white/10 bg-black/10 px-3 py-3 backdrop-blur-md sm:px-4" aria-label="QA Activity and Agent Notes" aria-live="polite">

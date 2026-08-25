@@ -20,8 +20,10 @@ import {
   Chrome,
 } from "lucide-react";
 import {
-  Area,
-  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -308,46 +310,26 @@ function AppDashboard() {
               <p className="text-[11px] text-muted-foreground">Last 7 days · all run statuses</p>
             </div>
           </header>
-          <div className="h-[200px] px-2 pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trend} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="passGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="oklch(0.7 0.18 150)" stopOpacity={0.3} /><stop offset="100%" stopColor="oklch(0.7 0.18 150)" stopOpacity={0} /></linearGradient>
-                  <linearGradient id="findingGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="oklch(0.68 0.2 260)" stopOpacity={0.3} /><stop offset="100%" stopColor="oklch(0.68 0.2 260)" stopOpacity={0} /></linearGradient>
-                  <linearGradient id="failureGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="oklch(0.68 0.22 22)" stopOpacity={0.3} /><stop offset="100%" stopColor="oklch(0.68 0.22 22)" stopOpacity={0} /></linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="day"
-                  stroke="oklch(0.68 0.02 250)"
-                  fontSize={10}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="oklch(0.68 0.02 250)"
-                  fontSize={10}
-                  tickLine={false}
-                  axisLine={false}
-                  width={24}
-                />
+          <div className="h-[200px] px-2 pt-4" role="img" aria-label={`Seven-day run status trend with ${totalTrendRuns} total runs and ${trendFindings} findings captured.`}>
+            {totalTrendRuns === 0 ? <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border text-center text-xs text-muted-foreground">No runs recorded in the last 7 days.</div> : <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trend} margin={{ top: 4, right: 12, left: 0, bottom: 8 }}>
+                <CartesianGrid vertical={false} stroke="oklch(1 0 0 / 0.08)" />
+                <XAxis dataKey="day" stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} width={24} allowDecimals={false} />
                 <Tooltip
-                  cursor={{ stroke: "oklch(1 0 0 / 0.1)" }}
-                  contentStyle={{
-                    background: "var(--surface-2)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
+                  cursor={{ fill: "oklch(1 0 0 / 0.06)" }}
+                  contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: "var(--muted-foreground)" }}
                 />
-                <Area type="monotone" dataKey="passed" name="Passed" stroke="oklch(0.7 0.18 150)" strokeWidth={2} fill="url(#passGrad)" dot={{ r: 2, fill: "oklch(0.7 0.18 150)" }} />
-                <Area type="monotone" dataKey="findings" name="Findings" stroke="oklch(0.68 0.2 260)" strokeWidth={2} fill="url(#findingGrad)" dot={{ r: 2, fill: "oklch(0.68 0.2 260)" }} />
-                <Area type="monotone" dataKey="running" name="Running" stroke="oklch(0.72 0.16 90)" strokeWidth={1.5} fill="none" dot={false} />
-                <Area type="monotone" dataKey="blocked" name="Blocked" stroke="oklch(0.72 0.16 70)" strokeWidth={1.5} fill="none" dot={false} />
-                <Area type="monotone" dataKey="failed" name="Failed" stroke="oklch(0.68 0.22 22)" strokeWidth={2} fill="url(#failureGrad)" dot={{ r: 2, fill: "oklch(0.68 0.22 22)" }} />
-                <Area type="monotone" dataKey="queued" name="Queued" stroke="oklch(0.68 0.02 250)" strokeWidth={1.5} fill="none" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+                <Legend wrapperStyle={{ fontSize: 10, color: "var(--muted-foreground)", paddingTop: 4 }} />
+                <Bar dataKey="passed" name="Passed" stackId="runs" fill="oklch(0.7 0.18 150)" />
+                <Bar dataKey="findings" name="Findings" stackId="runs" fill="oklch(0.68 0.2 260)" />
+                <Bar dataKey="failed" name="Failed" stackId="runs" fill="oklch(0.68 0.22 22)" />
+                <Bar dataKey="blocked" name="Blocked" stackId="runs" fill="oklch(0.72 0.16 70)" />
+                <Bar dataKey="running" name="Running" stackId="runs" fill="oklch(0.72 0.16 90)" />
+                <Bar dataKey="queued" name="Queued" stackId="runs" fill="oklch(0.68 0.02 250)" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>}
           </div>
           <div className="mt-auto flex items-end justify-between border-t border-border px-5 py-4">
             <div>
