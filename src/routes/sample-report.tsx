@@ -14,12 +14,37 @@ import { seoHead } from "@/lib/seo";
 export const Route = createFileRoute("/sample-report")({
   head: () =>
     seoHead({
-      title: "Sample report · Matrix QA",
-      description: "Explore a public, read-only Matrix QA sample report.",
+      title: "Sample QA Report | Browser Testing Evidence | Matrix QA",
+      description:
+        "Explore a public, read-only Matrix QA sample report with journey steps, timestamps, screenshots, console events, and network observations.",
       path: "/sample-report",
+      faqItems: sampleReportFaqs,
     }),
   component: SampleReportPage,
 });
+
+const sampleReportFaqs = [
+  {
+    question: "Is this a live customer report?",
+    answer:
+      "No. This is a fixed public demonstration report using safe fixture data. It is not a live customer run and does not require an account or project ID.",
+  },
+  {
+    question: "What does the sample report show?",
+    answer:
+      "It shows a browser journey timeline in which each action is paired with an outcome and timestamp, along with summary metrics for passed assertions, review items, duration, and confidence.",
+  },
+  {
+    question: "What evidence is included in the sample?",
+    answer:
+      "The sample shows four captured screenshots, two retained console events, twelve observed network checks, and a Markdown-ready report export.",
+  },
+  {
+    question: "What is different in the authenticated console?",
+    answer:
+      "The real console adds project context, issue filters, audit logs, assertions, and artifact links for authenticated workspaces. The public sample remains separate so it never depends on a customer project or session.",
+  },
+] satisfies { question: string; answer: string }[];
 
 const sampleSteps = [
   { name: "Open landing page", status: "Passed", detail: "GET / returned 200", time: "00:01.2" },
@@ -178,6 +203,28 @@ function SampleReportPage() {
                 preserved.
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="mt-8" aria-labelledby="sample-report-faq-heading">
+          <div className="max-w-2xl">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-primary">
+              Read the evidence correctly
+            </span>
+            <h2 id="sample-report-faq-heading" className="mt-2 font-display text-2xl font-semibold">
+              Questions about this sample
+            </h2>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {sampleReportFaqs.map((item) => (
+              <article
+                key={item.question}
+                className="rounded-xl border border-border bg-surface/40 p-5"
+              >
+                <h3 className="font-display text-base font-semibold">{item.question}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.answer}</p>
+              </article>
+            ))}
           </div>
         </section>
       </main>

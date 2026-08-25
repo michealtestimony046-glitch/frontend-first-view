@@ -7,8 +7,9 @@ import { seoHead } from "@/lib/seo";
 export const Route = createFileRoute("/faq")({
   head: () =>
     seoHead({
-      title: "FAQ · Matrix QA",
-      description: "Answers about Matrix QA Preview, evidence, usage, and the current console.",
+      title: "Matrix QA FAQ | Browser Testing, Evidence & Preview",
+      description:
+        "Answers about Matrix QA browser testing, evidence reports, Preview access, usage, safety, and the current console.",
       path: "/faq",
       breadcrumbLabel: "FAQ",
       faqItems: FAQS.map(({ q, a }) => ({ question: q, answer: a })),

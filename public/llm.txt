@@ -5,6 +5,7 @@
 ## Official website
 
 - Home: https://matrixqa.trlabs.tech/
+- About Matrix QA and product scope: https://matrixqa.trlabs.tech/about
 - Features: https://matrixqa.trlabs.tech/features
 - How it works: https://matrixqa.trlabs.tech/how-it-works
 - Automated browser testing: https://matrixqa.trlabs.tech/automated-browser-testing

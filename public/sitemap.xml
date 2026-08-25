@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://matrixqa.trlabs.tech/</loc><lastmod>2026-08-25</lastmod></url>
+  <url><loc>https://matrixqa.trlabs.tech/about</loc><lastmod>2026-08-25</lastmod></url>
   <url><loc>https://matrixqa.trlabs.tech/features</loc><lastmod>2026-08-25</lastmod></url>
   <url><loc>https://matrixqa.trlabs.tech/how-it-works</loc><lastmod>2026-08-25</lastmod></url>
   <url><loc>https://matrixqa.trlabs.tech/automated-browser-testing</loc><lastmod>2026-08-25</lastmod></url>
