@@ -67,7 +67,11 @@ function Header({ variant }: { variant: Variant }) {
       className={`border-b ${light ? "border-[#1e2a22]/15 bg-[#efeee8]/90" : "border-white/10 bg-[#080b0d]/90"} sticky top-0 z-30 backdrop-blur-xl`}
     >
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-5 px-6 lg:px-10">
-        <Logo className={light ? "text-[#17201b]" : "text-white"} size={28} />
+        <Logo
+          className={light ? "text-[#17201b]" : "text-white"}
+          size={28}
+          tone={light ? "light" : "dark"}
+        />
         <nav
           className={`hidden items-center gap-5 text-xs sm:flex ${light ? "text-[#526057]" : "text-white/60"}`}
           aria-label="Primary navigation"
