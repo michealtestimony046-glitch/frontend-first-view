@@ -138,6 +138,7 @@ function FeaturesPage() {
         },
       ]}
       cta="Explore the console"
+      variant="split"
     />
   );
 }

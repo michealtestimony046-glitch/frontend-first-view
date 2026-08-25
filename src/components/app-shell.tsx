@@ -1,6 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
-  LayoutDashboard, FolderKanban, ListChecks, Bug, FileText, Settings, ScrollText, Activity,
+  LayoutDashboard, FolderKanban, ListChecks, Bug, FileText, Settings, ScrollText, Activity, Database,
   ChevronDown, ChevronUp, Bell, HelpCircle, Menu, X, MoreHorizontal, Check, Plus,
   Search, Cog, LogOut, KeyRound, UserCircle, Loader2, PlusCircle, CircleDollarSign, ShieldCheck,
 } from "lucide-react";
@@ -14,6 +14,7 @@ type NavItem = { label: string; to: string; icon: typeof LayoutDashboard; exact?
 const nav: NavItem[] = [
   { label: "Overview", to: "/app", icon: LayoutDashboard, exact: true },
   { label: "Projects", to: "/app/projects", icon: FolderKanban },
+  { label: "Environments & data", to: "/app/environments", icon: Database },
   { label: "Discovery", to: "/app/discovery", icon: Search },
   { label: "Test Runs", to: "/app/runs", icon: ListChecks },
   { label: "Issues", to: "/app/issues", icon: Bug },
