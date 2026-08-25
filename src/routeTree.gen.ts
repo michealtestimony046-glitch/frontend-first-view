@@ -13,10 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as QaFixtureRouteImport } from './routes/qa-fixture'
 import { Route as SampleReportRouteImport } from './routes/sample-report'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppCreditsRouteImport } from './routes/app.credits'
@@ -56,6 +59,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FaqRoute = FaqRouteImport.update({
   id: '/faq',
   path: '/faq',
@@ -66,6 +74,11 @@ const PricingRoute = PricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QaFixtureRoute = QaFixtureRouteImport.update({
   id: '/qa-fixture',
   path: '/qa-fixture',
@@ -74,6 +87,11 @@ const QaFixtureRoute = QaFixtureRouteImport.update({
 const SampleReportRoute = SampleReportRouteImport.update({
   id: '/sample-report',
   path: '/sample-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -172,10 +190,13 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/cookies': typeof CookiesRoute
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
+  '/terms': typeof TermsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
@@ -199,10 +220,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRouteWithChildren
+  '/cookies': typeof CookiesRoute
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
+  '/terms': typeof TermsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
@@ -227,10 +251,13 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/cookies': typeof CookiesRoute
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
+  '/terms': typeof TermsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
@@ -257,10 +284,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/auth'
+    | '/cookies'
     | '/faq'
     | '/pricing'
+    | '/privacy'
     | '/qa-fixture'
     | '/sample-report'
+    | '/terms'
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
@@ -284,10 +314,13 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/cookies'
     | '/faq'
     | '/pricing'
+    | '/privacy'
     | '/qa-fixture'
     | '/sample-report'
+    | '/terms'
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
@@ -311,10 +344,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/auth'
+    | '/cookies'
     | '/faq'
     | '/pricing'
+    | '/privacy'
     | '/qa-fixture'
     | '/sample-report'
+    | '/terms'
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
@@ -340,10 +376,13 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  CookiesRoute: typeof CookiesRoute
   FaqRoute: typeof FaqRoute
   PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
   QaFixtureRoute: typeof QaFixtureRoute
   SampleReportRoute: typeof SampleReportRoute
+  TermsRoute: typeof TermsRoute
   StaffInvitationsAcceptRoute: typeof StaffInvitationsAcceptRoute
   StaffInvitationsDeclineRoute: typeof StaffInvitationsDeclineRoute
 }
@@ -378,6 +417,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/faq': {
       id: '/faq'
       path: '/faq'
@@ -392,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/qa-fixture': {
       id: '/qa-fixture'
       path: '/qa-fixture'
@@ -404,6 +457,13 @@ declare module '@tanstack/react-router' {
       path: '/sample-report'
       fullPath: '/sample-report'
       preLoaderRoute: typeof SampleReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -607,10 +667,13 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  CookiesRoute: CookiesRoute,
   FaqRoute: FaqRoute,
   PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
   QaFixtureRoute: QaFixtureRoute,
   SampleReportRoute: SampleReportRoute,
+  TermsRoute: TermsRoute,
   StaffInvitationsAcceptRoute: StaffInvitationsAcceptRoute,
   StaffInvitationsDeclineRoute: StaffInvitationsDeclineRoute,
 }
