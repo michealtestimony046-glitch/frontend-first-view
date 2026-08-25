@@ -13,8 +13,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AutomatedBrowserTestingRouteImport } from './routes/automated-browser-testing'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as FeaturesRouteImport } from './routes/features'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as QaFixtureRouteImport } from './routes/qa-fixture'
@@ -59,6 +62,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AutomatedBrowserTestingRoute = AutomatedBrowserTestingRouteImport.update({
+  id: '/automated-browser-testing',
+  path: '/automated-browser-testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CookiesRoute = CookiesRouteImport.update({
   id: '/cookies',
   path: '/cookies',
@@ -67,6 +75,16 @@ const CookiesRoute = CookiesRouteImport.update({
 const FaqRoute = FaqRouteImport.update({
   id: '/faq',
   path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeaturesRoute = FeaturesRouteImport.update({
+  id: '/features',
+  path: '/features',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -190,8 +208,11 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/automated-browser-testing': typeof AutomatedBrowserTestingRoute
   '/cookies': typeof CookiesRoute
   '/faq': typeof FaqRoute
+  '/features': typeof FeaturesRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
@@ -220,8 +241,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRouteWithChildren
+  '/automated-browser-testing': typeof AutomatedBrowserTestingRoute
   '/cookies': typeof CookiesRoute
   '/faq': typeof FaqRoute
+  '/features': typeof FeaturesRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
@@ -251,8 +275,11 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/automated-browser-testing': typeof AutomatedBrowserTestingRoute
   '/cookies': typeof CookiesRoute
   '/faq': typeof FaqRoute
+  '/features': typeof FeaturesRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
@@ -284,8 +311,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/auth'
+    | '/automated-browser-testing'
     | '/cookies'
     | '/faq'
+    | '/features'
+    | '/how-it-works'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
@@ -314,8 +344,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/automated-browser-testing'
     | '/cookies'
     | '/faq'
+    | '/features'
+    | '/how-it-works'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
@@ -344,8 +377,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/auth'
+    | '/automated-browser-testing'
     | '/cookies'
     | '/faq'
+    | '/features'
+    | '/how-it-works'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
@@ -376,8 +412,11 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  AutomatedBrowserTestingRoute: typeof AutomatedBrowserTestingRoute
   CookiesRoute: typeof CookiesRoute
   FaqRoute: typeof FaqRoute
+  FeaturesRoute: typeof FeaturesRoute
+  HowItWorksRoute: typeof HowItWorksRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   QaFixtureRoute: typeof QaFixtureRoute
@@ -417,6 +456,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/automated-browser-testing': {
+      id: '/automated-browser-testing'
+      path: '/automated-browser-testing'
+      fullPath: '/automated-browser-testing'
+      preLoaderRoute: typeof AutomatedBrowserTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cookies': {
       id: '/cookies'
       path: '/cookies'
@@ -429,6 +475,20 @@ declare module '@tanstack/react-router' {
       path: '/faq'
       fullPath: '/faq'
       preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/features': {
+      id: '/features'
+      path: '/features'
+      fullPath: '/features'
+      preLoaderRoute: typeof FeaturesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -667,8 +727,11 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  AutomatedBrowserTestingRoute: AutomatedBrowserTestingRoute,
   CookiesRoute: CookiesRoute,
   FaqRoute: FaqRoute,
+  FeaturesRoute: FeaturesRoute,
+  HowItWorksRoute: HowItWorksRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   QaFixtureRoute: QaFixtureRoute,
