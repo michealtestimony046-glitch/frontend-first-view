@@ -549,6 +549,32 @@ export interface V2TestDataFixture {
   createdAt?: string;
   updatedAt?: string;
 }
+export type V2FindingWorkflowStatus = "OPEN" | "IN_PROGRESS" | "FIXED_PENDING_RETEST" | "VERIFIED_FIXED" | "REOPENED" | "WONT_FIX";
+export interface V2FindingRetest {
+  id: string;
+  workflowId: string;
+  runId: string;
+  verdict: "PASSED" | "FAILED";
+  summary?: string | null;
+  evidenceIdsJson?: unknown;
+  createdAt?: string;
+}
+export interface V2FindingWorkflow {
+  id: string;
+  projectId: string;
+  failureSignatureId?: string | null;
+  title: string;
+  status: V2FindingWorkflowStatus;
+  issueKey?: string | null;
+  issueUrl?: string | null;
+  ownerId?: string | null;
+  expectedBehavior?: string | null;
+  actualBehavior?: string | null;
+  remediationNote?: string | null;
+  retests?: V2FindingRetest[];
+  createdAt?: string;
+  updatedAt?: string;
+}
 export type QuickScanFindingCategory = "meta" | "accessibility" | "links" | "content";
 export interface QuickScanFinding {
   category: QuickScanFindingCategory;
@@ -790,6 +816,12 @@ export interface RunReport {
   liveAiSummary?: AiLiveSummary | null;
   aiOverview?: AiRunOverview | null;
   quickScanHandoff?: QuickScanHandoff | null;
+  controlPlane?: {
+    disposition?: "TRUSTED" | "WARNING" | "UNVERIFIED";
+    environment?: { id?: string; name?: string; kind?: string; healthStatus?: string; passedChecks?: number; totalChecks?: number; requestedTargetMatches?: boolean };
+    dependencies?: { status?: string; total?: number; healthy?: number };
+    fixture?: { id?: string; name?: string; strategy?: string; status?: string; validationStatus?: string; executable?: boolean };
+  } | null;
   aiSummaryBillableMatrixUnits?: number;
   events?: RunEvent[];
   assertions?: RunAssertion[];
@@ -1764,6 +1796,10 @@ export const v2Api = {
   updateTestDataFixture: (fixtureId: string, data: { name?: string; description?: string; strategy?: V2FixtureStrategy; status?: V2FixtureStatus; seedSpec?: unknown; resetSpec?: unknown; maskedFields?: string[] }): Promise<V2TestDataFixture> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   validateTestDataFixture: (fixtureId: string): Promise<{ fixture: V2TestDataFixture; status: string; executable: boolean; message: string }> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/validate`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true }),
   executeTestDataFixture: (fixtureId: string, operation: 'seed' | 'reset', confirmed: boolean): Promise<{ fixture: V2TestDataFixture; operation: string; status: string; durationMs: number }> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/execute`, { method: 'POST', body: JSON.stringify({ operation, confirmed }), requiresAuth: true, timeoutMs: 20_000 }),
+  listFindingWorkflows: (projectId: string, status?: V2FindingWorkflowStatus): Promise<V2FindingWorkflow[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
+  createFindingWorkflow: (projectId: string, data: { failureSignatureId?: string; title: string; issueKey?: string; issueUrl?: string; ownerId?: string; expectedBehavior?: string; actualBehavior?: string; remediationNote?: string }): Promise<V2FindingWorkflow> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  updateFindingWorkflow: (projectId: string, workflowId: string, data: { status?: V2FindingWorkflowStatus; issueKey?: string; issueUrl?: string; ownerId?: string; remediationNote?: string }): Promise<V2FindingWorkflow> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows/${encodeURIComponent(workflowId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
+  createFindingRetest: (projectId: string, workflowId: string, runId: string, summary?: string): Promise<{ workflow: V2FindingWorkflow; retest: V2FindingRetest; verdict: string; evidenceCount: number }> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows/${encodeURIComponent(workflowId)}/retests`, { method: 'POST', body: JSON.stringify({ runId, summary }), requiresAuth: true }),
   startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string; missionGoal?: string; accessMode?: V2MissionAccessMode } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
   getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
