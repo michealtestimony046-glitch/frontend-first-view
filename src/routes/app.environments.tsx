@@ -2,11 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  Archive,
   CheckCircle2,
   Database,
+  GitCompareArrows,
   Loader2,
+  Play,
   Plus,
   RefreshCw,
+  Save,
   ShieldCheck,
   TestTube2,
   XCircle,
@@ -19,6 +23,8 @@ import {
   type Organization,
   type Project,
   type V2Environment,
+  type V2EnvironmentDependency,
+  type V2EnvironmentSnapshot,
   type V2FixtureStrategy,
   type V2TestDataFixture,
   type Workspace,
@@ -317,6 +323,11 @@ function EnvironmentsPage() {
                         )
                       }
                       onError={setError}
+                      onArchived={(environmentId) =>
+                        setEnvironments((current) =>
+                          current.filter((item) => item.id !== environmentId),
+                        )
+                      }
                     />
                   ))
                 )}
@@ -439,65 +450,358 @@ function EnvironmentRow({
   environment,
   onHealthChecked,
   onError,
+  onArchived,
 }: {
   environment: V2Environment;
   onHealthChecked: (environment: V2Environment) => void;
   onError: (message: string) => void;
+  onArchived: (environmentId: string) => void;
 }) {
   const [checking, setChecking] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [dependencies, setDependencies] = useState<V2EnvironmentDependency[]>([]);
+  const [snapshots, setSnapshots] = useState<V2EnvironmentSnapshot[]>([]);
+  const [drift, setDrift] = useState<"NO_BASELINE" | "IN_SYNC" | "DRIFTED" | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [dependencyName, setDependencyName] = useState("");
+  const [dependencyPath, setDependencyPath] = useState("/health");
+  const [dependencyKind, setDependencyKind] = useState<
+    "HTTP" | "DATABASE" | "QUEUE" | "EMAIL" | "PAYMENT" | "OTHER"
+  >("HTTP");
+  const [snapshotLabel, setSnapshotLabel] = useState("");
+  const [action, setAction] = useState<string | null>(null);
   const health = environment.healthStatus ?? "UNKNOWN";
+
+  const loadDetails = async () => {
+    setDetailsLoading(true);
+    try {
+      const [dependencyItems, snapshotItems, driftResult] = await Promise.all([
+        v2Api.listDependencies(environment.id),
+        v2Api.listSnapshots(environment.id),
+        v2Api.getEnvironmentDrift(environment.id),
+      ]);
+      setDependencies(dependencyItems);
+      setSnapshots(snapshotItems);
+      setDrift(driftResult.status);
+    } catch (cause) {
+      onError(toMessage(cause, "Unable to load environment controls."));
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
   const check = async () => {
     setChecking(true);
     onError("");
     try {
       const result = await v2Api.checkEnvironmentHealth(environment.id);
       onHealthChecked(result.environment);
+      if (expanded) await loadDetails();
     } catch (cause) {
       onError(toMessage(cause, "Environment health check failed."));
     } finally {
       setChecking(false);
     }
   };
+
+  const toggleDetails = () => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && dependencies.length === 0 && snapshots.length === 0 && !drift) void loadDetails();
+  };
+
+  const addDependency = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!dependencyName.trim() || !dependencyPath.trim()) return;
+    setAction("dependency");
+    onError("");
+    try {
+      const created = await v2Api.createDependency({
+        environmentId: environment.id,
+        name: dependencyName.trim(),
+        kind: dependencyKind,
+        checkPath: dependencyPath.trim(),
+        expectedStatus: 200,
+      });
+      setDependencies((current) =>
+        [...current, created].sort((left, right) => left.name.localeCompare(right.name)),
+      );
+      setDependencyName("");
+      setDependencyPath("/health");
+    } catch (cause) {
+      onError(toMessage(cause, "Unable to add dependency."));
+    } finally {
+      setAction(null);
+    }
+  };
+
+  const checkDependencies = async () => {
+    setAction("check-dependencies");
+    onError("");
+    try {
+      await v2Api.checkAllDependencies(environment.id);
+      await loadDetails();
+    } catch (cause) {
+      onError(toMessage(cause, "Dependency health checks failed."));
+    } finally {
+      setAction(null);
+    }
+  };
+
+  const takeSnapshot = async () => {
+    if (!snapshotLabel.trim()) return;
+    setAction("snapshot");
+    onError("");
+    try {
+      const snapshot = await v2Api.createSnapshot(environment.id, snapshotLabel.trim());
+      setSnapshots((current) => [snapshot, ...current]);
+      setDrift("IN_SYNC");
+      setSnapshotLabel("");
+    } catch (cause) {
+      onError(toMessage(cause, "Unable to create environment snapshot."));
+    } finally {
+      setAction(null);
+    }
+  };
+
+  const archive = async () => {
+    if (!window.confirm(`Archive “${environment.name}”? Existing run history will remain intact.`))
+      return;
+    setAction("archive");
+    onError("");
+    try {
+      await v2Api.archiveEnvironment(environment.id);
+      onArchived(environment.id);
+    } catch (cause) {
+      onError(toMessage(cause, "Unable to archive environment."));
+    } finally {
+      setAction(null);
+    }
+  };
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span
-            className={`h-2 w-2 rounded-full ${health === "HEALTHY" ? "bg-success" : health === "DEGRADED" ? "bg-warning" : health === "UNAVAILABLE" ? "bg-destructive" : "bg-muted-foreground"}`}
-          />
-          <span className="truncate text-sm font-medium">{environment.name}</span>
-          <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
-            {environment.kind}
-          </span>
-        </div>
-        <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
-          {environment.baseUrl}
-        </div>
-        <div className="mt-1 text-[11px] text-muted-foreground">
-          Health: {health.toLowerCase()}{" "}
-          {environment.lastHealthCheckedAt
-            ? `· checked ${new Date(environment.lastHealthCheckedAt).toLocaleString()}`
-            : "· not checked"}
-        </div>
-        {environment.lastHealthError && (
-          <div className="mt-1 max-w-xl text-[11px] text-warning">
-            {environment.lastHealthError}
+    <div className="px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className={`h-2 w-2 rounded-full ${health === "HEALTHY" ? "bg-success" : health === "DEGRADED" ? "bg-warning" : health === "UNAVAILABLE" ? "bg-destructive" : "bg-muted-foreground"}`}
+            />
+            <span className="truncate text-sm font-medium">{environment.name}</span>
+            <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+              {environment.kind}
+            </span>
           </div>
-        )}
+          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+            {environment.baseUrl}
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            Health: {health.toLowerCase()}{" "}
+            {environment.lastHealthCheckedAt
+              ? `· checked ${new Date(environment.lastHealthCheckedAt).toLocaleString()}`
+              : "· not checked"}
+          </div>
+          {environment.lastHealthError && (
+            <div className="mt-1 max-w-xl text-[11px] text-warning">
+              {environment.lastHealthError}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void check()}
+            disabled={checking || Boolean(action)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
+          >
+            {checking ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Activity className="h-3.5 w-3.5" />
+            )}{" "}
+            Check health
+          </button>
+          <button
+            type="button"
+            onClick={toggleDetails}
+            className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
+          >
+            {expanded ? "Hide controls" : "Manage"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void archive()}
+            disabled={Boolean(action)}
+            aria-label={`Archive ${environment.name}`}
+            className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+          >
+            <Archive className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
-      <button
-        type="button"
-        onClick={() => void check()}
-        disabled={checking}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
-      >
-        {checking ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Activity className="h-3.5 w-3.5" />
-        )}{" "}
-        Check health
-      </button>
+      {expanded && (
+        <div className="mt-4 space-y-4 rounded-lg border border-border bg-surface-2/20 p-4">
+          {detailsLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Loading dependency and baseline state…
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Dependencies
+                  </p>
+                  <p className="mt-1 text-lg font-semibold">{dependencies.length}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {dependencies.filter((item) => item.status === "HEALTHY").length} healthy
+                  </p>
+                </div>
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Snapshots
+                  </p>
+                  <p className="mt-1 text-lg font-semibold">{snapshots.length}</p>
+                  <p className="text-[11px] text-muted-foreground">Last baseline retained</p>
+                </div>
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Drift</p>
+                  <p
+                    className={`mt-1 text-sm font-semibold ${drift === "DRIFTED" ? "text-warning" : drift === "IN_SYNC" ? "text-success" : "text-muted-foreground"}`}
+                  >
+                    {drift ? drift.replace("_", " ") : "Not checked"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">Compared with latest snapshot</p>
+                </div>
+              </div>
+              <div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold">Dependency health</p>
+                  <button
+                    type="button"
+                    onClick={() => void checkDependencies()}
+                    disabled={action !== null || dependencies.length === 0}
+                    className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50"
+                  >
+                    {action === "check-dependencies" && (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    )}{" "}
+                    Check all
+                  </button>
+                </div>
+                {dependencies.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No dependencies registered.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {dependencies.map((dependency) => (
+                      <div
+                        key={dependency.id}
+                        className="flex items-center justify-between gap-2 rounded border border-border/70 px-2.5 py-2 text-xs"
+                      >
+                        <span className="min-w-0 truncate">
+                          <span
+                            className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dependency.status === "HEALTHY" ? "bg-success" : dependency.status === "DEGRADED" ? "bg-warning" : dependency.status === "UNAVAILABLE" ? "bg-destructive" : "bg-muted-foreground"}`}
+                          />
+                          {dependency.name}{" "}
+                          <span className="text-muted-foreground">
+                            · {dependency.kind} · {dependency.checkPath}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          {dependency.lastLatencyMs
+                            ? `${dependency.lastLatencyMs}ms`
+                            : dependency.status.toLowerCase()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <form
+                  onSubmit={(event) => void addDependency(event)}
+                  className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end"
+                >
+                  <Field label="Dependency name">
+                    <input
+                      value={dependencyName}
+                      onChange={(event) => setDependencyName(event.target.value)}
+                      placeholder="Payment API"
+                      disabled={action !== null}
+                    />
+                  </Field>
+                  <Field label="Kind">
+                    <select
+                      value={dependencyKind}
+                      onChange={(event) =>
+                        setDependencyKind(event.target.value as typeof dependencyKind)
+                      }
+                      disabled={action !== null}
+                    >
+                      <option value="HTTP">HTTP</option>
+                      <option value="DATABASE">Database</option>
+                      <option value="QUEUE">Queue</option>
+                      <option value="EMAIL">Email</option>
+                      <option value="PAYMENT">Payment</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </Field>
+                  <Field label="Relative check path">
+                    <input
+                      value={dependencyPath}
+                      onChange={(event) => setDependencyPath(event.target.value)}
+                      placeholder="/health/payment"
+                      disabled={action !== null}
+                    />
+                  </Field>
+                  <button
+                    type="submit"
+                    disabled={action !== null || !dependencyName.trim()}
+                    className="inline-flex items-center justify-center gap-1 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                  >
+                    {action === "dependency" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}{" "}
+                    Add
+                  </button>
+                </form>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <Field label="Snapshot label">
+                  <input
+                    value={snapshotLabel}
+                    onChange={(event) => setSnapshotLabel(event.target.value)}
+                    placeholder="Before release 2026.08"
+                    disabled={action !== null}
+                  />
+                </Field>
+                <button
+                  type="button"
+                  onClick={() => void takeSnapshot()}
+                  disabled={action !== null || !snapshotLabel.trim()}
+                  className="inline-flex items-center justify-center gap-1 rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent disabled:opacity-50"
+                >
+                  {action === "snapshot" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5" />
+                  )}{" "}
+                  Save baseline
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                <span>
+                  Snapshots retain configuration fingerprints and dependency metadata only.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void loadDetails()}
+                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                >
+                  <GitCompareArrows className="h-3 w-3" /> Recalculate drift
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -511,9 +815,9 @@ function FixtureRow({
   onUpdated: (fixture: V2TestDataFixture) => void;
   onError: (message: string) => void;
 }) {
-  const [validating, setValidating] = useState(false);
+  const [busy, setBusy] = useState(false);
   const validate = async () => {
-    setValidating(true);
+    setBusy(true);
     onError("");
     try {
       const result = await v2Api.validateTestDataFixture(fixture.id);
@@ -521,7 +825,36 @@ function FixtureRow({
     } catch (cause) {
       onError(toMessage(cause, "Fixture validation failed."));
     } finally {
-      setValidating(false);
+      setBusy(false);
+    }
+  };
+  const activate = async () => {
+    setBusy(true);
+    onError("");
+    try {
+      onUpdated(await v2Api.updateTestDataFixture(fixture.id, { status: "ACTIVE" }));
+    } catch (cause) {
+      onError(toMessage(cause, "Fixture could not be activated."));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const execute = async (operation: "seed" | "reset") => {
+    if (
+      !window.confirm(
+        `Run ${operation} for “${fixture.name}”? This may mutate the configured test environment.`,
+      )
+    )
+      return;
+    setBusy(true);
+    onError("");
+    try {
+      const result = await v2Api.executeTestDataFixture(fixture.id, operation, true);
+      onUpdated(result.fixture);
+    } catch (cause) {
+      onError(toMessage(cause, `Fixture ${operation} failed.`));
+    } finally {
+      setBusy(false);
     }
   };
   return (
@@ -544,27 +877,65 @@ function FixtureRow({
         </div>
         <div className="mt-1 text-[11px] text-muted-foreground">
           Status: {fixture.status.toLowerCase()} · Contract:{" "}
-          {(fixture.lastValidationStatus || "not validated").toLowerCase()}
+          {(fixture.lastValidationStatus || "not validated").toLowerCase()}{" "}
+          {fixture.lastExecutionStatus ? `· Last ${fixture.lastExecutionStatus.toLowerCase()}` : ""}
         </div>
         {fixture.lastValidationError && (
           <div className="mt-1 max-w-xl text-[11px] text-destructive">
             {fixture.lastValidationError}
           </div>
         )}
+        {fixture.lastExecutionError && (
+          <div className="mt-1 max-w-xl text-[11px] text-warning">{fixture.lastExecutionError}</div>
+        )}
       </div>
-      <button
-        type="button"
-        onClick={() => void validate()}
-        disabled={validating}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
-      >
-        {validating ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <CheckCircle2 className="h-3.5 w-3.5" />
-        )}{" "}
-        Validate
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void validate()}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
+        >
+          {busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          )}{" "}
+          Validate
+        </button>
+        {fixture.status === "DRAFT" && fixture.lastValidationStatus === "READY" && (
+          <button
+            type="button"
+            onClick={() => void activate()}
+            disabled={busy}
+            className="rounded-md border border-primary/30 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+          >
+            Activate
+          </button>
+        )}
+        {fixture.status === "ACTIVE" &&
+          fixture.strategy === "HTTP_HOOK" &&
+          fixture.lastValidationStatus === "READY" && (
+            <>
+              <button
+                type="button"
+                onClick={() => void execute("seed")}
+                disabled={busy}
+                className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                <Play className="h-3 w-3" /> Seed
+              </button>
+              <button
+                type="button"
+                onClick={() => void execute("reset")}
+                disabled={busy}
+                className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
+              >
+                Reset
+              </button>
+            </>
+          )}
+      </div>
     </div>
   );
 }

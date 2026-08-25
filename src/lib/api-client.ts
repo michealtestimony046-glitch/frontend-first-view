@@ -488,6 +488,28 @@ export type V2CaseStatus = "PLANNED" | "QUEUED" | "RUNNING" | "PASSED" | "FAILED
 export type V2EnvironmentHealthStatus = "UNKNOWN" | "HEALTHY" | "DEGRADED" | "UNAVAILABLE";
 export type V2FixtureStrategy = "MANUAL" | "HTTP_HOOK" | "DATABASE_SNAPSHOT";
 export type V2FixtureStatus = "DRAFT" | "ACTIVE" | "DISABLED";
+export type V2DependencyKind = "HTTP" | "DATABASE" | "QUEUE" | "EMAIL" | "PAYMENT" | "OTHER";
+export type V2DependencyStatus = "UNKNOWN" | "HEALTHY" | "DEGRADED" | "UNAVAILABLE";
+export interface V2EnvironmentDependency {
+  id: string;
+  environmentId: string;
+  name: string;
+  kind: V2DependencyKind;
+  checkPath: string;
+  expectedStatus?: number | null;
+  status: V2DependencyStatus;
+  lastCheckedAt?: string | null;
+  lastLatencyMs?: number | null;
+  lastError?: string | null;
+}
+export interface V2EnvironmentSnapshot {
+  id: string;
+  environmentId: string;
+  label: string;
+  configFingerprint: string;
+  dependencyFingerprint: string;
+  createdAt?: string;
+}
 export interface V2Environment {
   id: string;
   organizationId: string;
@@ -503,6 +525,7 @@ export interface V2Environment {
   healthStatus?: V2EnvironmentHealthStatus;
   lastHealthCheckedAt?: string | null;
   lastHealthError?: string | null;
+  archivedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -520,6 +543,9 @@ export interface V2TestDataFixture {
   lastValidationStatus?: string | null;
   lastValidationError?: string | null;
   lastValidatedAt?: string | null;
+  lastExecutedAt?: string | null;
+  lastExecutionStatus?: string | null;
+  lastExecutionError?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -1626,11 +1652,21 @@ export const v2Api = {
   listEnvironments: (projectId: string): Promise<V2Environment[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
   createEnvironment: (data: { organizationId: string; workspaceId: string; projectId: string; name: string; kind?: V2EnvironmentKind; baseUrl: string; description?: string; healthChecks?: unknown[]; expectedConfig?: unknown; allowedHostnames?: unknown }): Promise<V2Environment> => apiRequest('/environments', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   updateEnvironment: (environmentId: string, data: { name?: string; kind?: V2EnvironmentKind; baseUrl?: string; description?: string; healthChecks?: unknown[]; expectedConfig?: unknown; allowedHostnames?: unknown }): Promise<V2Environment> => apiRequest(`/environments/${encodeURIComponent(environmentId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
+  archiveEnvironment: (environmentId: string): Promise<V2Environment> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/archive`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true }),
+  restoreEnvironment: (environmentId: string): Promise<V2Environment> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/restore`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true }),
+  listDependencies: (environmentId: string): Promise<V2EnvironmentDependency[]> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/dependencies`, { requiresAuth: true }),
+  createDependency: (data: { environmentId: string; name: string; kind?: V2DependencyKind; checkPath: string; expectedStatus?: number }): Promise<V2EnvironmentDependency> => apiRequest('/environment-dependencies', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  checkDependency: (dependencyId: string): Promise<{ dependency: V2EnvironmentDependency; status: V2DependencyStatus; httpStatus: number | null; latencyMs: number; error: string | null }> => apiRequest(`/environment-dependencies/${encodeURIComponent(dependencyId)}/health-check`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true, timeoutMs: 20_000 }),
+  checkAllDependencies: (environmentId: string): Promise<{ environmentId: string; total: number; healthy: number; results: unknown[] }> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/dependencies/health-check`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true, timeoutMs: 30_000 }),
+  listSnapshots: (environmentId: string): Promise<V2EnvironmentSnapshot[]> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/snapshots`, { requiresAuth: true }),
+  createSnapshot: (environmentId: string, label: string): Promise<V2EnvironmentSnapshot> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/snapshots`, { method: 'POST', body: JSON.stringify({ label }), requiresAuth: true }),
+  getEnvironmentDrift: (environmentId: string): Promise<{ status: 'NO_BASELINE' | 'IN_SYNC' | 'DRIFTED'; environmentId: string; latestSnapshot: V2EnvironmentSnapshot | null; changed: string[] }> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/drift`, { requiresAuth: true }),
   checkEnvironmentHealth: (environmentId: string): Promise<{ environment: V2Environment; status: V2EnvironmentHealthStatus; passed: number; total: number; durationMs: number; checks: Array<{ name: string; path: string; status: number | null; ok: boolean; latencyMs: number | null; error?: string }> }> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/health-check`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true, timeoutMs: 20_000 }),
   listTestDataFixtures: (projectId: string): Promise<V2TestDataFixture[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/test-data-fixtures`, { requiresAuth: true }),
   createTestDataFixture: (data: { projectId: string; environmentId?: string; name: string; description?: string; strategy?: V2FixtureStrategy; seedSpec?: unknown; resetSpec?: unknown; maskedFields?: string[] }): Promise<V2TestDataFixture> => apiRequest('/test-data-fixtures', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   updateTestDataFixture: (fixtureId: string, data: { name?: string; description?: string; strategy?: V2FixtureStrategy; status?: V2FixtureStatus; seedSpec?: unknown; resetSpec?: unknown; maskedFields?: string[] }): Promise<V2TestDataFixture> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   validateTestDataFixture: (fixtureId: string): Promise<{ fixture: V2TestDataFixture; status: string; executable: boolean; message: string }> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/validate`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true }),
+  executeTestDataFixture: (fixtureId: string, operation: 'seed' | 'reset', confirmed: boolean): Promise<{ fixture: V2TestDataFixture; operation: string; status: string; durationMs: number }> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/execute`, { method: 'POST', body: JSON.stringify({ operation, confirmed }), requiresAuth: true, timeoutMs: 20_000 }),
   startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string; missionGoal?: string; accessMode?: V2MissionAccessMode } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
   getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
