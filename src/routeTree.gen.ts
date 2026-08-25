@@ -10,11 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccessibilityTestingRouteImport } from './routes/accessibility-testing'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticationTestingRouteImport } from './routes/authentication-testing'
 import { Route as AutomatedBrowserTestingRouteImport } from './routes/automated-browser-testing'
+import { Route as CiCdTestingRouteImport } from './routes/ci-cd-testing'
 import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as EndToEndTestingRouteImport } from './routes/end-to-end-testing'
+import { Route as EvidenceBasedBugReportsRouteImport } from './routes/evidence-based-bug-reports'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FeaturesRouteImport } from './routes/features'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
@@ -23,6 +28,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as QaFixtureRouteImport } from './routes/qa-fixture'
 import { Route as SampleReportRouteImport } from './routes/sample-report'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as VisualRegressionTestingRouteImport } from './routes/visual-regression-testing'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppCreditsRouteImport } from './routes/app.credits'
@@ -47,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccessibilityTestingRoute = AccessibilityTestingRouteImport.update({
+  id: '/accessibility-testing',
+  path: '/accessibility-testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -62,14 +73,34 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticationTestingRoute = AuthenticationTestingRouteImport.update({
+  id: '/authentication-testing',
+  path: '/authentication-testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AutomatedBrowserTestingRoute = AutomatedBrowserTestingRouteImport.update({
   id: '/automated-browser-testing',
   path: '/automated-browser-testing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CiCdTestingRoute = CiCdTestingRouteImport.update({
+  id: '/ci-cd-testing',
+  path: '/ci-cd-testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CookiesRoute = CookiesRouteImport.update({
   id: '/cookies',
   path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EndToEndTestingRoute = EndToEndTestingRouteImport.update({
+  id: '/end-to-end-testing',
+  path: '/end-to-end-testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EvidenceBasedBugReportsRoute = EvidenceBasedBugReportsRouteImport.update({
+  id: '/evidence-based-bug-reports',
+  path: '/evidence-based-bug-reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaqRoute = FaqRouteImport.update({
@@ -110,6 +141,11 @@ const SampleReportRoute = SampleReportRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VisualRegressionTestingRoute = VisualRegressionTestingRouteImport.update({
+  id: '/visual-regression-testing',
+  path: '/visual-regression-testing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -205,11 +241,16 @@ const AppSettingsOrganizationRoute = AppSettingsOrganizationRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accessibility-testing': typeof AccessibilityTestingRoute
   '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/authentication-testing': typeof AuthenticationTestingRoute
   '/automated-browser-testing': typeof AutomatedBrowserTestingRoute
+  '/ci-cd-testing': typeof CiCdTestingRoute
   '/cookies': typeof CookiesRoute
+  '/end-to-end-testing': typeof EndToEndTestingRoute
+  '/evidence-based-bug-reports': typeof EvidenceBasedBugReportsRoute
   '/faq': typeof FaqRoute
   '/features': typeof FeaturesRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -218,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
   '/terms': typeof TermsRoute
+  '/visual-regression-testing': typeof VisualRegressionTestingRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
@@ -239,10 +281,15 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accessibility-testing': typeof AccessibilityTestingRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRouteWithChildren
+  '/authentication-testing': typeof AuthenticationTestingRoute
   '/automated-browser-testing': typeof AutomatedBrowserTestingRoute
+  '/ci-cd-testing': typeof CiCdTestingRoute
   '/cookies': typeof CookiesRoute
+  '/end-to-end-testing': typeof EndToEndTestingRoute
+  '/evidence-based-bug-reports': typeof EvidenceBasedBugReportsRoute
   '/faq': typeof FaqRoute
   '/features': typeof FeaturesRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -251,6 +298,7 @@ export interface FileRoutesByTo {
   '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
   '/terms': typeof TermsRoute
+  '/visual-regression-testing': typeof VisualRegressionTestingRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
@@ -272,11 +320,16 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accessibility-testing': typeof AccessibilityTestingRoute
   '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/authentication-testing': typeof AuthenticationTestingRoute
   '/automated-browser-testing': typeof AutomatedBrowserTestingRoute
+  '/ci-cd-testing': typeof CiCdTestingRoute
   '/cookies': typeof CookiesRoute
+  '/end-to-end-testing': typeof EndToEndTestingRoute
+  '/evidence-based-bug-reports': typeof EvidenceBasedBugReportsRoute
   '/faq': typeof FaqRoute
   '/features': typeof FeaturesRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -285,6 +338,7 @@ export interface FileRoutesById {
   '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
   '/terms': typeof TermsRoute
+  '/visual-regression-testing': typeof VisualRegressionTestingRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
@@ -308,11 +362,16 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accessibility-testing'
     | '/admin'
     | '/app'
     | '/auth'
+    | '/authentication-testing'
     | '/automated-browser-testing'
+    | '/ci-cd-testing'
     | '/cookies'
+    | '/end-to-end-testing'
+    | '/evidence-based-bug-reports'
     | '/faq'
     | '/features'
     | '/how-it-works'
@@ -321,6 +380,7 @@ export interface FileRouteTypes {
     | '/qa-fixture'
     | '/sample-report'
     | '/terms'
+    | '/visual-regression-testing'
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
@@ -342,10 +402,15 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accessibility-testing'
     | '/admin'
     | '/auth'
+    | '/authentication-testing'
     | '/automated-browser-testing'
+    | '/ci-cd-testing'
     | '/cookies'
+    | '/end-to-end-testing'
+    | '/evidence-based-bug-reports'
     | '/faq'
     | '/features'
     | '/how-it-works'
@@ -354,6 +419,7 @@ export interface FileRouteTypes {
     | '/qa-fixture'
     | '/sample-report'
     | '/terms'
+    | '/visual-regression-testing'
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
@@ -374,11 +440,16 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/accessibility-testing'
     | '/admin'
     | '/app'
     | '/auth'
+    | '/authentication-testing'
     | '/automated-browser-testing'
+    | '/ci-cd-testing'
     | '/cookies'
+    | '/end-to-end-testing'
+    | '/evidence-based-bug-reports'
     | '/faq'
     | '/features'
     | '/how-it-works'
@@ -387,6 +458,7 @@ export interface FileRouteTypes {
     | '/qa-fixture'
     | '/sample-report'
     | '/terms'
+    | '/visual-regression-testing'
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
@@ -409,11 +481,16 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccessibilityTestingRoute: typeof AccessibilityTestingRoute
   AdminRoute: typeof AdminRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  AuthenticationTestingRoute: typeof AuthenticationTestingRoute
   AutomatedBrowserTestingRoute: typeof AutomatedBrowserTestingRoute
+  CiCdTestingRoute: typeof CiCdTestingRoute
   CookiesRoute: typeof CookiesRoute
+  EndToEndTestingRoute: typeof EndToEndTestingRoute
+  EvidenceBasedBugReportsRoute: typeof EvidenceBasedBugReportsRoute
   FaqRoute: typeof FaqRoute
   FeaturesRoute: typeof FeaturesRoute
   HowItWorksRoute: typeof HowItWorksRoute
@@ -422,6 +499,7 @@ export interface RootRouteChildren {
   QaFixtureRoute: typeof QaFixtureRoute
   SampleReportRoute: typeof SampleReportRoute
   TermsRoute: typeof TermsRoute
+  VisualRegressionTestingRoute: typeof VisualRegressionTestingRoute
   StaffInvitationsAcceptRoute: typeof StaffInvitationsAcceptRoute
   StaffInvitationsDeclineRoute: typeof StaffInvitationsDeclineRoute
 }
@@ -433,6 +511,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accessibility-testing': {
+      id: '/accessibility-testing'
+      path: '/accessibility-testing'
+      fullPath: '/accessibility-testing'
+      preLoaderRoute: typeof AccessibilityTestingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -456,6 +541,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/authentication-testing': {
+      id: '/authentication-testing'
+      path: '/authentication-testing'
+      fullPath: '/authentication-testing'
+      preLoaderRoute: typeof AuthenticationTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/automated-browser-testing': {
       id: '/automated-browser-testing'
       path: '/automated-browser-testing'
@@ -463,11 +555,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AutomatedBrowserTestingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ci-cd-testing': {
+      id: '/ci-cd-testing'
+      path: '/ci-cd-testing'
+      fullPath: '/ci-cd-testing'
+      preLoaderRoute: typeof CiCdTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cookies': {
       id: '/cookies'
       path: '/cookies'
       fullPath: '/cookies'
       preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/end-to-end-testing': {
+      id: '/end-to-end-testing'
+      path: '/end-to-end-testing'
+      fullPath: '/end-to-end-testing'
+      preLoaderRoute: typeof EndToEndTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/evidence-based-bug-reports': {
+      id: '/evidence-based-bug-reports'
+      path: '/evidence-based-bug-reports'
+      fullPath: '/evidence-based-bug-reports'
+      preLoaderRoute: typeof EvidenceBasedBugReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faq': {
@@ -524,6 +637,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/visual-regression-testing': {
+      id: '/visual-regression-testing'
+      path: '/visual-regression-testing'
+      fullPath: '/visual-regression-testing'
+      preLoaderRoute: typeof VisualRegressionTestingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -724,11 +844,16 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccessibilityTestingRoute: AccessibilityTestingRoute,
   AdminRoute: AdminRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  AuthenticationTestingRoute: AuthenticationTestingRoute,
   AutomatedBrowserTestingRoute: AutomatedBrowserTestingRoute,
+  CiCdTestingRoute: CiCdTestingRoute,
   CookiesRoute: CookiesRoute,
+  EndToEndTestingRoute: EndToEndTestingRoute,
+  EvidenceBasedBugReportsRoute: EvidenceBasedBugReportsRoute,
   FaqRoute: FaqRoute,
   FeaturesRoute: FeaturesRoute,
   HowItWorksRoute: HowItWorksRoute,
@@ -737,6 +862,7 @@ const rootRouteChildren: RootRouteChildren = {
   QaFixtureRoute: QaFixtureRoute,
   SampleReportRoute: SampleReportRoute,
   TermsRoute: TermsRoute,
+  VisualRegressionTestingRoute: VisualRegressionTestingRoute,
   StaffInvitationsAcceptRoute: StaffInvitationsAcceptRoute,
   StaffInvitationsDeclineRoute: StaffInvitationsDeclineRoute,
 }
