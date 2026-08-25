@@ -623,6 +623,34 @@ export interface V2WebPrecheck {
   checkedAt: string;
 }
 
+export type V2JourneyGraphState = {
+  id: string;
+  kind: "route" | "interaction" | "review";
+  route?: string;
+  title?: string;
+  target?: string;
+  features?: string[];
+  evidenceRef?: string;
+  tier?: V2PolicyTier;
+  reason?: string;
+};
+export type V2JourneyGraphTransition = {
+  id: string;
+  from: string;
+  to: string;
+  trigger: string;
+  tool: "open_observed_route" | "click_approved_action" | "review";
+  approved: boolean;
+};
+export type V2JourneyGraph = {
+  version: 1;
+  startStateId: string;
+  states: V2JourneyGraphState[];
+  transitions: V2JourneyGraphTransition[];
+  counts: { routes: number; interactions: number; reviewRequired: number; transitions: number };
+  generatedFrom: "READ_ONLY_DISCOVERY";
+};
+
 export interface V2ApplicationScan {
   id: string;
   projectId: string;
@@ -648,6 +676,7 @@ export interface V2ApplicationScan {
     precheck?: V2WebPrecheck;
     mission?: V2MissionSpec;
     coverageFrontier?: V2CoverageFrontier;
+    journeyGraph?: V2JourneyGraph;
     features?: string[];
     scannedPages?: Array<{ url: string; route: string; title: string; features?: string[]; authSignals?: Record<string, boolean> }>;
     actions?: Array<{ key: string; text: string; tag: string; tier: V2PolicyTier; reason: string; locatorCandidates?: Array<Record<string, string>> }>;
@@ -711,6 +740,7 @@ export interface V2TestPlan {
   plannerValidation?: { status?: string; scenarioCount?: number; candidateCount?: number; deterministicPolicyAuthority?: boolean } | null;
   projectMap?: {
     mission?: V2MissionSpec;
+    journeyGraph?: V2JourneyGraph;
     coverageFrontier?: V2CoverageFrontier;
     aiPlan?: V2AiPlanSummary;
     billingBreakdown?: { baseScenarioUnits: number; aiDiscoveryUnits: number; aiPlanningUnits?: number; aiTotalUnits?: number; estimatedUnits: number; accounting?: string }
@@ -1803,6 +1833,7 @@ export const v2Api = {
   startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string; missionGoal?: string; accessMode?: V2MissionAccessMode } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
   getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
+  getJourneyGraph: (scanId: string): Promise<{ scanId: string; projectId: string; targetOrigin: string; generatedAt?: string | null; graph: V2JourneyGraph }> => apiRequest(`/scans/${encodeURIComponent(scanId)}/journey-graph`, { requiresAuth: true }),
   createPlanFromScan: async (scanId: string, data: { name: string; mode?: V2PlannerMode | string; missionGoal?: string; accessMode?: V2MissionAccessMode; fixtureId?: string }): Promise<V2TestPlan> => {
     const payload = { ...data, ...(data.mode ? { mode: normalizeV2PlannerMode(data.mode) } : {}) };
     const request = () => apiRequest<V2TestPlan>(`/scans/${encodeURIComponent(scanId)}/plans`, {
