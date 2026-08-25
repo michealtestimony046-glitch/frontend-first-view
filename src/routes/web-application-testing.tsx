@@ -11,6 +11,7 @@ export const Route = createFileRoute("/web-application-testing")({
       title: "Web Application Testing Guide | Browser QA and Evidence | Matrix QA",
       description: page.description,
       path: "/web-application-testing",
+      faqItems: page.faqs,
     }),
   component: () => <SpecialTopicPage config={page} />,
 });

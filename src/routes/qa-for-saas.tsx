@@ -11,6 +11,7 @@ export const Route = createFileRoute("/qa-for-saas")({
       title: "QA for SaaS Products | Tenants, Roles, and Evidence | Matrix QA",
       description: page.description,
       path: "/qa-for-saas",
+      faqItems: page.faqs,
     }),
   component: () => <SpecialTopicPage config={page} />,
 });

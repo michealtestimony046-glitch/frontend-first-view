@@ -17,12 +17,17 @@ import {
 import { Logo } from "@/components/logo";
 import { BrowserFrame } from "@/components/browser-frame";
 import { LaunchConsoleLink } from "@/components/launch-console-link";
-import { canonicalLink } from "@/lib/seo";
+import { seoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    links: [canonicalLink("/")],
-  }),
+  head: () =>
+    seoHead({
+      title: "Matrix QA | Evidence-Grade Browser QA",
+      description:
+        "Matrix QA runs authorized web journeys in a browser and organizes evidence, runtime signals, reports, and findings for human investigation.",
+      path: "/",
+      breadcrumbLabel: "Home",
+    }),
   component: Landing,
 });
 

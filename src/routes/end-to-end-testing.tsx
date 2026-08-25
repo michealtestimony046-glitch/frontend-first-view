@@ -11,6 +11,7 @@ export const Route = createFileRoute("/end-to-end-testing")({
       title: page.title,
       description: page.description,
       path: "/end-to-end-testing",
+      faqItems: page.faqs,
     }),
   component: () => <SeoTopicPage config={page} />,
 });

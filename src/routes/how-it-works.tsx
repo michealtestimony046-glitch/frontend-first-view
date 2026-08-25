@@ -2,6 +2,24 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeoPageShell } from "@/components/seo-page-shell";
 import { seoHead } from "@/lib/seo";
 
+const HOW_IT_WORKS_FAQS = [
+  {
+    question: "What do I need to start a run?",
+    answer:
+      "You need an account, a project, an authorized target URL, and journey instructions. A dedicated test account can be supplied when the target requires authentication.",
+  },
+  {
+    question: "Can Matrix QA make a purchase or booking?",
+    answer:
+      "Do not configure a run to submit payments, make bookings, delete data, change permissions, or send communications unless you have explicit authorization and the workflow is intentionally controlled.",
+  },
+  {
+    question: "How quickly do I get a report?",
+    answer:
+      "Timing depends on queue capacity, the target application, journey length, provider availability, and evidence processing. The run lifecycle records status and timestamps for the actual execution.",
+  },
+];
+
 export const Route = createFileRoute("/how-it-works")({
   head: () =>
     seoHead({
@@ -9,6 +27,7 @@ export const Route = createFileRoute("/how-it-works")({
       description:
         "See how Matrix QA turns one authorized web URL into a browser-run journey, captured diagnostics, and evidence-backed QA findings.",
       path: "/how-it-works",
+      faqItems: HOW_IT_WORKS_FAQS,
     }),
   component: HowItWorksPage,
 });
@@ -131,23 +150,7 @@ function HowItWorksPage() {
           ),
         },
       ]}
-      faqs={[
-        {
-          question: "What do I need to start a run?",
-          answer:
-            "You need an account, a project, an authorized target URL, and journey instructions. A dedicated test account can be supplied when the target requires authentication.",
-        },
-        {
-          question: "Can Matrix QA make a purchase or booking?",
-          answer:
-            "Do not configure a run to submit payments, make bookings, delete data, change permissions, or send communications unless you have explicit authorization and the workflow is intentionally controlled.",
-        },
-        {
-          question: "How quickly do I get a report?",
-          answer:
-            "Timing depends on queue capacity, the target application, journey length, provider availability, and evidence processing. The run lifecycle records status and timestamps for the actual execution.",
-        },
-      ]}
+      faqs={HOW_IT_WORKS_FAQS}
       cta="Start a test run"
       variant="editorial"
     />

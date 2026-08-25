@@ -11,6 +11,7 @@ export const Route = createFileRoute("/javascript-error-monitoring")({
       title: "JavaScript Error Monitoring with Browser Evidence | Matrix QA",
       description: page.description,
       path: "/javascript-error-monitoring",
+      faqItems: page.faqs,
     }),
   component: () => <SpecialTopicPage config={page} />,
 });

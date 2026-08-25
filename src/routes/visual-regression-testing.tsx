@@ -11,6 +11,7 @@ export const Route = createFileRoute("/visual-regression-testing")({
       title: page.title,
       description: page.description,
       path: "/visual-regression-testing",
+      faqItems: page.faqs,
     }),
   component: () => <SeoTopicPage config={page} />,
 });

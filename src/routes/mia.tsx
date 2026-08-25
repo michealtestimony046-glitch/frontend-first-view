@@ -20,6 +20,7 @@ export const Route = createFileRoute("/mia")({
       path: "/mia",
       image: "https://matrixqa.trlabs.tech/mia-og.png",
       imageAlt: "A glowing guide orb beside a Matrix QA evidence workspace",
+      faqItems: MIA_FAQS,
     }),
   component: MiaPage,
 });
@@ -63,7 +64,9 @@ const questions = [
     "Does Mia know everything in my account?",
     "No. Her context is intentionally bounded. The client sends the selected workspace and, on a focused run page, the current run identifier. Responses should be checked against the source record in Matrix QA.",
   ],
-];
+] as const;
+
+const MIA_FAQS = questions.map(([question, answer]) => ({ question, answer }));
 
 function MiaPage() {
   return (
@@ -316,7 +319,7 @@ function MiaPage() {
               Questions that lead somewhere.
             </h2>
             <div className="mt-10 divide-y divide-white/10 rounded-2xl border border-white/10">
-              {questions.map(([question, answer]) => (
+              {MIA_FAQS.map(({ question, answer }) => (
                 <details key={question} className="group p-6">
                   <summary className="cursor-pointer list-none pr-8 text-base font-medium text-white marker:hidden group-open:text-primary">
                     {question}

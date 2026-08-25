@@ -1,4 +1,12 @@
+# Public Matrix QA pages are available to search and answer-engine crawlers.
+# Private console and authentication routes remain excluded.
 User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /auth
+
+# OAI-SearchBot controls ChatGPT search visibility independently from GPTBot.
+User-agent: OAI-SearchBot
 Allow: /
 Disallow: /app
 Disallow: /auth
