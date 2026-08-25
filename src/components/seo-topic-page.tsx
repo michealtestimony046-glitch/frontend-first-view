@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { SeoPageShell } from "@/components/seo-page-shell";
+import { SeoPageShell, type SeoPageVariant } from "@/components/seo-page-shell";
 
 type TopicSection = { title: string; body: ReactNode };
 
@@ -15,6 +15,7 @@ export type SeoTopicPageConfig = {
   sections: TopicSection[];
   faqs: { question: string; answer: string }[];
   cta: string;
+  variant?: SeoPageVariant;
 };
 
 export function SeoTopicPage({ config }: { config: SeoTopicPageConfig }) {
@@ -29,6 +30,7 @@ export function SeoTopicPage({ config }: { config: SeoTopicPageConfig }) {
       sections={config.sections}
       faqs={config.faqs}
       cta={config.cta}
+      variant={config.variant}
     />
   );
 }

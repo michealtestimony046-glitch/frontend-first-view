@@ -14,6 +14,7 @@ export const seoTopicPages: Record<string, SeoTopicPageConfig> = {
     description:
       "Learn how Matrix QA validates authorized web journeys across the browser, frontend, backend, and integrated services with evidence-backed reports.",
     eyebrow: "Testing method / E2E",
+    variant: "editorial",
     hero: <>End-to-end testing for the journeys users actually take.</>,
     summary:
       "Matrix QA exercises an authorized web flow from start to finish in a real browser, then preserves the runtime evidence your team needs to investigate what happened.",
@@ -121,6 +122,7 @@ export const seoTopicPages: Record<string, SeoTopicPageConfig> = {
     description:
       "Use Matrix QA as a browser-level signal for staging and release workflows. Learn how to place end-to-end checks in a layered CI/CD testing strategy.",
     eyebrow: "Delivery / release QA",
+    variant: "split",
     hero: <>Put browser evidence closer to every release.</>,
     summary:
       "Matrix QA helps teams validate authorized web journeys against a deployed environment, so release decisions can include observed browser behavior instead of build status alone.",
@@ -232,6 +234,7 @@ export const seoTopicPages: Record<string, SeoTopicPageConfig> = {
     description:
       "Understand visual regression testing, screenshot baselines, and environment limits. Matrix QA captures browser evidence to help investigate visible UI changes.",
     eyebrow: "UI quality / visual checks",
+    variant: "terminal",
     hero: <>See the UI change. Keep the context.</>,
     summary:
       "Matrix QA captures screenshots and browser state around authorized journeys, helping teams investigate visible changes alongside console, network, and timing evidence.",
@@ -344,6 +347,7 @@ export const seoTopicPages: Record<string, SeoTopicPageConfig> = {
     description:
       "Create reproducible, evidence-based bug reports with steps, expected and actual results, screenshots, console signals, network context, and timestamps.",
     eyebrow: "Reporting / reproducibility",
+    variant: "editorial",
     hero: <>A bug report should show what happened, not just say “broken.”</>,
     summary:
       "Matrix QA connects a browser journey to structured findings and captured evidence, helping engineers move from an observed failure to a reproducible investigation.",
@@ -454,6 +458,7 @@ export const seoTopicPages: Record<string, SeoTopicPageConfig> = {
     description:
       "Test authorized login, signup, password reset, redirects, and protected web journeys with Matrix QA browser evidence and safe test accounts.",
     eyebrow: "Identity / functional QA",
+    variant: "split",
     hero: <>Test the sign-in path before users find the edge case.</>,
     summary:
       "Matrix QA can exercise authorized authentication journeys in a real browser, from login and signup to protected routes and reset flows, while preserving evidence for triage.",
@@ -562,6 +567,7 @@ export const seoTopicPages: Record<string, SeoTopicPageConfig> = {
     description:
       "Learn how browser journeys can support web accessibility testing through keyboard-aware workflows, form checks, visible evidence, and careful manual review.",
     eyebrow: "Inclusive UX / accessibility",
+    variant: "terminal",
     hero: <>Make accessibility part of the journey, not a late checklist.</>,
     summary:
       "Matrix QA helps teams observe accessibility-relevant behavior during authorized browser journeys, while making clear that automated evidence complements—not replaces—manual and assistive-technology review.",
