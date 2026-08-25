@@ -23,6 +23,7 @@ import { Route as EvidenceBasedBugReportsRouteImport } from './routes/evidence-b
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FeaturesRouteImport } from './routes/features'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as MiaRouteImport } from './routes/mia'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as QaFixtureRouteImport } from './routes/qa-fixture'
@@ -116,6 +117,11 @@ const FeaturesRoute = FeaturesRouteImport.update({
 const HowItWorksRoute = HowItWorksRouteImport.update({
   id: '/how-it-works',
   path: '/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MiaRoute = MiaRouteImport.update({
+  id: '/mia',
+  path: '/mia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -254,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/features': typeof FeaturesRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/mia': typeof MiaRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/features': typeof FeaturesRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/mia': typeof MiaRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/features': typeof FeaturesRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/mia': typeof MiaRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
@@ -375,6 +384,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/features'
     | '/how-it-works'
+    | '/mia'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
@@ -414,6 +424,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/features'
     | '/how-it-works'
+    | '/mia'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
@@ -453,6 +464,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/features'
     | '/how-it-works'
+    | '/mia'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
@@ -494,6 +506,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   FeaturesRoute: typeof FeaturesRoute
   HowItWorksRoute: typeof HowItWorksRoute
+  MiaRoute: typeof MiaRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   QaFixtureRoute: typeof QaFixtureRoute
@@ -602,6 +615,13 @@ declare module '@tanstack/react-router' {
       path: '/how-it-works'
       fullPath: '/how-it-works'
       preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mia': {
+      id: '/mia'
+      path: '/mia'
+      fullPath: '/mia'
+      preLoaderRoute: typeof MiaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -857,6 +877,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   FeaturesRoute: FeaturesRoute,
   HowItWorksRoute: HowItWorksRoute,
+  MiaRoute: MiaRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   QaFixtureRoute: QaFixtureRoute,
