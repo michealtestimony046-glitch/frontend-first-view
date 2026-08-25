@@ -1,0 +1,72 @@
+name: Verify Vercel production
+
+on:
+  workflow_run:
+    workflows: [Frontend CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-production-smoke
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: frontend-production-smoke
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://matrixqa.trlabs.tech/
+    steps:
+      - name: Check out deployed source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install smoke dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Wait for Vercel production route
+        env:
+          SMOKE_BASE_URL: https://matrixqa.trlabs.tech
+        run: |
+          set -euo pipefail
+          : > frontend-production-smoke.log
+          for attempt in {1..20}; do
+            if SMOKE_BASE_URL="$SMOKE_BASE_URL" pnpm smoke:ci 2>&1 | tee -a frontend-production-smoke.log; then
+              {
+                echo '### Vercel production verification'
+                echo '- Status: healthy'
+                echo "- URL: \`${SMOKE_BASE_URL}\`"
+                echo "- Source commit: \`${{ github.event.workflow_run.head_sha }}\`"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Smoke attempt ${attempt} did not pass; waiting for the production deployment" | tee -a frontend-production-smoke.log
+            sleep 15
+          done
+          exit 1
+
+      - name: Upload production smoke diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-production-smoke-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: frontend-production-smoke.log
