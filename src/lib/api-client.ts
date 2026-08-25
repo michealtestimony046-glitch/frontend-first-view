@@ -331,8 +331,9 @@ export interface QaLiveState {
     finishedAt?: string | null;
     currentPhase?: string | null;
     currentRoute?: string | null;
-    currentViewport?: Record<string, unknown> | null;
-    resumable?: boolean;
+      currentViewport?: Record<string, unknown> | null;
+      viewportMatrix?: V2Viewport[];
+      resumable?: boolean;
     legalHold?: boolean;
     stopReason?: string | null;
     errorMessage?: string | null;
@@ -471,6 +472,16 @@ export interface V2CoverageFrontier {
 }
 export type V2ScanStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
 export type V2PlannerMode = "QUICK_SMOKE" | "STANDARD_ADAPTIVE" | "DEEP_MATRIX";
+export type V2ViewportCategory = "desktop" | "tablet" | "mobile";
+export interface V2Viewport {
+  id: string;
+  label: string;
+  category: V2ViewportCategory;
+  preset: string;
+  width: number;
+  height: number;
+  order: number;
+}
 
 export const normalizeV2PlannerMode = (value: string | null | undefined): V2PlannerMode => {
   switch (String(value ?? "").trim().toUpperCase().replace(/[ -]+/g, "_")) {
@@ -654,6 +665,7 @@ export interface V2Scenario {
   steps?: unknown;
   locators?: unknown;
   result?: unknown;
+  viewportResults?: Array<{ testCaseId: string; status: V2CaseStatus; device?: string | null; browser?: string | null; network?: string | null; result?: unknown; viewport?: V2Viewport | null }>;
 }
 export interface V2AiPlanSummary {
   source?: string;
@@ -682,18 +694,19 @@ export interface V2TestPlan {
   plannerConfigVersion?: number | null;
   plannerRationale?: string | null;
   plannerEvidence?: unknown;
-  plannerValidation?: { status?: string; scenarioCount?: number; candidateCount?: number; deterministicPolicyAuthority?: boolean } | null;
+  plannerValidation?: { status?: string; scenarioCount?: number; candidateCount?: number; viewportCount?: number; deterministicPolicyAuthority?: boolean } | null;
   projectMap?: {
     mission?: V2MissionSpec;
     coverageFrontier?: V2CoverageFrontier;
     aiPlan?: V2AiPlanSummary;
-    billingBreakdown?: { baseScenarioUnits: number; aiDiscoveryUnits: number; aiPlanningUnits?: number; aiTotalUnits?: number; estimatedUnits: number; accounting?: string }
+    viewportMatrix?: V2Viewport[];
+    billingBreakdown?: { baseScenarioUnits: number; viewportCount?: number; viewportMatrix?: V2Viewport[]; aiDiscoveryUnits: number; aiPlanningUnits?: number; aiTotalUnits?: number; estimatedUnits: number; reservationUnits?: number; accounting?: string }
   } | null;
   createdAt?: string;
   updatedAt?: string;
   scenarios: V2Scenario[];
   policyDecisions: V2PolicyDecision[];
-  testCases?: Array<{ id: string; scenarioId: string; status: V2CaseStatus; result?: unknown }>;
+  testCases?: Array<{ id: string; scenarioId: string; status: V2CaseStatus; device?: string | null; browser?: string | null; network?: string | null; result?: unknown; viewport?: V2Viewport | null }>;
 }
 
 export interface RunOutcome {
