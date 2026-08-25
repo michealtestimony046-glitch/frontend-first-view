@@ -11,6 +11,9 @@ import { enrollBrowserPush } from "@/lib/push-notifications";
 const FIRST_TEST_READY_KEY = "matrix_qa_first_test_ready";
 const ONBOARDING_PROFILE_KEY = "matrix_qa_onboarding_profile";
 const ONBOARDING_QUICK_SCAN_KEY = "matrix_qa_onboarding_quick_scan";
+const OAUTH_INTENT_KEY = "matrix_qa_oauth_intent";
+const OAUTH_HANDOFF_KEY = "matrix_qa_oauth_handoff";
+const OAUTH_HANDOFF_TTL_MS = 10 * 60 * 1000;
 
 type OnboardingDraft = {
   fullName: string;
@@ -47,6 +50,58 @@ function oauthProviderLabel(provider: OAuthProvider) {
   return provider === "google" ? "Google" : "GitHub";
 }
 
+type OAuthHandoff = {
+  userId: string;
+  email: string;
+  fullName: string;
+  returnTo: "/app" | "/admin";
+  expiresAt: number;
+};
+
+const readOAuthHandoff = (): OAuthHandoff | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(OAUTH_HANDOFF_KEY);
+    if (!raw) return null;
+    const handoff = JSON.parse(raw) as Partial<OAuthHandoff>;
+    if (!handoff.userId || !handoff.email || !handoff.expiresAt || handoff.expiresAt <= Date.now()) {
+      window.sessionStorage.removeItem(OAUTH_HANDOFF_KEY);
+      return null;
+    }
+    return {
+      userId: handoff.userId,
+      email: handoff.email,
+      fullName: handoff.fullName || "",
+      returnTo: handoff.returnTo === "/admin" ? "/admin" : "/app",
+      expiresAt: handoff.expiresAt,
+    };
+  } catch {
+    window.sessionStorage.removeItem(OAUTH_HANDOFF_KEY);
+    return null;
+  }
+};
+
+const persistOAuthHandoff = (handoff: OAuthHandoff): void => {
+  if (typeof window !== "undefined") window.sessionStorage.setItem(OAUTH_HANDOFF_KEY, JSON.stringify(handoff));
+};
+
+const clearOAuthHandoff = (): void => {
+  if (typeof window !== "undefined") window.sessionStorage.removeItem(OAUTH_HANDOFF_KEY);
+};
+
+const readOAuthIntent = (): "signin" | "signup" | null => {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(OAUTH_INTENT_KEY) === "signin" ? "signin" : window.sessionStorage.getItem(OAUTH_INTENT_KEY) === "signup" ? "signup" : null;
+};
+
+const writeOAuthIntent = (mode: "signin" | "signup"): void => {
+  if (typeof window !== "undefined") window.sessionStorage.setItem(OAUTH_INTENT_KEY, mode);
+};
+
+const clearOAuthIntent = (): void => {
+  if (typeof window !== "undefined") window.sessionStorage.removeItem(OAUTH_INTENT_KEY);
+};
+
 const authSearchSchema = z.object({
   mode: z.enum(["signin", "signup"]).optional().default("signup"),
   returnTo: z.enum(["/app", "/admin"]).optional().default("/app"),
@@ -69,18 +124,19 @@ function AuthPage() {
   const adminSignInOnly = search.returnTo === "/admin";
   const [selectedMode, setSelectedMode] = useState<"signin" | "signup">(search.mode);
   const mode: "signin" | "signup" = adminSignInOnly ? "signin" : selectedMode;
-  const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3>(1);
+  const [initialOAuthHandoff] = useState<OAuthHandoff | null>(() => readOAuthHandoff());
+  const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3>(initialOAuthHandoff ? 2 : 1);
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationEmail, setVerificationEmail] = useState("");
-  const [draft, setDraft] = useState<OnboardingDraft>({ fullName: "", email: "", password: "", workspaceName: "", role: "", targetUrl: "", ownershipConfirmed: false, improveMatrixQa: false, focusArea: "", notifications: "email" });
+  const [draft, setDraft] = useState<OnboardingDraft>(() => ({ fullName: initialOAuthHandoff?.fullName || "", email: initialOAuthHandoff?.email || "", password: "", workspaceName: "", role: "", targetUrl: "", ownershipConfirmed: false, improveMatrixQa: false, focusArea: "", notifications: "email" }));
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [recoveryMode, setRecoveryMode] = useState(search.recover);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthProviders, setOauthProviders] = useState({ google: false, github: false });
   const [oauthProvidersLoaded, setOauthProvidersLoaded] = useState(false);
-  const [oauthUserId, setOauthUserId] = useState<string | null>(null);
+  const [oauthUserId, setOauthUserId] = useState<string | null>(initialOAuthHandoff?.userId || null);
   const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null);
   const [quickScanState, setQuickScanState] = useState<QuickScanState>("idle");
   const [quickScanResult, setQuickScanResult] = useState<OnboardingQuickScanResult | null>(null);
@@ -105,14 +161,16 @@ function AuthPage() {
     const oauthError = params.get("oauth_error");
     const clearCallbackParams = () => window.history.replaceState({}, "", "/auth");
     if (oauthError) {
-      window.sessionStorage.removeItem("matrix_qa_oauth_intent");
+      clearOAuthIntent();
+      clearOAuthHandoff();
       clearCallbackParams();
       setErrorMessage("Social sign-in could not be completed. Please try again.");
       authApi.oauthProviders().then((available) => { if (active) { setOauthProviders(available); setOauthProvidersLoaded(true); } }).catch(() => { if (active) setOauthProvidersLoaded(true); });
     } else if (!code && !providerValue && !state) {
       authApi.oauthProviders().then((available) => { if (active) { setOauthProviders(available); setOauthProvidersLoaded(true); } }).catch(() => { if (active) setOauthProvidersLoaded(true); });
     } else if (!code || !state || !isOAuthProvider(providerValue)) {
-      window.sessionStorage.removeItem("matrix_qa_oauth_intent");
+      clearOAuthIntent();
+      clearOAuthHandoff();
       clearCallbackParams();
       setErrorMessage("The social sign-in link is incomplete or expired. Please start again.");
     } else {
@@ -120,22 +178,28 @@ function AuthPage() {
       setOauthLoading(true);
       authApi.handleOAuthCallback(code, provider, state)
         .then((response) => {
-          const oauthIntent = window.sessionStorage.getItem("matrix_qa_oauth_intent");
-          window.sessionStorage.removeItem("matrix_qa_oauth_intent");
-          clearCallbackParams();
+          const oauthIntent = readOAuthIntent();
+          clearOAuthIntent();
           const isFirstTimeOAuthUser = response.isNewUser === true || (response.isNewUser === undefined && oauthIntent === "signup");
           if (isFirstTimeOAuthUser && !adminSignInOnly) {
+            const email = response.user.email.trim().toLowerCase();
+            const fullName = response.user.fullName?.trim() || "";
+            persistOAuthHandoff({ userId: response.user.id, email, fullName, returnTo, expiresAt: Date.now() + OAUTH_HANDOFF_TTL_MS });
             setOauthUserId(response.user.id);
-            setDraft((current) => ({ ...current, email: response.user.email.trim().toLowerCase(), fullName: response.user.fullName?.trim() || current.fullName }));
+            setDraft((current) => ({ ...current, email, fullName: fullName || current.fullName }));
             setSelectedMode("signup");
             setOnboardingStep(2);
             setSuccessMessage(`Signed in with ${oauthProviderLabel(provider)}. Finish the short workspace and first-test setup.`);
+            clearCallbackParams();
           } else {
+            clearOAuthHandoff();
+            clearCallbackParams();
             navigate({ to: returnTo });
           }
         })
         .catch((cause) => {
-          window.sessionStorage.removeItem("matrix_qa_oauth_intent");
+          clearOAuthIntent();
+          clearOAuthHandoff();
           clearCallbackParams();
           setErrorMessage(cause instanceof Error ? cause.message : `${oauthProviderLabel(provider)} sign-in could not be completed.`);
         })
@@ -146,7 +210,7 @@ function AuthPage() {
 
   const startOAuth = (provider: "google" | "github") => {
     setOauthLoading(true);
-    window.sessionStorage.setItem("matrix_qa_oauth_intent", mode);
+    writeOAuthIntent(mode);
     if (provider === "google") authApi.loginWithGoogle();
     else authApi.loginWithGithub();
   };
@@ -206,6 +270,7 @@ function AuthPage() {
         if (!userId) throw new Error("Verify your email before preparing the first test.");
         await provisionFirstTest(cleanDraft, userId, completedQuickScan);
         setOnboardingComplete(true);
+        clearOAuthHandoff();
         setSuccessMessage("Quick Scan is complete. Your Real User Test is moving forward in the background.");
       } catch (cause) {
         setErrorMessage(cause instanceof Error ? cause.message : "We could not start your Quick Scan. Please try again.");
@@ -314,7 +379,7 @@ function AuthPage() {
 
   const handleCodeChange = (value: string) => { setVerificationCode(value.replace(/\D/g, "").slice(0, 6)); setErrorMessage(""); };
   const backToSignup = () => { setVerificationStep(false); setVerificationCode(""); setVerificationEmail(""); setErrorMessage(""); setSuccessMessage(""); };
-  const switchMode = () => { if (adminSignInOnly) return; setSelectedMode((current) => current === "signin" ? "signup" : "signin"); setRecoveryMode(false); setOnboardingStep(1); setErrorMessage(""); setSuccessMessage(""); };
+  const switchMode = () => { if (adminSignInOnly) return; clearOAuthHandoff(); setSelectedMode((current) => current === "signin" ? "signup" : "signin"); setRecoveryMode(false); setOnboardingStep(1); setErrorMessage(""); setSuccessMessage(""); };
 
   return <div className="grid min-h-screen bg-background md:grid-cols-2">
     <div className="flex flex-col justify-between p-6 sm:p-8 md:p-12">
