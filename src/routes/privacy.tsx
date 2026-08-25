@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { seoHead } from "@/lib/seo";
 import {
   LegalList,
   LegalPageShell,
@@ -9,12 +10,12 @@ import {
 } from "@/components/legal-page-shell";
 
 export const Route = createFileRoute("/privacy")({
-  head: () => ({
-    meta: [
-      { title: "Privacy Policy · Matrix QA" },
-      { name: "description", content: "How Tr Labs handles personal information in Matrix QA." },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: "Privacy Policy · Matrix QA",
+      description: "How Tr Labs handles personal information in Matrix QA.",
+      path: "/privacy",
+    }),
   component: PrivacyPage,
 });
 

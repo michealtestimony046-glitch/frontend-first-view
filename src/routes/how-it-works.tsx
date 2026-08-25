@@ -1,17 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeoPageShell } from "@/components/seo-page-shell";
+import { seoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/how-it-works")({
-  head: () => ({
-    meta: [
-      { title: "How Matrix QA Works | Browser QA with Evidence" },
-      {
-        name: "description",
-        content:
-          "See how Matrix QA turns one authorized web URL into a browser-run journey, captured diagnostics, and evidence-backed QA findings.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: "How Matrix QA Works | Browser QA with Evidence",
+      description:
+        "See how Matrix QA turns one authorized web URL into a browser-run journey, captured diagnostics, and evidence-backed QA findings.",
+      path: "/how-it-works",
+    }),
   component: HowItWorksPage,
 });
 

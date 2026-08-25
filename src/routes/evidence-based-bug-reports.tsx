@@ -1,12 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SeoTopicPage } from "@/components/seo-topic-page";
+import { seoHead } from "@/lib/seo";
 import { seoTopicPages } from "./seo-topic-content";
 
 const page = seoTopicPages["/evidence-based-bug-reports"];
 
 export const Route = createFileRoute("/evidence-based-bug-reports")({
-  head: () => ({
-    meta: [{ title: page.title }, { name: "description", content: page.description }],
-  }),
+  head: () =>
+    seoHead({
+      title: page.title,
+      description: page.description,
+      path: "/evidence-based-bug-reports",
+    }),
   component: () => <SeoTopicPage config={page} />,
 });

@@ -24,6 +24,16 @@ const nav = [
   { to: "/automated-browser-testing", label: "Browser testing" },
 ] as const;
 
+const relatedGuides = [
+  { to: "/end-to-end-testing", label: "End-to-end testing" },
+  { to: "/ci-cd-testing", label: "CI/CD testing" },
+  { to: "/visual-regression-testing", label: "Visual regression" },
+  { to: "/evidence-based-bug-reports", label: "Evidence-based reports" },
+  { to: "/authentication-testing", label: "Authentication testing" },
+  { to: "/accessibility-testing", label: "Accessibility testing" },
+  { to: "/mia", label: "Meet Mia" },
+] as const;
+
 function PrimaryAction({ label }: { label: string }) {
   return (
     <Link
@@ -278,6 +288,37 @@ export function SeoPageShell(props: SeoPageShellProps) {
                 </div>
               </article>
             ))}
+          </div>
+        </section>
+        <section className="border-b border-border bg-surface/30">
+          <div className="mx-auto max-w-4xl px-6 py-14 lg:px-10">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
+                  Explore the QA library
+                </span>
+                <h2 className="mt-3 font-display text-2xl font-semibold md:text-3xl">
+                  Find the testing guide that matches your next question.
+                </h2>
+              </div>
+              <Link to="/features" className="text-sm text-primary hover:underline">
+                View all capabilities
+              </Link>
+            </div>
+            <nav
+              aria-label="Related testing guides"
+              className="mt-7 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {relatedGuides.map((guide) => (
+                <Link
+                  key={guide.to}
+                  to={guide.to}
+                  className="rounded-lg border border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/35 hover:text-primary"
+                >
+                  {guide.label}
+                </Link>
+              ))}
+            </nav>
           </div>
         </section>
         <section className="border-b border-border bg-surface/30">

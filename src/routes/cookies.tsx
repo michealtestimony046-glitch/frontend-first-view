@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { seoHead } from "@/lib/seo";
 import {
   LegalList,
   LegalPageShell,
@@ -9,15 +10,12 @@ import {
 } from "@/components/legal-page-shell";
 
 export const Route = createFileRoute("/cookies")({
-  head: () => ({
-    meta: [
-      { title: "Cookie Policy · Matrix QA" },
-      {
-        name: "description",
-        content: "How Matrix QA uses cookies and similar browser technologies.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: "Cookie Policy · Matrix QA",
+      description: "How Matrix QA uses cookies and similar browser technologies.",
+      path: "/cookies",
+    }),
   component: CookiesPage,
 });
 

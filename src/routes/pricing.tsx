@@ -1,36 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  Check,
-  CheckCircle2,
-  FileSearch,
-  Lock,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, FileSearch, Lock, Sparkles } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { PREVIEW_INCLUSIONS, ROADMAP } from "@/lib/mock-data";
 import { LaunchConsoleLink } from "@/components/launch-console-link";
-import { canonicalLink } from "@/lib/seo";
+import { seoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/pricing")({
-  head: () => ({
-    meta: [
-      { title: "Pricing · Matrix QA Preview" },
-      {
-        name: "description",
-        content:
-          "Matrix QA is free during Public Preview while we validate the Core Engine. No credit card. Paid plans will be introduced as the product expands.",
-      },
-      { property: "og:title", content: "Matrix QA · Preview pricing" },
-      {
-        property: "og:description",
-        content:
-          "Free during Preview. Starter and Pro plans will be introduced as the product expands.",
-      },
-      { property: "og:type", content: "website" },
-    ],
-    links: [canonicalLink("/pricing")],
-  }),
+  head: () =>
+    seoHead({
+      title: "Pricing · Matrix QA Preview",
+      description:
+        "Matrix QA is free during Public Preview while we validate the Core Engine. No credit card. Paid plans will be introduced as the product expands.",
+      path: "/pricing",
+    }),
   component: PricingPage,
 });
 
@@ -41,7 +23,7 @@ type ComingPlan = {
   audience: string;
   features: string[];
   cta: string;
-}
+};
 
 const comingPlans: ComingPlan[] = [
   {
@@ -113,13 +95,25 @@ function PricingPage() {
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
           <Logo />
           <nav className="hidden items-center gap-7 md:flex">
-            <Link to="/" hash="product" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              to="/"
+              hash="product"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
               Product
             </Link>
-            <Link to="/" hash="evidence" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              to="/"
+              hash="evidence"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
               Evidence
             </Link>
-            <Link to="/" hash="roadmap" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              to="/"
+              hash="roadmap"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
               Roadmap
             </Link>
             <Link to="/pricing" className="text-sm font-medium text-foreground">
@@ -153,20 +147,15 @@ function PricingPage() {
             <span className="text-primary">during Preview.</span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground md:text-lg">
-            We're validating the Core Engine with early developers. No credit
-            card. No checkout. Just run scans and help us harden the worker.
+            We're validating the Core Engine with early developers. No credit card. No checkout.
+            Just run scans and help us harden the worker.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-            {["Browser Worker", "Evidence Capture", "Bug Reports", "Dashboard"].map(
-              (c) => (
-                <span
-                  key={c}
-                  className="rounded-full border border-border bg-surface/60 px-2.5 py-1"
-                >
-                  {c}
-                </span>
-              ),
-            )}
+            {["Browser Worker", "Evidence Capture", "Bug Reports", "Dashboard"].map((c) => (
+              <span key={c} className="rounded-full border border-border bg-surface/60 px-2.5 py-1">
+                {c}
+              </span>
+            ))}
           </div>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
@@ -205,9 +194,7 @@ function PricingPage() {
             <div className="relative flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="font-display text-2xl font-semibold">
-                    Preview
-                  </h2>
+                  <h2 className="font-display text-2xl font-semibold">Preview</h2>
                   <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-primary">
                     Current
                   </span>
@@ -281,18 +268,13 @@ function PricingPage() {
                     {p.price}
                   </span>
                   {p.cadence && (
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {p.cadence}
-                    </span>
+                    <span className="font-mono text-xs text-muted-foreground">{p.cadence}</span>
                   )}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">{p.audience}</p>
                 <ul className="mt-4 flex-1 space-y-1.5 text-xs">
                   {p.features.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-start gap-1.5 text-foreground/70"
-                    >
+                    <li key={f} className="flex items-start gap-1.5 text-foreground/70">
                       <Check className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
                       {f}
                     </li>
@@ -328,9 +310,7 @@ function PricingPage() {
               <li
                 key={r.title}
                 className={`rounded-lg border p-3 ${
-                  r.current
-                    ? "border-primary/40 bg-primary/5"
-                    : "border-border bg-surface/40"
+                  r.current ? "border-primary/40 bg-primary/5" : "border-border bg-surface/40"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -362,11 +342,20 @@ function PricingPage() {
       <section className="border-t border-border bg-surface/30">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-5 px-6 py-12">
           <div>
-            <span className="font-mono text-[11px] uppercase tracking-widest text-primary">Need answers?</span>
+            <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
+              Need answers?
+            </span>
             <h2 className="mt-2 font-display text-2xl font-semibold">Read the living FAQ.</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Usage, evidence, Preview, and what is planned next.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Usage, evidence, Preview, and what is planned next.
+            </p>
           </div>
-          <Link to="/faq" className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent">Open FAQ <ArrowRight className="h-4 w-4" /></Link>
+          <Link
+            to="/faq"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent"
+          >
+            Open FAQ <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 
