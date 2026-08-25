@@ -33,6 +33,7 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppCreditsRouteImport } from './routes/app.credits'
 import { Route as AppDiscoveryRouteImport } from './routes/app.discovery'
+import { Route as AppEnvironmentsRouteImport } from './routes/app.environments'
 import { Route as AppIssuesRouteImport } from './routes/app.issues'
 import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
 import { Route as AppProjectsRouteImport } from './routes/app.projects'
@@ -168,6 +169,11 @@ const AppDiscoveryRoute = AppDiscoveryRouteImport.update({
   path: '/discovery',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEnvironmentsRoute = AppEnvironmentsRouteImport.update({
+  id: '/environments',
+  path: '/environments',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppIssuesRoute = AppIssuesRouteImport.update({
   id: '/issues',
   path: '/issues',
@@ -263,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
+  '/app/environments': typeof AppEnvironmentsRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
@@ -302,6 +309,7 @@ export interface FileRoutesByTo {
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
+  '/app/environments': typeof AppEnvironmentsRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
@@ -342,6 +350,7 @@ export interface FileRoutesById {
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
+  '/app/environments': typeof AppEnvironmentsRoute
   '/app/issues': typeof AppIssuesRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
@@ -384,6 +393,7 @@ export interface FileRouteTypes {
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
+    | '/app/environments'
     | '/app/issues'
     | '/app/notifications'
     | '/app/projects'
@@ -423,6 +433,7 @@ export interface FileRouteTypes {
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
+    | '/app/environments'
     | '/app/issues'
     | '/app/notifications'
     | '/app/projects'
@@ -462,6 +473,7 @@ export interface FileRouteTypes {
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
+    | '/app/environments'
     | '/app/issues'
     | '/app/notifications'
     | '/app/projects'
@@ -674,6 +686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDiscoveryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/environments': {
+      id: '/app/environments'
+      path: '/environments'
+      fullPath: '/app/environments'
+      preLoaderRoute: typeof AppEnvironmentsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/issues': {
       id: '/app/issues'
       path: '/issues'
@@ -806,6 +825,7 @@ interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppCreditsRoute: typeof AppCreditsRoute
   AppDiscoveryRoute: typeof AppDiscoveryRoute
+  AppEnvironmentsRoute: typeof AppEnvironmentsRoute
   AppIssuesRoute: typeof AppIssuesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppProjectsRoute: typeof AppProjectsRoute
@@ -819,6 +839,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppCreditsRoute: AppCreditsRoute,
   AppDiscoveryRoute: AppDiscoveryRoute,
+  AppEnvironmentsRoute: AppEnvironmentsRoute,
   AppIssuesRoute: AppIssuesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppProjectsRoute: AppProjectsRoute,

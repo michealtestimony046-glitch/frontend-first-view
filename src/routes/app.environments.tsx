@@ -1,0 +1,933 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  CheckCircle2,
+  Database,
+  Loader2,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  TestTube2,
+  XCircle,
+} from "lucide-react";
+import {
+  organizationsApi,
+  projectsApi,
+  v2Api,
+  workspacesApi,
+  type Organization,
+  type Project,
+  type V2Environment,
+  type V2FixtureStrategy,
+  type V2TestDataFixture,
+  type Workspace,
+} from "@/lib/api-client";
+
+const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
+const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
+const ACTIVE_PROJECT_KEY = "matrix_qa_active_project";
+
+type Panel = "environment" | "fixture" | null;
+
+export const Route = createFileRoute("/app/environments")({
+  head: () => ({
+    meta: [
+      { title: "Environments & test data · Matrix QA" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: EnvironmentsPage,
+});
+
+function EnvironmentsPage() {
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [environments, setEnvironments] = useState<V2Environment[]>([]);
+  const [fixtures, setFixtures] = useState<V2TestDataFixture[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(false);
+  const [panel, setPanel] = useState<Panel>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    organizationsApi
+      .list()
+      .then((items) => {
+        if (cancelled) return;
+        setOrganizations(items);
+        const stored = localStorage.getItem(ACTIVE_ORG_KEY);
+        const selected = items.find((item) => item.id === stored) ?? items[0];
+        setOrganizationId(selected?.id ?? null);
+        if (selected) localStorage.setItem(ACTIVE_ORG_KEY, selected.id);
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(toMessage(cause, "Unable to load organizations."));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!organizationId) {
+      setWorkspaces([]);
+      setWorkspaceId(null);
+      return;
+    }
+    let cancelled = false;
+    workspacesApi
+      .list(organizationId)
+      .then((items) => {
+        if (cancelled) return;
+        setWorkspaces(items);
+        const stored = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+        const selected = items.find((item) => item.id === stored) ?? items[0];
+        setWorkspaceId(selected?.id ?? null);
+        if (selected) localStorage.setItem(ACTIVE_WORKSPACE_KEY, selected.id);
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(toMessage(cause, "Unable to load workspaces."));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (!organizationId || !workspaceId) {
+      setProjects([]);
+      setProjectId(null);
+      return;
+    }
+    let cancelled = false;
+    projectsApi
+      .list(organizationId, workspaceId)
+      .then((items) => {
+        if (cancelled) return;
+        setProjects(items);
+        const stored = localStorage.getItem(ACTIVE_PROJECT_KEY);
+        const selected = items.find((item) => item.id === stored) ?? items[0];
+        setProjectId(selected?.id ?? null);
+        if (selected) localStorage.setItem(ACTIVE_PROJECT_KEY, selected.id);
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(toMessage(cause, "Unable to load projects."));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId, workspaceId]);
+
+  const loadProjectData = useCallback(async () => {
+    if (!projectId) {
+      setEnvironments([]);
+      setFixtures([]);
+      return;
+    }
+    setLoadingData(true);
+    setError(null);
+    try {
+      const [environmentItems, fixtureItems] = await Promise.all([
+        v2Api.listEnvironments(projectId),
+        v2Api.listTestDataFixtures(projectId),
+      ]);
+      setEnvironments(environmentItems);
+      setFixtures(fixtureItems);
+    } catch (cause) {
+      setError(toMessage(cause, "Unable to load environment and test-data records."));
+    } finally {
+      setLoadingData(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void loadProjectData();
+  }, [loadProjectData]);
+
+  const selectedProject = useMemo(
+    () => projects.find((item) => item.id === projectId),
+    [projects, projectId],
+  );
+  const handleScopeChange = (kind: "organization" | "workspace" | "project", value: string) => {
+    setError(null);
+    setNotice(null);
+    setPanel(null);
+    if (kind === "organization") {
+      setOrganizationId(value);
+      localStorage.setItem(ACTIVE_ORG_KEY, value);
+      localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+      localStorage.removeItem(ACTIVE_PROJECT_KEY);
+    }
+    if (kind === "workspace") {
+      setWorkspaceId(value);
+      localStorage.setItem(ACTIVE_WORKSPACE_KEY, value);
+      localStorage.removeItem(ACTIVE_PROJECT_KEY);
+    }
+    if (kind === "project") {
+      setProjectId(value);
+      localStorage.setItem(ACTIVE_PROJECT_KEY, value);
+    }
+  };
+
+  const onEnvironmentCreated = (item: V2Environment) => {
+    setEnvironments((current) => [item, ...current]);
+    setPanel(null);
+    setNotice(`Environment “${item.name}” created. Run a health check before trusting it.`);
+  };
+  const onFixtureCreated = (item: V2TestDataFixture) => {
+    setFixtures((current) => [item, ...current]);
+    setPanel(null);
+    setNotice(
+      `Fixture “${item.name}” created as ${item.status.toLowerCase()}. Validate its contract before using it.`,
+    );
+  };
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
+              Environments &amp; test data
+            </h1>
+            <span className="rounded-full border border-primary/25 bg-primary/5 px-2 py-0.5 font-mono text-[10px] text-primary">
+              CONTROL PLANE
+            </span>
+          </div>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Choose the exact target and data contract before a run. Matrix QA stores metadata and
+            masked field names only; it never asks you to paste credentials or customer data here.
+          </p>
+        </div>
+        {projectId && (
+          <button
+            type="button"
+            onClick={() => void loadProjectData()}
+            disabled={loadingData}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loadingData ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        )}
+      </div>
+
+      <div className="mt-6 grid gap-3 rounded-xl border border-border bg-surface/40 p-4 md:grid-cols-3">
+        <ScopeSelect
+          label="Organization"
+          value={organizationId ?? ""}
+          items={organizations.map((item) => ({ id: item.id, name: item.name }))}
+          onChange={(value) => handleScopeChange("organization", value)}
+          disabled={loading}
+          empty="No organization"
+        />
+        <ScopeSelect
+          label="Workspace"
+          value={workspaceId ?? ""}
+          items={workspaces.map((item) => ({ id: item.id, name: item.name }))}
+          onChange={(value) => handleScopeChange("workspace", value)}
+          disabled={!organizationId}
+          empty="No workspace"
+        />
+        <ScopeSelect
+          label="Project"
+          value={projectId ?? ""}
+          items={projects.map((item) => ({ id: item.id, name: item.name }))}
+          onChange={(value) => handleScopeChange("project", value)}
+          disabled={!workspaceId}
+          empty="No project"
+        />
+      </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          {error}
+        </div>
+      )}
+      {notice && (
+        <div
+          role="status"
+          className="mt-4 rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success"
+        >
+          {notice}
+        </div>
+      )}
+      {!projectId && !loading && (
+        <div className="mt-8 rounded-xl border border-dashed border-border p-12 text-center">
+          <Database className="mx-auto h-8 w-8 text-primary" />
+          <h2 className="mt-4 font-display text-xl font-semibold">Choose a project first</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            Environment and test-data records are always project-scoped so one customer’s target or
+            fixture can never appear in another project.
+          </p>
+        </div>
+      )}
+
+      {projectId && (
+        <>
+          <div className="mt-8 grid gap-4 lg:grid-cols-2">
+            <section className="surface-card overflow-hidden">
+              <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-primary" />
+                    <h2 className="font-display text-lg font-semibold">Environments</h2>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Saved target contexts with same-origin health checks.{" "}
+                    {selectedProject?.name ?? ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPanel("environment")}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add
+                </button>
+              </header>
+              <div className="divide-y divide-border">
+                {loadingData ? (
+                  <LoadingRow label="Loading environments…" />
+                ) : environments.length === 0 ? (
+                  <EmptyRow
+                    label="No environments configured yet."
+                    hint="Add staging or preview so runs use an explicit target context."
+                  />
+                ) : (
+                  environments.map((environment) => (
+                    <EnvironmentRow
+                      key={environment.id}
+                      environment={environment}
+                      onHealthChecked={(updated) =>
+                        setEnvironments((current) =>
+                          current.map((item) => (item.id === updated.id ? updated : item)),
+                        )
+                      }
+                      onError={setError}
+                    />
+                  ))
+                )}
+              </div>
+            </section>
+            <section className="surface-card overflow-hidden">
+              <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <TestTube2 className="h-4 w-4 text-primary" />
+                    <h2 className="font-display text-lg font-semibold">Test-data fixtures</h2>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Reusable data contracts, masked-field declarations, and lifecycle readiness.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPanel("fixture")}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add
+                </button>
+              </header>
+              <div className="divide-y divide-border">
+                {loadingData ? (
+                  <LoadingRow label="Loading fixtures…" />
+                ) : fixtures.length === 0 ? (
+                  <EmptyRow
+                    label="No test-data fixtures configured yet."
+                    hint="Start with a manual fixture such as “new customer, empty cart”."
+                  />
+                ) : (
+                  fixtures.map((fixture) => (
+                    <FixtureRow
+                      key={fixture.id}
+                      fixture={fixture}
+                      onUpdated={(updated) =>
+                        setFixtures((current) =>
+                          current.map((item) => (item.id === updated.id ? updated : item)),
+                        )
+                      }
+                      onError={setError}
+                    />
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+          <div className="mt-5 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 text-xs leading-5 text-muted-foreground">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+            <p>
+              <strong className="text-foreground">Safety boundary:</strong> this first control-plane
+              version stores declarative metadata only. It does not execute arbitrary SQL, accept
+              raw secrets, or mutate a customer database from the browser. HTTP-hook and snapshot
+              fixtures must be wired to an approved backend integration before lifecycle actions are
+              enabled.
+            </p>
+          </div>
+        </>
+      )}
+
+      {panel === "environment" && projectId && organizationId && workspaceId && (
+        <EnvironmentDrawer
+          organizationId={organizationId}
+          workspaceId={workspaceId}
+          projectId={projectId}
+          onClose={() => setPanel(null)}
+          onCreated={onEnvironmentCreated}
+        />
+      )}
+      {panel === "fixture" && projectId && (
+        <FixtureDrawer
+          projectId={projectId}
+          environments={environments}
+          onClose={() => setPanel(null)}
+          onCreated={onFixtureCreated}
+        />
+      )}
+    </div>
+  );
+}
+
+function ScopeSelect({
+  label,
+  value,
+  items,
+  onChange,
+  disabled,
+  empty,
+}: {
+  label: string;
+  value: string;
+  items: Array<{ id: string; name: string }>;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  empty: string;
+}) {
+  return (
+    <label className="block text-xs font-medium text-muted-foreground">
+      {label}
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled || items.length === 0}
+        className="mt-1.5 w-full rounded-md border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-primary disabled:opacity-60"
+      >
+        {items.length === 0 && <option value="">{empty}</option>}
+        {items.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function EnvironmentRow({
+  environment,
+  onHealthChecked,
+  onError,
+}: {
+  environment: V2Environment;
+  onHealthChecked: (environment: V2Environment) => void;
+  onError: (message: string) => void;
+}) {
+  const [checking, setChecking] = useState(false);
+  const health = environment.healthStatus ?? "UNKNOWN";
+  const check = async () => {
+    setChecking(true);
+    onError("");
+    try {
+      const result = await v2Api.checkEnvironmentHealth(environment.id);
+      onHealthChecked(result.environment);
+    } catch (cause) {
+      onError(toMessage(cause, "Environment health check failed."));
+    } finally {
+      setChecking(false);
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span
+            className={`h-2 w-2 rounded-full ${health === "HEALTHY" ? "bg-success" : health === "DEGRADED" ? "bg-warning" : health === "UNAVAILABLE" ? "bg-destructive" : "bg-muted-foreground"}`}
+          />
+          <span className="truncate text-sm font-medium">{environment.name}</span>
+          <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+            {environment.kind}
+          </span>
+        </div>
+        <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+          {environment.baseUrl}
+        </div>
+        <div className="mt-1 text-[11px] text-muted-foreground">
+          Health: {health.toLowerCase()}{" "}
+          {environment.lastHealthCheckedAt
+            ? `· checked ${new Date(environment.lastHealthCheckedAt).toLocaleString()}`
+            : "· not checked"}
+        </div>
+        {environment.lastHealthError && (
+          <div className="mt-1 max-w-xl text-[11px] text-warning">
+            {environment.lastHealthError}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => void check()}
+        disabled={checking}
+        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
+      >
+        {checking ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Activity className="h-3.5 w-3.5" />
+        )}{" "}
+        Check health
+      </button>
+    </div>
+  );
+}
+
+function FixtureRow({
+  fixture,
+  onUpdated,
+  onError,
+}: {
+  fixture: V2TestDataFixture;
+  onUpdated: (fixture: V2TestDataFixture) => void;
+  onError: (message: string) => void;
+}) {
+  const [validating, setValidating] = useState(false);
+  const validate = async () => {
+    setValidating(true);
+    onError("");
+    try {
+      const result = await v2Api.validateTestDataFixture(fixture.id);
+      onUpdated(result.fixture);
+    } catch (cause) {
+      onError(toMessage(cause, "Fixture validation failed."));
+    } finally {
+      setValidating(false);
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span
+            className={`h-2 w-2 rounded-full ${fixture.lastValidationStatus === "READY" ? "bg-success" : fixture.lastValidationStatus === "INVALID" ? "bg-destructive" : "bg-muted-foreground"}`}
+          />
+          <span className="truncate text-sm font-medium">{fixture.name}</span>
+          <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+            {fixture.strategy.replace("_", " ")}
+          </span>
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {fixture.description || "No description"} ·{" "}
+          {fixture.maskedFields && Array.isArray(fixture.maskedFields)
+            ? `${fixture.maskedFields.length} masked field${fixture.maskedFields.length === 1 ? "" : "s"}`
+            : "No masked fields declared"}
+        </div>
+        <div className="mt-1 text-[11px] text-muted-foreground">
+          Status: {fixture.status.toLowerCase()} · Contract:{" "}
+          {(fixture.lastValidationStatus || "not validated").toLowerCase()}
+        </div>
+        {fixture.lastValidationError && (
+          <div className="mt-1 max-w-xl text-[11px] text-destructive">
+            {fixture.lastValidationError}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => void validate()}
+        disabled={validating}
+        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
+      >
+        {validating ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <CheckCircle2 className="h-3.5 w-3.5" />
+        )}{" "}
+        Validate
+      </button>
+    </div>
+  );
+}
+
+function EnvironmentDrawer({
+  organizationId,
+  workspaceId,
+  projectId,
+  onClose,
+  onCreated,
+}: {
+  organizationId: string;
+  workspaceId: string;
+  projectId: string;
+  onClose: () => void;
+  onCreated: (environment: V2Environment) => void;
+}) {
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<V2Environment["kind"]>("STAGING");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [description, setDescription] = useState("");
+  const [healthPaths, setHealthPaths] = useState("/");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || !baseUrl.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const parsed = new URL(baseUrl.trim());
+      if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password)
+        throw new Error("Use an http(s) URL without embedded credentials.");
+      const healthChecks = healthPaths
+        .split("\n")
+        .map((path) => path.trim())
+        .filter(Boolean)
+        .map((path) => ({ name: path === "/" ? "base URL" : path, path, expectedStatus: 200 }));
+      if (healthChecks.some((item) => !item.path.startsWith("/") || item.path.startsWith("//")))
+        throw new Error("Health checks must be relative same-origin paths.");
+      onCreated(
+        await v2Api.createEnvironment({
+          organizationId,
+          workspaceId,
+          projectId,
+          name: name.trim(),
+          kind,
+          baseUrl: parsed.toString(),
+          description: description.trim() || undefined,
+          healthChecks,
+        }),
+      );
+    } catch (cause) {
+      setError(toMessage(cause, "Unable to create environment."));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Drawer
+      title="Add environment"
+      subtitle="Save a target context without embedding credentials."
+      onClose={onClose}
+    >
+      <form onSubmit={(event) => void submit(event)} className="space-y-4 p-5">
+        {error && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+        <Field label="Name">
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={80}
+            placeholder="Staging"
+            disabled={busy}
+          />
+        </Field>
+        <Field label="Base URL">
+          <input
+            type="url"
+            value={baseUrl}
+            onChange={(event) => setBaseUrl(event.target.value)}
+            placeholder="https://staging.example.com"
+            disabled={busy}
+          />
+        </Field>
+        <Field label="Kind">
+          <select
+            value={kind}
+            onChange={(event) => setKind(event.target.value as V2Environment["kind"])}
+            disabled={busy}
+          >
+            <option value="PREVIEW">Preview</option>
+            <option value="STAGING">Staging</option>
+            <option value="PRODUCTION">Production-like</option>
+          </select>
+        </Field>
+        <Field label="Description">
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            maxLength={500}
+            rows={3}
+            placeholder="What this environment is safe for…"
+            disabled={busy}
+          />
+        </Field>
+        <Field label="Health paths">
+          <textarea
+            value={healthPaths}
+            onChange={(event) => setHealthPaths(event.target.value)}
+            rows={3}
+            placeholder="/\n/health"
+            disabled={busy}
+          />
+          <span className="mt-1 block text-[11px] text-muted-foreground">
+            One relative same-origin GET path per line. Matrix QA never follows external redirects.
+          </span>
+        </Field>
+        <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-muted-foreground">
+          Never paste tokens, passwords, cookies, or API keys into any field. Use the managed secret
+          system for credentials.
+        </div>
+        <DrawerFooter busy={busy} disabled={!name.trim() || !baseUrl.trim()} />
+      </form>
+    </Drawer>
+  );
+}
+
+function FixtureDrawer({
+  projectId,
+  environments,
+  onClose,
+  onCreated,
+}: {
+  projectId: string;
+  environments: V2Environment[];
+  onClose: () => void;
+  onCreated: (fixture: V2TestDataFixture) => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [strategy, setStrategy] = useState<V2FixtureStrategy>("MANUAL");
+  const [environmentId, setEnvironmentId] = useState("");
+  const [maskedFields, setMaskedFields] = useState("email\nphone\naddress");
+  const [seedSpec, setSeedSpec] = useState("");
+  const [resetSpec, setResetSpec] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const parseSpec = (value: string, label: string) => {
+    if (!value.trim()) return undefined;
+    try {
+      return JSON.parse(value);
+    } catch {
+      throw new Error(`${label} must be valid JSON.`);
+    }
+  };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const seed = parseSpec(seedSpec, "Seed specification");
+      const reset = parseSpec(resetSpec, "Reset specification");
+      onCreated(
+        await v2Api.createTestDataFixture({
+          projectId,
+          environmentId: environmentId || undefined,
+          name: name.trim(),
+          description: description.trim() || undefined,
+          strategy,
+          seedSpec: seed,
+          resetSpec: reset,
+          maskedFields: maskedFields
+            .split("\n")
+            .map((field) => field.trim())
+            .filter(Boolean),
+        }),
+      );
+    } catch (cause) {
+      setError(toMessage(cause, "Unable to create fixture."));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Drawer
+      title="Add test-data fixture"
+      subtitle="Declare repeatable data conditions without storing customer data."
+      onClose={onClose}
+    >
+      <form onSubmit={(event) => void submit(event)} className="space-y-4 p-5">
+        {error && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+        <Field label="Fixture name">
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={80}
+            placeholder="New customer · empty cart"
+            disabled={busy}
+          />
+        </Field>
+        <Field label="Description">
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            maxLength={500}
+            rows={3}
+            placeholder="Known starting state for checkout coverage…"
+            disabled={busy}
+          />
+        </Field>
+        <Field label="Environment (optional)">
+          <select
+            value={environmentId}
+            onChange={(event) => setEnvironmentId(event.target.value)}
+            disabled={busy}
+          >
+            <option value="">Project-wide fixture</option>
+            {environments.map((environment) => (
+              <option key={environment.id} value={environment.id}>
+                {environment.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Lifecycle strategy">
+          <select
+            value={strategy}
+            onChange={(event) => setStrategy(event.target.value as V2FixtureStrategy)}
+            disabled={busy}
+          >
+            <option value="MANUAL">Manual setup</option>
+            <option value="HTTP_HOOK">Approved HTTP hook metadata</option>
+            <option value="DATABASE_SNAPSHOT">Database snapshot metadata</option>
+          </select>
+        </Field>
+        {strategy !== "MANUAL" && (
+          <>
+            <Field label="Seed metadata JSON">
+              <textarea
+                value={seedSpec}
+                onChange={(event) => setSeedSpec(event.target.value)}
+                rows={4}
+                placeholder={'{"operation":"POST","path":"/internal/qa/seed"}'}
+                disabled={busy}
+              />
+            </Field>
+            <Field label="Reset metadata JSON">
+              <textarea
+                value={resetSpec}
+                onChange={(event) => setResetSpec(event.target.value)}
+                rows={4}
+                placeholder={'{"operation":"POST","path":"/internal/qa/reset"}'}
+                disabled={busy}
+              />
+            </Field>
+          </>
+        )}
+        <Field label="Masked field names">
+          <textarea
+            value={maskedFields}
+            onChange={(event) => setMaskedFields(event.target.value)}
+            rows={3}
+            placeholder="email\nphone\naddress"
+            disabled={busy}
+          />
+          <span className="mt-1 block text-[11px] text-muted-foreground">
+            Names only. Do not enter real values. These declarations guide future redaction.
+          </span>
+        </Field>
+        <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-muted-foreground">
+          Fixture metadata is validated but not executed from this page. No SQL, credentials,
+          cookies, or customer records are accepted.
+        </div>
+        <DrawerFooter
+          busy={busy}
+          disabled={
+            !name.trim() || (strategy !== "MANUAL" && (!seedSpec.trim() || !resetSpec.trim()))
+          }
+        />
+      </form>
+    </Drawer>
+  );
+}
+
+function Drawer({
+  title,
+  subtitle,
+  onClose,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-sm">
+      <div className="absolute inset-0" onClick={onClose} />
+      <aside className="relative flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-border bg-surface">
+        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+          <div>
+            <h2 className="font-display text-base font-semibold">{title}</h2>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{subtitle}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
+            aria-label="Close"
+          >
+            <XCircle className="h-4 w-4" />
+          </button>
+        </header>
+        {children}
+      </aside>
+    </div>
+  );
+}
+function DrawerFooter({ busy, disabled }: { busy: boolean; disabled: boolean }) {
+  return (
+    <div className="border-t border-border pt-4">
+      <button
+        type="submit"
+        disabled={busy || disabled}
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+      >
+        {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save control-plane record
+      </button>
+    </div>
+  );
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block text-xs font-medium text-foreground">
+      <span className="mb-1.5 block">{label}</span>
+      {children}
+    </label>
+  );
+}
+function LoadingRow({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 px-5 py-8 text-sm text-muted-foreground">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      {label}
+    </div>
+  );
+}
+function EmptyRow({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div className="px-5 py-8">
+      <p className="text-sm font-medium">{label}</p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+function toMessage(cause: unknown, fallback: string) {
+  return cause instanceof Error ? cause.message : fallback;
+}
