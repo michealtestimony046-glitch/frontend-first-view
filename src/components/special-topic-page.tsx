@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/logo";
+import { DISCORD_SUPPORT_URL } from "@/lib/support";
 import {
   Activity,
   ArrowRight,
@@ -862,6 +863,7 @@ export function SpecialTopicPage({ config }: { config: SpecialTopicPageConfig })
             <Link to="/privacy">Privacy</Link>
             <Link to="/cookies">Cookies</Link>
             <Link to="/faq">FAQ</Link>
+            <a href={DISCORD_SUPPORT_URL} target="_blank" rel="noopener noreferrer">Support on Discord</a>
           </div>
           <span>© {new Date().getFullYear()} Matrix QA · Tr Labs</span>
         </div>
