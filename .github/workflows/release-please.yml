@@ -1,9 +1,10 @@
 name: Release Please
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [Frontend CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -17,6 +18,7 @@ concurrency:
 
 jobs:
   release-please:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
     runs-on: ubuntu-latest
     steps:
       - name: Create or update release pull request

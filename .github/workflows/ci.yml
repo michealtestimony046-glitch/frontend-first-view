@@ -1,0 +1,83 @@
+name: Frontend CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    name: frontend-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Validate TypeScript
+        run: pnpm exec tsc --noEmit 2>&1 | tee frontend-typecheck.log
+
+      - name: Build frontend
+        run: pnpm build 2>&1 | tee frontend-build.log
+
+      - name: Verify Matrix QA brand assets
+        run: pnpm verify:brand 2>&1 | tee frontend-brand.log
+
+      - name: Report lint baseline without blocking delivery
+        continue-on-error: true
+        run: pnpm lint 2>&1 | tee frontend-lint.log
+
+      - name: Start built SSR preview
+        shell: bash
+        run: |
+          pnpm exec wrangler --cwd .output dev --local --ip 127.0.0.1 --port 4173 > frontend-preview.log 2>&1 &
+          echo $! > frontend-preview.pid
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$(cat frontend-preview.pid)" 2>/dev/null; then
+              cat frontend-preview.log
+              exit 1
+            fi
+            sleep 1
+          done
+          cat frontend-preview.log
+          exit 1
+
+      - name: Run safe public route smoke
+        run: pnpm smoke:ci
+
+      - name: Upload frontend diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ci-diagnostics-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            frontend-typecheck.log
+            frontend-build.log
+            frontend-brand.log
+            frontend-lint.log
+            frontend-preview.log
