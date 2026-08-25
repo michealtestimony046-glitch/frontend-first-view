@@ -650,6 +650,30 @@ export type V2JourneyGraph = {
   counts: { routes: number; interactions: number; reviewRequired: number; transitions: number };
   generatedFrom: "READ_ONLY_DISCOVERY";
 };
+export type V2MatrixProfile = {
+  id: string;
+  role: "ANONYMOUS" | "TEST_ACCOUNT" | "BROWSER_HANDOFF";
+  device: "DESKTOP" | "MOBILE";
+  browser: "CHROMIUM";
+  network: "DEFAULT";
+  dataState: "PUBLIC_OR_EMPTY" | "FIXTURE";
+  edgeCase: "NONE" | "RESPONSIVE_LAYOUT";
+  priorityScore: number;
+  rationale: string;
+  executable: true;
+  generatedFrom: "DETERMINISTIC_MATRIX_V1";
+};
+export type V2MatrixSummary = {
+  version: 1;
+  mode: V2PlannerMode;
+  profiles: V2MatrixProfile[];
+  counts: { total: number; roles: number; devices: number; browsers: number; networks: number; dataStates: number; edgeCases: number };
+  dimensions: { role: V2MatrixProfile["role"][]; device: V2MatrixProfile["device"][]; browser: V2MatrixProfile["browser"][]; network: V2MatrixProfile["network"][]; dataState: V2MatrixProfile["dataState"][]; edgeCase: V2MatrixProfile["edgeCase"][] };
+  pruned: Array<{ dimension: string; value: string; reason: string }>;
+  generatedFrom: "OBSERVED_PLAN_AND_EXECUTION_CAPABILITIES";
+  baseScenarioCount?: number;
+  expandedScenarioCount?: number;
+};
 
 export interface V2ApplicationScan {
   id: string;
@@ -676,8 +700,9 @@ export interface V2ApplicationScan {
     precheck?: V2WebPrecheck;
     mission?: V2MissionSpec;
     coverageFrontier?: V2CoverageFrontier;
-    journeyGraph?: V2JourneyGraph;
-    features?: string[];
+     journeyGraph?: V2JourneyGraph;
+     matrixSummary?: V2MatrixSummary;
+     features?: string[];
     scannedPages?: Array<{ url: string; route: string; title: string; features?: string[]; authSignals?: Record<string, boolean> }>;
     actions?: Array<{ key: string; text: string; tag: string; tier: V2PolicyTier; reason: string; locatorCandidates?: Array<Record<string, string>> }>;
     riskSummary?: { safe: number; caution: number; dangerous: number };
@@ -708,6 +733,7 @@ export interface V2Scenario {
   caseStatus?: V2CaseStatus | null;
   steps?: unknown;
   locators?: unknown;
+  journeyGraph?: unknown;
   result?: unknown;
 }
 export interface V2AiPlanSummary {
@@ -741,6 +767,7 @@ export interface V2TestPlan {
   projectMap?: {
     mission?: V2MissionSpec;
     journeyGraph?: V2JourneyGraph;
+    matrixSummary?: V2MatrixSummary;
     coverageFrontier?: V2CoverageFrontier;
     aiPlan?: V2AiPlanSummary;
     billingBreakdown?: { baseScenarioUnits: number; aiDiscoveryUnits: number; aiPlanningUnits?: number; aiTotalUnits?: number; estimatedUnits: number; accounting?: string }
@@ -749,7 +776,7 @@ export interface V2TestPlan {
   updatedAt?: string;
   scenarios: V2Scenario[];
   policyDecisions: V2PolicyDecision[];
-  testCases?: Array<{ id: string; scenarioId: string; status: V2CaseStatus; result?: unknown }>;
+  testCases?: Array<{ id: string; scenarioId: string; status: V2CaseStatus; role?: string | null; device?: string | null; browser?: string | null; network?: string | null; dataState?: string | null; result?: unknown }>;
 }
 
 export interface RunOutcome {
