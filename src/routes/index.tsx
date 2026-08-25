@@ -7,7 +7,6 @@ import {
   Clock,
   Cpu,
   FileSearch,
-  
   Play,
   Rocket,
   ShieldCheck,
@@ -86,10 +85,9 @@ function Landing() {
             </h1>
 
             <p className="mx-auto mt-6 max-w-3xl text-base text-muted-foreground md:text-lg">
-              Matrix QA walks your critical user journeys — login, signup,
-              navigation, forms — and streams screenshots, console logs, network
-              activity, and timestamps into an evidence-grade report.
-              Deterministic. Multi-tenant. Built for developers.
+              Matrix QA walks your critical user journeys — login, signup, navigation, forms — and
+              streams screenshots, console logs, network activity, and timestamps into an
+              evidence-grade report. Deterministic. Multi-tenant. Built for developers.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
@@ -137,17 +135,12 @@ function Landing() {
                   className="rounded-lg border border-border bg-surface/50 p-3 text-left"
                 >
                   <CheckCircle2 className="mb-2 h-4 w-4 text-primary" />
-                  <div className="text-sm font-semibold text-foreground">
-                    {v.t}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {v.b}
-                  </div>
+                  <div className="text-sm font-semibold text-foreground">{v.t}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{v.b}</div>
                 </div>
               ))}
             </div>
           </div>
-
 
           {/* Hero preview */}
           <div className="relative mx-auto mt-16 max-w-6xl">
@@ -170,8 +163,8 @@ function Landing() {
               One URL in. A full evidence report out.
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Matrix QA’s core workflow walks auth, signup, navigation, and forms
-              with every action captured as indisputable evidence.
+              Matrix QA’s core workflow walks auth, signup, navigation, and forms with every action
+              captured as indisputable evidence.
             </p>
           </div>
 
@@ -204,9 +197,7 @@ function Landing() {
               >
                 <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 <f.icon className="h-5 w-5 text-primary" />
-                <h3 className="mt-4 font-display text-base font-semibold">
-                  {f.title}
-                </h3>
+                <h3 className="mt-4 font-display text-base font-semibold">{f.title}</h3>
                 <p className="mt-1.5 text-sm text-muted-foreground">{f.body}</p>
               </div>
             ))}
@@ -225,9 +216,9 @@ function Landing() {
               Every bug shipped with proof.
             </h2>
             <p className="mt-4 text-muted-foreground">
-              No screenshots-only. No log dumps. Every finding ties a screenshot
-              to the console line, the network call, and the exact millisecond it
-              happened. Reproducibility is the default.
+              No screenshots-only. No log dumps. Every finding ties a screenshot to the console
+              line, the network call, and the exact millisecond it happened. Reproducibility is the
+              default.
             </p>
             <ul className="mt-6 space-y-3 text-sm">
               {[
@@ -282,19 +273,14 @@ function Landing() {
                 body: "Every hard failure ships with screenshots, console logs, and network traces attached.",
               },
             ].map((s) => (
-              <li
-                key={s.n}
-                className="relative rounded-xl border border-border bg-surface/50 p-5"
-              >
+              <li key={s.n} className="relative rounded-xl border border-border bg-surface/50 p-5">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
                     step {s.n}
                   </span>
                   <s.icon className="h-4 w-4 text-primary" />
                 </div>
-                <h3 className="mt-4 font-display text-base font-semibold">
-                  {s.title}
-                </h3>
+                <h3 className="mt-4 font-display text-base font-semibold">{s.title}</h3>
                 <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
               </li>
             ))}
@@ -330,12 +316,8 @@ function Landing() {
                   key={f.title}
                   className="min-w-0 rounded-xl border border-border bg-surface/50 p-5"
                 >
-                  <h3 className="font-display text-base font-semibold">
-                    {f.title}
-                  </h3>
-                  <p className="mt-1.5 text-sm text-muted-foreground">
-                    {f.body}
-                  </p>
+                  <h3 className="font-display text-base font-semibold">{f.title}</h3>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{f.body}</p>
                   <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-background/60 p-2.5 font-mono text-[11px] leading-relaxed text-destructive">
                     {f.code}
                   </pre>
@@ -358,7 +340,6 @@ function Landing() {
               </span>
             ))}
           </div>
-
         </div>
       </section>
 
@@ -418,9 +399,7 @@ function Landing() {
                       Live
                     </span>
                   </div>
-                  <h3 className="mt-4 font-display text-base font-semibold">
-                    {s.title}
-                  </h3>
+                  <h3 className="mt-4 font-display text-base font-semibold">{s.title}</h3>
                   <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
                 </li>
               ))}
@@ -463,9 +442,7 @@ function Landing() {
                       {s.tag}
                     </span>
                   </div>
-                  <h3 className="mt-4 font-display text-base font-semibold">
-                    {s.title}
-                  </h3>
+                  <h3 className="mt-4 font-display text-base font-semibold">{s.title}</h3>
                   <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
                 </li>
               ))}
@@ -482,7 +459,8 @@ function Landing() {
             Ship without shipping bugs.
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-            Join the early developer cohort. Matrix QA is free during Preview while we prove the engine.
+            Join the early developer cohort. Matrix QA is free during Preview while we prove the
+            engine.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -503,11 +481,30 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border bg-background">
-        <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-3 px-6 py-8 md:flex-row lg:px-10 xl:px-12">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-5 px-6 py-8 md:flex-row md:items-center md:justify-between lg:px-10 xl:px-12">
           <Logo />
-          <p className="font-mono text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Matrix QA · Autonomous QA infrastructure
-          </p>
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-6 md:items-end">
+            <nav
+              className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground"
+              aria-label="Legal navigation"
+            >
+              <Link to="/terms" className="transition-colors hover:text-primary">
+                Terms of Service
+              </Link>
+              <Link to="/privacy" className="transition-colors hover:text-primary">
+                Privacy Policy
+              </Link>
+              <Link to="/cookies" className="transition-colors hover:text-primary">
+                Cookie Policy
+              </Link>
+              <a href="mailto:support@trlabs.tech" className="transition-colors hover:text-primary">
+                Contact
+              </a>
+            </nav>
+            <p className="font-mono text-xs text-muted-foreground">
+              © {new Date().getFullYear()} Matrix QA · Autonomous QA infrastructure
+            </p>
+          </div>
         </div>
       </footer>
     </div>
@@ -540,10 +537,7 @@ function HeroConsole() {
           </div>
           <div className="mt-4 grid flex-1 grid-cols-3 gap-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="rounded border border-border bg-surface p-2"
-              >
+              <div key={i} className="rounded border border-border bg-surface p-2">
                 <div className="h-1.5 w-2/3 rounded bg-foreground/60" />
                 <div className="mt-1.5 h-1 w-full rounded bg-foreground/20" />
                 <div className="mt-1 h-1 w-4/5 rounded bg-foreground/20" />
@@ -565,9 +559,7 @@ function HeroConsole() {
               live evidence
             </span>
           </div>
-          <span className="font-mono text-[10px] text-muted-foreground">
-            run_9f2c
-          </span>
+          <span className="font-mono text-[10px] text-muted-foreground">run_9f2c</span>
         </div>
         <div className="flex-1 space-y-1.5 p-3 font-mono text-[11px] leading-relaxed">
           <Line t="00:00" c="text-muted-foreground">
@@ -586,8 +578,7 @@ function HeroConsole() {
             warn: key prop missing &lt;OrderRow /&gt;
           </Line>
           <Line t="00:14" c="text-foreground">
-            POST /api/checkout/quote{" "}
-            <span className="text-destructive">500</span> 612ms
+            POST /api/checkout/quote <span className="text-destructive">500</span> 612ms
           </Line>
           <Line t="00:14" c="text-destructive">
             error: Cannot read properties of undefined (reading 'total')
@@ -601,15 +592,7 @@ function HeroConsole() {
   );
 }
 
-function Line({
-  t,
-  c,
-  children,
-}: {
-  t: string;
-  c: string;
-  children: React.ReactNode;
-}) {
+function Line({ t, c, children }: { t: string; c: string; children: React.ReactNode }) {
   return (
     <div className="flex gap-3">
       <span className="w-10 shrink-0 text-muted-foreground/70">{t}</span>
