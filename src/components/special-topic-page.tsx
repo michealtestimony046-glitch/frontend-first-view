@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { Logo } from "@/components/logo";
 import {
   Activity,
   ArrowRight,
@@ -6,7 +7,6 @@ import {
   ChevronRight,
   CircleAlert,
   FileCheck2,
-  FlaskConical,
   Gauge,
   Globe2,
   Layers3,
@@ -17,8 +17,6 @@ import {
   Terminal,
   TriangleAlert,
 } from "lucide-react";
-import type { ReactNode } from "react";
-
 type Variant = "observatory" | "control-room" | "field-manual";
 
 type Section = {
@@ -58,16 +56,7 @@ function Header({ variant }: { variant: Variant }) {
       className={`border-b ${light ? "border-[#1e2a22]/15 bg-[#efeee8]/90" : "border-white/10 bg-[#080b0d]/90"} sticky top-0 z-30 backdrop-blur-xl`}
     >
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-5 px-6 lg:px-10">
-        <Link
-          to="/"
-          className={`inline-flex items-center gap-2.5 ${light ? "text-[#17201b]" : "text-white"}`}
-          aria-label="Matrix QA home"
-        >
-          <span className="grid h-7 w-7 place-items-center rounded-md border border-primary/40 bg-primary/10 font-mono text-[10px] text-primary">
-            M
-          </span>
-          <span className="font-display text-sm font-semibold tracking-[0.18em]">MATRIX QA</span>
-        </Link>
+        <Logo className={light ? "text-[#17201b]" : "text-white"} size={28} />
         <nav
           className={`hidden items-center gap-5 text-xs sm:flex ${light ? "text-[#526057]" : "text-white/60"}`}
           aria-label="Primary navigation"
