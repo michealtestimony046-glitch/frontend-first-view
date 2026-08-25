@@ -23,13 +23,16 @@ import { Route as EvidenceBasedBugReportsRouteImport } from './routes/evidence-b
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FeaturesRouteImport } from './routes/features'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as JavascriptErrorMonitoringRouteImport } from './routes/javascript-error-monitoring'
 import { Route as MiaRouteImport } from './routes/mia'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as QaFixtureRouteImport } from './routes/qa-fixture'
 import { Route as SampleReportRouteImport } from './routes/sample-report'
+import { Route as StagingEnvironmentTestingRouteImport } from './routes/staging-environment-testing'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VisualRegressionTestingRouteImport } from './routes/visual-regression-testing'
+import { Route as WebApplicationTestingRouteImport } from './routes/web-application-testing'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppCreditsRouteImport } from './routes/app.credits'
@@ -120,6 +123,12 @@ const HowItWorksRoute = HowItWorksRouteImport.update({
   path: '/how-it-works',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JavascriptErrorMonitoringRoute =
+  JavascriptErrorMonitoringRouteImport.update({
+    id: '/javascript-error-monitoring',
+    path: '/javascript-error-monitoring',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MiaRoute = MiaRouteImport.update({
   id: '/mia',
   path: '/mia',
@@ -145,6 +154,12 @@ const SampleReportRoute = SampleReportRouteImport.update({
   path: '/sample-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StagingEnvironmentTestingRoute =
+  StagingEnvironmentTestingRouteImport.update({
+    id: '/staging-environment-testing',
+    path: '/staging-environment-testing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -153,6 +168,11 @@ const TermsRoute = TermsRouteImport.update({
 const VisualRegressionTestingRoute = VisualRegressionTestingRouteImport.update({
   id: '/visual-regression-testing',
   path: '/visual-regression-testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WebApplicationTestingRoute = WebApplicationTestingRouteImport.update({
+  id: '/web-application-testing',
+  path: '/web-application-testing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -266,13 +286,16 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/features': typeof FeaturesRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/javascript-error-monitoring': typeof JavascriptErrorMonitoringRoute
   '/mia': typeof MiaRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
+  '/staging-environment-testing': typeof StagingEnvironmentTestingRoute
   '/terms': typeof TermsRoute
   '/visual-regression-testing': typeof VisualRegressionTestingRoute
+  '/web-application-testing': typeof WebApplicationTestingRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
@@ -307,13 +330,16 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/features': typeof FeaturesRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/javascript-error-monitoring': typeof JavascriptErrorMonitoringRoute
   '/mia': typeof MiaRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
+  '/staging-environment-testing': typeof StagingEnvironmentTestingRoute
   '/terms': typeof TermsRoute
   '/visual-regression-testing': typeof VisualRegressionTestingRoute
+  '/web-application-testing': typeof WebApplicationTestingRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
@@ -349,13 +375,16 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/features': typeof FeaturesRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/javascript-error-monitoring': typeof JavascriptErrorMonitoringRoute
   '/mia': typeof MiaRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
   '/sample-report': typeof SampleReportRoute
+  '/staging-environment-testing': typeof StagingEnvironmentTestingRoute
   '/terms': typeof TermsRoute
   '/visual-regression-testing': typeof VisualRegressionTestingRoute
+  '/web-application-testing': typeof WebApplicationTestingRoute
   '/app/audit': typeof AppAuditRoute
   '/app/credits': typeof AppCreditsRoute
   '/app/discovery': typeof AppDiscoveryRoute
@@ -393,13 +422,16 @@ export interface FileRouteTypes {
     | '/faq'
     | '/features'
     | '/how-it-works'
+    | '/javascript-error-monitoring'
     | '/mia'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
     | '/sample-report'
+    | '/staging-environment-testing'
     | '/terms'
     | '/visual-regression-testing'
+    | '/web-application-testing'
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
@@ -434,13 +466,16 @@ export interface FileRouteTypes {
     | '/faq'
     | '/features'
     | '/how-it-works'
+    | '/javascript-error-monitoring'
     | '/mia'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
     | '/sample-report'
+    | '/staging-environment-testing'
     | '/terms'
     | '/visual-regression-testing'
+    | '/web-application-testing'
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
@@ -475,13 +510,16 @@ export interface FileRouteTypes {
     | '/faq'
     | '/features'
     | '/how-it-works'
+    | '/javascript-error-monitoring'
     | '/mia'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
     | '/sample-report'
+    | '/staging-environment-testing'
     | '/terms'
     | '/visual-regression-testing'
+    | '/web-application-testing'
     | '/app/audit'
     | '/app/credits'
     | '/app/discovery'
@@ -518,13 +556,16 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   FeaturesRoute: typeof FeaturesRoute
   HowItWorksRoute: typeof HowItWorksRoute
+  JavascriptErrorMonitoringRoute: typeof JavascriptErrorMonitoringRoute
   MiaRoute: typeof MiaRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   QaFixtureRoute: typeof QaFixtureRoute
   SampleReportRoute: typeof SampleReportRoute
+  StagingEnvironmentTestingRoute: typeof StagingEnvironmentTestingRoute
   TermsRoute: typeof TermsRoute
   VisualRegressionTestingRoute: typeof VisualRegressionTestingRoute
+  WebApplicationTestingRoute: typeof WebApplicationTestingRoute
   StaffInvitationsAcceptRoute: typeof StaffInvitationsAcceptRoute
   StaffInvitationsDeclineRoute: typeof StaffInvitationsDeclineRoute
 }
@@ -629,6 +670,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HowItWorksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/javascript-error-monitoring': {
+      id: '/javascript-error-monitoring'
+      path: '/javascript-error-monitoring'
+      fullPath: '/javascript-error-monitoring'
+      preLoaderRoute: typeof JavascriptErrorMonitoringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mia': {
       id: '/mia'
       path: '/mia'
@@ -664,6 +712,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SampleReportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/staging-environment-testing': {
+      id: '/staging-environment-testing'
+      path: '/staging-environment-testing'
+      fullPath: '/staging-environment-testing'
+      preLoaderRoute: typeof StagingEnvironmentTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -676,6 +731,13 @@ declare module '@tanstack/react-router' {
       path: '/visual-regression-testing'
       fullPath: '/visual-regression-testing'
       preLoaderRoute: typeof VisualRegressionTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/web-application-testing': {
+      id: '/web-application-testing'
+      path: '/web-application-testing'
+      fullPath: '/web-application-testing'
+      preLoaderRoute: typeof WebApplicationTestingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -898,13 +960,16 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   FeaturesRoute: FeaturesRoute,
   HowItWorksRoute: HowItWorksRoute,
+  JavascriptErrorMonitoringRoute: JavascriptErrorMonitoringRoute,
   MiaRoute: MiaRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   QaFixtureRoute: QaFixtureRoute,
   SampleReportRoute: SampleReportRoute,
+  StagingEnvironmentTestingRoute: StagingEnvironmentTestingRoute,
   TermsRoute: TermsRoute,
   VisualRegressionTestingRoute: VisualRegressionTestingRoute,
+  WebApplicationTestingRoute: WebApplicationTestingRoute,
   StaffInvitationsAcceptRoute: StaffInvitationsAcceptRoute,
   StaffInvitationsDeclineRoute: StaffInvitationsDeclineRoute,
 }

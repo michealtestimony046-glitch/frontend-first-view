@@ -26,6 +26,9 @@ Depending on the run and available storage, evidence can include screenshots, pa
 - Evidence-based bug reports: https://matrixqa.trlabs.tech/evidence-based-bug-reports
 - Accessibility testing: https://matrixqa.trlabs.tech/accessibility-testing
 - Authentication testing: https://matrixqa.trlabs.tech/authentication-testing
+- JavaScript error monitoring: https://matrixqa.trlabs.tech/javascript-error-monitoring
+- Staging environment testing: https://matrixqa.trlabs.tech/staging-environment-testing
+- Web application testing: https://matrixqa.trlabs.tech/web-application-testing
 
 These guides explain practical use cases and limitations. They do not claim that Matrix QA replaces unit tests, integration tests, security review, accessibility expertise, or a dedicated screenshot-baseline system unless the relevant workspace explicitly exposes that capability.
 
