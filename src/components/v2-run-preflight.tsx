@@ -10,6 +10,7 @@ import {
   type TriggerRunResponse,
   type V2ApplicationScan,
   type V2Environment,
+  type V2TestDataFixture,
   type V2MissionAccessMode,
   normalizeV2PlannerMode,
   type V2PlannerMode,
@@ -55,7 +56,9 @@ export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, 
   const [missionGoal, setMissionGoal] = useState(initialMissionGoal?.trim() || "Test this website thoroughly.");
   const [accessMode] = useState<V2MissionAccessMode>("ANONYMOUS");
   const [environments, setEnvironments] = useState<V2Environment[]>([]);
+  const [fixtures, setFixtures] = useState<V2TestDataFixture[]>([]);
   const [environmentId, setEnvironmentId] = useState("");
+  const [fixtureId, setFixtureId] = useState("");
   const [mode, setMode] = useState<V2PlannerMode>("QUICK_SMOKE");
   const [planName, setPlanName] = useState("Fresh adaptive smoke plan");
   const [enableVision, setEnableVision] = useState(false);
@@ -72,8 +75,8 @@ export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, 
 
   useEffect(() => {
     let cancelled = false;
-    v2Api.listEnvironments(project.id).then((items) => {
-      if (!cancelled) setEnvironments(items);
+    Promise.all([v2Api.listEnvironments(project.id), v2Api.listTestDataFixtures(project.id)]).then(([environmentItems, fixtureItems]) => {
+      if (!cancelled) { setEnvironments(environmentItems); setFixtures(fixtureItems.filter((fixture) => fixture.status === "ACTIVE" || fixture.status === "DRAFT")); }
     }).catch(() => undefined);
     return () => { cancelled = true; };
   }, [project.id]);
@@ -131,6 +134,7 @@ export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, 
         mode,
         missionGoal: missionGoal.trim() || "Test this website thoroughly.",
         accessMode,
+        ...(fixtureId ? { fixtureId } : {}),
       });
       setPlan(createdPlan);
       const blocked = createdPlan.policyDecisions.some((decision) => decision.status !== "ALLOWED" && decision.status !== "APPROVED");
@@ -195,6 +199,7 @@ export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, 
         <label className="block"><span className="mb-1.5 block text-xs font-medium">What should Matrix QA investigate?</span><textarea value={missionGoal} onChange={(event) => setMissionGoal(event.target.value)} disabled={busy} rows={3} maxLength={2_000} className="w-full resize-y rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm leading-5 outline-none focus:border-primary disabled:opacity-60" placeholder="Test this website thoroughly." /><span className="mt-1 block text-[11px] text-muted-foreground">Describe the goal in your own words. Matrix QA will decide the safe coverage plan from live observations.</span></label>
         <label className="block"><span className="mb-1.5 block text-xs font-medium">Target URL</span><input value={targetUrl} onChange={(event) => { setTargetUrl(event.target.value); setTargetAuthorizationConfirmed(false); }} disabled={busy || Boolean(environmentId)} placeholder="https://your-app.com" className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 font-mono text-sm outline-none focus:border-primary disabled:opacity-60" />{targetUrl.trim() && !/^https?:\/\//i.test(targetUrl.trim()) && <span className="mt-1 block text-[11px] text-muted-foreground">A protocol is missing; Matrix QA will use <code>https://</code> for this host.</span>}</label>
         {environments.length > 0 && <label className="block"><span className="mb-1.5 block text-xs font-medium">Environment <span className="font-normal text-muted-foreground">(optional)</span></span><select value={environmentId} onChange={(event) => { setEnvironmentId(event.target.value); setTargetAuthorizationConfirmed(false); setQuickScanResult(null); }} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="">Use the project target</option>{environments.map((environment) => <option key={environment.id} value={environment.id}>{environment.name} · {environment.kind}</option>)}</select></label>}
+        {fixtures.length > 0 && <label className="block"><span className="mb-1.5 block text-xs font-medium">Test-data fixture <span className="font-normal text-muted-foreground">(optional)</span></span><select value={fixtureId} onChange={(event) => setFixtureId(event.target.value)} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="">No fixture selected</option>{fixtures.map((fixture) => <option key={fixture.id} value={fixture.id}>{fixture.name} · {fixture.status}</option>)}</select><span className="mt-1 block text-[11px] text-muted-foreground">Selection records the expected data contract; lifecycle execution remains operator-controlled.</span></label>}
         <label className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-xs"><input type="checkbox" checked={targetAuthorizationConfirmed} onChange={(event) => setTargetAuthorizationConfirmed(event.target.checked)} disabled={busy} className="mt-0.5 accent-primary" /><span><span className="flex items-center gap-1.5 font-medium text-foreground"><ShieldCheck className="h-3.5 w-3.5 text-primary" />I own or am authorized to test this target</span><span className="mt-0.5 block leading-5 text-muted-foreground">Quick Scan and the browser agent will use this target only for the authorized QA run.</span></span></label>
         <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-medium">Plan mode</span><select value={mode} onChange={(event) => setMode(normalizeV2PlannerMode(event.target.value))} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="QUICK_SMOKE">Quick smoke</option><option value="STANDARD_ADAPTIVE">Standard adaptive</option><option value="DEEP_MATRIX">Deep matrix</option></select></label><label className="block"><span className="mb-1.5 block text-xs font-medium">Plan name</span><input value={planName} onChange={(event) => setPlanName(event.target.value)} disabled={busy} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary" /></label></div>
         {phase === "idle" && <p className="rounded-md border border-border/60 bg-surface-2/30 p-3 text-xs leading-5 text-muted-foreground">Click <strong className="text-foreground">Run Quick Scan &amp; prepare</strong> to measure the target first, then create a fresh map and run-specific plan. The browser starts only after the plan is ready.</p>}
