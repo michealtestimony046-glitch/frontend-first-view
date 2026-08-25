@@ -29,6 +29,10 @@ Depending on the run and available storage, evidence can include screenshots, pa
 - JavaScript error monitoring: https://matrixqa.trlabs.tech/javascript-error-monitoring
 - Staging environment testing: https://matrixqa.trlabs.tech/staging-environment-testing
 - Web application testing: https://matrixqa.trlabs.tech/web-application-testing
+- Cross-browser testing: https://matrixqa.trlabs.tech/cross-browser-testing
+- Playwright testing: https://matrixqa.trlabs.tech/playwright-testing
+- QA for SaaS: https://matrixqa.trlabs.tech/qa-for-saas
+- QA for startups: https://matrixqa.trlabs.tech/qa-for-startups
 
 These guides explain practical use cases and limitations. They do not claim that Matrix QA replaces unit tests, integration tests, security review, accessibility expertise, or a dedicated screenshot-baseline system unless the relevant workspace explicitly exposes that capability.
 
