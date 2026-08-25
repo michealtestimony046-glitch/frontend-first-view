@@ -30,6 +30,7 @@ import { Route as AppDiscoveryRouteImport } from './routes/app.discovery'
 import { Route as AppIssuesRouteImport } from './routes/app.issues'
 import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
 import { Route as AppProjectsRouteImport } from './routes/app.projects'
+import { Route as AppReliabilityRouteImport } from './routes/app.reliability'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppRunsRouteImport } from './routes/app.runs'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
@@ -147,6 +148,11 @@ const AppProjectsRoute = AppProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReliabilityRoute = AppReliabilityRouteImport.update({
+  id: '/reliability',
+  path: '/reliability',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -224,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/app/issues': typeof AppIssuesRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
+  '/app/reliability': typeof AppReliabilityRoute
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
   '/app/settings': typeof AppSettingsRouteWithChildren
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/app/issues': typeof AppIssuesRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
+  '/app/reliability': typeof AppReliabilityRoute
   '/app/reports': typeof AppReportsRoute
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
@@ -291,6 +299,7 @@ export interface FileRoutesById {
   '/app/issues': typeof AppIssuesRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/projects': typeof AppProjectsRoute
+  '/app/reliability': typeof AppReliabilityRoute
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
   '/app/settings': typeof AppSettingsRouteWithChildren
@@ -327,6 +336,7 @@ export interface FileRouteTypes {
     | '/app/issues'
     | '/app/notifications'
     | '/app/projects'
+    | '/app/reliability'
     | '/app/reports'
     | '/app/runs'
     | '/app/settings'
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/app/issues'
     | '/app/notifications'
     | '/app/projects'
+    | '/app/reliability'
     | '/app/reports'
     | '/app/settings'
     | '/auth/confirm-email'
@@ -393,6 +404,7 @@ export interface FileRouteTypes {
     | '/app/issues'
     | '/app/notifications'
     | '/app/projects'
+    | '/app/reliability'
     | '/app/reports'
     | '/app/runs'
     | '/app/settings'
@@ -575,6 +587,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/reliability': {
+      id: '/app/reliability'
+      path: '/reliability'
+      fullPath: '/app/reliability'
+      preLoaderRoute: typeof AppReliabilityRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/reports': {
       id: '/app/reports'
       path: '/reports'
@@ -689,6 +708,7 @@ interface AppRouteChildren {
   AppIssuesRoute: typeof AppIssuesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppProjectsRoute: typeof AppProjectsRoute
+  AppReliabilityRoute: typeof AppReliabilityRoute
   AppReportsRoute: typeof AppReportsRoute
   AppRunsRoute: typeof AppRunsRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
@@ -702,6 +722,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIssuesRoute: AppIssuesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppProjectsRoute: AppProjectsRoute,
+  AppReliabilityRoute: AppReliabilityRoute,
   AppReportsRoute: AppReportsRoute,
   AppRunsRoute: AppRunsRouteWithChildren,
   AppSettingsRoute: AppSettingsRouteWithChildren,

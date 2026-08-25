@@ -1515,6 +1515,96 @@ export interface StaffInvitationPreview {
   expiresAt?: string;
 }
 
+export interface ReliabilitySnapshot {
+  id: string;
+  logicalTestId: string;
+  windowType: string;
+  windowStart: string;
+  windowEnd: string;
+  attemptCount: number;
+  passCount: number;
+  failCount: number;
+  blockedCount: number;
+  environmentFailureCount: number;
+  inconclusiveCount: number;
+  passRate?: number | null;
+  failureRate?: number | null;
+  flakeRate?: number | null;
+  trend?: string | null;
+  sourceAttemptWatermark: number;
+  computedAt: string;
+  algorithmVersion: string;
+}
+
+export interface ReliabilityAttempt {
+  id: string;
+  runId: string;
+  logicalTestId: string;
+  logicalTestVersionId: string;
+  attemptNumber: number;
+  parentAttemptId?: string | null;
+  retryReason?: string | null;
+  status: string;
+  outcome?: string | null;
+  classification?: string | null;
+  confidence?: number | null;
+  environmentSignatureId?: string | null;
+  fixtureSignature?: string | null;
+  deploymentId?: string | null;
+  commitSha?: string | null;
+  evidenceComplete: boolean;
+  startedAt?: string | null;
+  settledAt?: string | null;
+  durationMs?: number | null;
+  createdAt: string;
+  logicalTest?: { id: string; key: string; name: string; criticality?: string };
+  signals?: Array<{ id: string; type: string; normalizedSignature: string; rawMessageSafe?: string | null; route?: string | null; confidence?: number | null; createdAt: string }>;
+}
+
+export interface ReliabilityDashboard {
+  generatedAt: string;
+  window: { days: number; since: string };
+  summary: {
+    logicalTestCount: number;
+    attemptCount: number;
+    comparableAttemptCount: number;
+    passRate: number | null;
+    flakeRate: number | null;
+    unstableLogicalTestCount: number;
+    failureCount: number;
+    blockedCount: number;
+    environmentFailureCount: number;
+    inconclusiveCount: number;
+  };
+  logicalTests: Array<Record<string, unknown> & { id: string; name: string; latestSnapshot?: ReliabilitySnapshot | null }>;
+  attempts: ReliabilityAttempt[];
+  failureSignatures: Array<Record<string, unknown> & { id: string; normalizedTitle: string; category: string; occurrenceCount: number; passCount: number; failCount: number }>;
+  quarantines: Array<Record<string, unknown> & { id: string; logicalTestId: string; status: string; reason: string; expiresAt: string }>;
+  releaseGateDecisions: Array<Record<string, unknown> & { id: string; status: string; decisionReason: string; decidedAt: string }>;
+}
+
+export interface StaffReliabilityDashboard {
+  generatedAt: string;
+  window: { days: number; since: string };
+  summary: { attemptCount: number; passCount: number; failCount: number; passRate: number | null; quarantinedCount: number; gateStatusCounts: Record<string, number> };
+  attempts: ReliabilityAttempt[];
+  failureSignatures: Array<Record<string, unknown>>;
+  quarantines: Array<Record<string, unknown> & { id: string; status: string; reason: string; expiresAt: string }>;
+  releaseGateDecisions: Array<Record<string, unknown> & { id: string; status: string; decisionReason: string; decidedAt: string }>;
+}
+
+export const reliabilityApi = {
+  dashboard: (projectId: string, workspaceId: string, days = 30): Promise<ReliabilityDashboard> => apiRequest(`/projects/${encodeURIComponent(projectId)}/reliability?workspaceId=${encodeURIComponent(workspaceId)}&days=${encodeURIComponent(String(days))}`, { requiresAuth: true, cache: "no-store" }),
+  rerun: (projectId: string, runId: string, reason?: string): Promise<{ id: string; projectId: string; status: string; rerunOfRunId: string; reliability?: Record<string, unknown> }> => apiRequest(`/projects/${encodeURIComponent(projectId)}/reliability/runs/${encodeURIComponent(runId)}/rerun`, { method: "POST", body: JSON.stringify({ reason: reason?.trim() || undefined, idempotencyKey: `reliability-rerun-${runId}-${Date.now()}` }), requiresAuth: true, timeoutMs: 30_000 }),
+  run: (runId: string): Promise<{ runId: string; attempts: ReliabilityAttempt[]; failureSignatures: Array<Record<string, unknown>>; quarantines: Array<Record<string, unknown>>; releaseGateDecisions: Array<Record<string, unknown>> }> => apiRequest(`/runs/${encodeURIComponent(runId)}/reliability`, { requiresAuth: true, cache: "no-store" }),
+  logicalTestHistory: (logicalTestId: string, workspaceId: string, limit = 50) => apiRequest(`/logical-tests/${encodeURIComponent(logicalTestId)}/history?workspaceId=${encodeURIComponent(workspaceId)}&limit=${encodeURIComponent(String(limit))}`, { requiresAuth: true, cache: "no-store" }),
+  logicalTestSignals: (logicalTestId: string, workspaceId: string, limit = 100) => apiRequest(`/logical-tests/${encodeURIComponent(logicalTestId)}/signals?workspaceId=${encodeURIComponent(workspaceId)}&limit=${encodeURIComponent(String(limit))}`, { requiresAuth: true, cache: "no-store" }),
+  environmentCorrelation: (projectId: string, workspaceId: string) => apiRequest(`/projects/${encodeURIComponent(projectId)}/environment-correlation?workspaceId=${encodeURIComponent(workspaceId)}`, { requiresAuth: true, cache: "no-store" }),
+  evaluateReleaseGate: (runId: string) => apiRequest(`/runs/${encodeURIComponent(runId)}/release-gate/evaluate`, { method: "POST", body: JSON.stringify({}), requiresAuth: true }),
+  latestReleaseGate: (runId: string) => apiRequest(`/runs/${encodeURIComponent(runId)}/release-gate`, { requiresAuth: true, cache: "no-store" }),
+  export: (projectId: string, workspaceId: string) => apiRequest(`/projects/${encodeURIComponent(projectId)}/reliability-export?workspaceId=${encodeURIComponent(workspaceId)}`, { requiresAuth: true, cache: "no-store" }),
+};
+
 export const adminApi = {
   listCustomerAccounts: (): Promise<AdminCustomerAccount[]> => apiRequest('/admin/customers', { requiresAuth: true }),
   viewAsClient: (userId: string): Promise<AdminClientView> => apiRequest(`/admin/users/${encodeURIComponent(userId)}/view-as-client`, { requiresAuth: true }),
@@ -1535,6 +1625,13 @@ export const adminApi = {
   matrixUnits: (): Promise<AdminMatrixUnitSnapshot> => apiRequest('/admin/matrix-units', { requiresAuth: true }),
   updateMatrixUnitConfig: (data: Partial<AdminMatrixUnitConfig> & { workspaceId?: string | null }): Promise<AdminMatrixUnitConfig> => apiRequest('/admin/matrix-units/config', { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   metrics: (days = 7): Promise<AdminOperationsMetrics> => apiRequest(`/admin/metrics?days=${encodeURIComponent(String(days))}`, { requiresAuth: true }),
+  reliability: (days = 30, workspaceId?: string, projectId?: string): Promise<StaffReliabilityDashboard> => {
+    const params = new URLSearchParams({ days: String(days) });
+    if (workspaceId) params.set("workspaceId", workspaceId);
+    if (projectId) params.set("projectId", projectId);
+    return apiRequest(`/admin/reliability?${params.toString()}`, { requiresAuth: true, cache: "no-store" });
+  },
+  reviewReliabilityQuarantine: (id: string, data: { status: "ACTIVE" | "RESOLVED" | "REJECTED" | "REVOKED"; resolutionNote?: string }): Promise<StaffReliabilityDashboard["quarantines"][number]> => apiRequest(`/admin/reliability/quarantines/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(data), requiresAuth: true }),
   controlTower: (): Promise<AdminControlTowerSnapshot> => apiRequest('/admin/control-tower', { requiresAuth: true }),
   listTargetComplaints: (status?: TargetComplaintStatus): Promise<TargetComplaint[]> => apiRequest(`/target-complaints/staff${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
   reviewTargetComplaint: (id: string, data: { status: TargetComplaintStatus; staffNote?: string; suspendTarget?: boolean }): Promise<TargetComplaint> => apiRequest(`/target-complaints/staff/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
