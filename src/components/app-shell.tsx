@@ -9,6 +9,7 @@ import { Logo, MatrixMark } from "./logo";
 import { useAuth } from "@/lib/auth-context";
 import { organizationsApi, notificationsApi, type Organization } from "@/lib/api-client";
 import { MiaGuide } from "./mia-guide";
+import { DISCORD_SUPPORT_URL } from "@/lib/support";
 
 type NavItem = { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean };
 const nav: NavItem[] = [
@@ -230,7 +231,7 @@ function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
     </button>
     {open && <div className="absolute bottom-full left-0 right-0 z-40 mb-2 overflow-hidden rounded-md border border-border bg-popover shadow-2xl">
       <div className="border-b border-border px-3 py-2"><div className="truncate text-xs text-muted-foreground">{user?.email}</div></div>
-      <ul className="p-1 text-sm"><li><Link to="/app/settings" onClick={() => { setOpen(false); onNavigate?.(); }} className="flex items-center gap-2 rounded px-2 py-1.5 text-foreground hover:bg-accent"><UserCircle className="h-4 w-4 text-muted-foreground" />Account settings</Link></li><li><Link to="/app/settings" search={{ tab: "tokens" }} onClick={() => { setOpen(false); onNavigate?.(); }} className="flex items-center gap-2 rounded px-2 py-1.5 text-foreground hover:bg-accent"><KeyRound className="h-4 w-4 text-muted-foreground" />Workspace API keys</Link></li><li><Link to="/app/settings/billing" onClick={() => { setOpen(false); onNavigate?.(); }} className="flex items-center gap-2 rounded px-2 py-1.5 text-foreground hover:bg-accent"><HelpCircle className="h-4 w-4 text-muted-foreground" />Billing & usage</Link></li></ul>
+      <ul className="p-1 text-sm"><li><Link to="/app/settings" onClick={() => { setOpen(false); onNavigate?.(); }} className="flex items-center gap-2 rounded px-2 py-1.5 text-foreground hover:bg-accent"><UserCircle className="h-4 w-4 text-muted-foreground" />Account settings</Link></li><li><Link to="/app/settings" search={{ tab: "tokens" }} onClick={() => { setOpen(false); onNavigate?.(); }} className="flex items-center gap-2 rounded px-2 py-1.5 text-foreground hover:bg-accent"><KeyRound className="h-4 w-4 text-muted-foreground" />Workspace API keys</Link></li><li><Link to="/app/settings/billing" onClick={() => { setOpen(false); onNavigate?.(); }} className="flex items-center gap-2 rounded px-2 py-1.5 text-foreground hover:bg-accent"><HelpCircle className="h-4 w-4 text-muted-foreground" />Billing & usage</Link></li><li><a href={DISCORD_SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded px-2 py-1.5 text-foreground hover:bg-accent"><HelpCircle className="h-4 w-4 text-muted-foreground" />Support on Discord</a></li></ul>
       <div className="border-t border-border p-1"><button onClick={() => { logout(); setOpen(false); onNavigate?.(); }} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-destructive hover:bg-accent"><LogOut className="h-4 w-4" />Log out</button></div>
     </div>}
   </div>;

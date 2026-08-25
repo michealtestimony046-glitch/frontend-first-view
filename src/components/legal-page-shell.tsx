@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowUpRight, FileText, ShieldCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/logo";
 import type { ReactNode } from "react";
+import { DISCORD_SUPPORT_URL } from "@/lib/support";
 
 export type LegalSection = {
   title: string;
@@ -151,6 +152,9 @@ export function LegalPageShell({
             ))}
             <a href="mailto:support@trlabs.tech" className="transition-colors hover:text-primary">
               Contact
+            </a>
+            <a href={DISCORD_SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-primary">
+              Support on Discord
             </a>
           </nav>
         </div>
