@@ -158,6 +158,7 @@ function AutomatedBrowserTestingPage() {
         },
       ]}
       cta="Run a browser check"
+      variant="terminal"
     />
   );
 }

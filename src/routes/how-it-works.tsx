@@ -151,6 +151,7 @@ function HowItWorksPage() {
         },
       ]}
       cta="Start a test run"
+      variant="editorial"
     />
   );
 }
