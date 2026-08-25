@@ -10,6 +10,8 @@ export const Route = createFileRoute("/faq")({
       title: "FAQ · Matrix QA",
       description: "Answers about Matrix QA Preview, evidence, usage, and the current console.",
       path: "/faq",
+      breadcrumbLabel: "FAQ",
+      faqItems: FAQS.map(({ q, a }) => ({ question: q, answer: a })),
     }),
   component: FaqPage,
 });

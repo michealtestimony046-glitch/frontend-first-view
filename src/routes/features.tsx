@@ -2,6 +2,24 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeoPageShell } from "@/components/seo-page-shell";
 import { seoHead } from "@/lib/seo";
 
+const FEATURES_FAQS = [
+  {
+    question: "What does Matrix QA test?",
+    answer:
+      "It is designed for authorized browser-based journeys such as login, signup, navigation, forms, and other critical user flows configured for a project.",
+  },
+  {
+    question: "What evidence does a run produce?",
+    answer:
+      "Depending on the run and available storage, evidence can include screenshots, browser events, console and network observations, timestamps, logs, videos, reports, and findings.",
+  },
+  {
+    question: "Does a report guarantee that no bugs exist?",
+    answer:
+      "No. Reports are evidence for the tested journey and captured signals, not a guarantee of complete defect coverage.",
+  },
+];
+
 export const Route = createFileRoute("/features")({
   head: () =>
     seoHead({
@@ -9,6 +27,7 @@ export const Route = createFileRoute("/features")({
       description:
         "Explore Matrix QA features for authorized browser journeys, technical evidence, deterministic findings, and multi-tenant QA workflows.",
       path: "/features",
+      faqItems: FEATURES_FAQS,
     }),
   component: FeaturesPage,
 });
@@ -118,23 +137,7 @@ function FeaturesPage() {
           ),
         },
       ]}
-      faqs={[
-        {
-          question: "What does Matrix QA test?",
-          answer:
-            "It is designed for authorized browser-based journeys such as login, signup, navigation, forms, and other critical user flows configured for a project.",
-        },
-        {
-          question: "What evidence does a run produce?",
-          answer:
-            "Depending on the run and available storage, evidence can include screenshots, browser events, console and network observations, timestamps, logs, videos, reports, and findings.",
-        },
-        {
-          question: "Does a report guarantee that no bugs exist?",
-          answer:
-            "No. Reports are evidence for the tested journey and captured signals, not a guarantee of complete defect coverage.",
-        },
-      ]}
+      faqs={FEATURES_FAQS}
       cta="Explore the console"
       variant="split"
     />

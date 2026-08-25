@@ -11,6 +11,7 @@ export const Route = createFileRoute("/accessibility-testing")({
       title: page.title,
       description: page.description,
       path: "/accessibility-testing",
+      faqItems: page.faqs,
     }),
   component: () => <SeoTopicPage config={page} />,
 });

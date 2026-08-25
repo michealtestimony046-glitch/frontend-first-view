@@ -11,6 +11,7 @@ export const Route = createFileRoute("/cross-browser-testing")({
       title: "Cross-Browser Testing for Web Apps | Matrix QA",
       description: page.description,
       path: "/cross-browser-testing",
+      faqItems: page.faqs,
     }),
   component: () => <SpecialTopicPage config={page} />,
 });

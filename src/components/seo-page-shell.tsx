@@ -31,6 +31,10 @@ const relatedGuides = [
   { to: "/evidence-based-bug-reports", label: "Evidence-based reports" },
   { to: "/authentication-testing", label: "Authentication testing" },
   { to: "/accessibility-testing", label: "Accessibility testing" },
+  { to: "/cross-browser-testing", label: "Cross-browser testing" },
+  { to: "/playwright-testing", label: "Playwright testing" },
+  { to: "/qa-for-saas", label: "QA for SaaS" },
+  { to: "/qa-for-startups", label: "QA for startups" },
   { to: "/mia", label: "Meet Mia" },
 ] as const;
 

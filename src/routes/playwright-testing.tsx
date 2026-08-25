@@ -11,6 +11,7 @@ export const Route = createFileRoute("/playwright-testing")({
       title: "Playwright Testing and Browser Evidence | Matrix QA",
       description: page.description,
       path: "/playwright-testing",
+      faqItems: page.faqs,
     }),
   component: () => <SpecialTopicPage config={page} />,
 });

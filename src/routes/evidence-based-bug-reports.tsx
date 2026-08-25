@@ -11,6 +11,7 @@ export const Route = createFileRoute("/evidence-based-bug-reports")({
       title: page.title,
       description: page.description,
       path: "/evidence-based-bug-reports",
+      faqItems: page.faqs,
     }),
   component: () => <SeoTopicPage config={page} />,
 });
