@@ -438,6 +438,7 @@ function RunDetailPage() {
         )}
         {report.metadata?.queue && <QueueStateNotice queue={report.metadata.queue} />}
         {report.outcome && <OutcomeNotice report={report} />}
+        {report.controlPlane && <RunControlPlanePanel controlPlane={report.controlPlane} />}
         {report.incomplete && (
           <div className="mt-5 rounded-md border border-primary/25 bg-primary/5 p-4 text-sm text-muted-foreground">
             This run is still processing. The report will refresh automatically when the worker reaches a terminal state.
@@ -513,6 +514,16 @@ function RunDetailPage() {
     </RunDetailErrorBoundary>
   );
 }
+
+function RunControlPlanePanel({ controlPlane }: { controlPlane: NonNullable<RunReport["controlPlane"]> }) {
+  const environment = controlPlane.environment;
+  const dependencies = controlPlane.dependencies;
+  const fixture = controlPlane.fixture;
+  const trusted = controlPlane.disposition === "TRUSTED";
+  return <section className={`mt-5 rounded-md border p-4 ${trusted ? "border-success/25 bg-success/5" : "border-warning/30 bg-warning/5"}`} aria-label="Environment and test-data trust"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Run conditions</div><h2 className="mt-1 font-display text-base font-semibold">{trusted ? "Trusted test conditions" : "Conditions need review"}</h2><p className="mt-1 text-xs text-muted-foreground">This signal describes what Matrix QA verified before the worker started.</p></div><span className={`rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-wider ${trusted ? "border-success/30 bg-success/10 text-success" : "border-warning/30 bg-warning/10 text-warning"}`}>{String(controlPlane.disposition || "UNVERIFIED").replaceAll("_", " ")}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-3"><TrustCell label="Environment" value={environment?.healthStatus || "NOT_CONFIGURED"} detail={environment?.passedChecks !== undefined ? `${environment.passedChecks}/${environment.totalChecks} checks passed` : "No health probe"} /><TrustCell label="Dependencies" value={dependencies?.status || "NOT_CHECKED"} detail={dependencies?.healthy !== undefined ? `${dependencies.healthy}/${dependencies.total} healthy` : "No dependency check"} /><TrustCell label="Fixture" value={fixture?.validationStatus || fixture?.status || "NOT_CONFIGURED"} detail={fixture?.name || "No fixture selected"} /></div></section>;
+}
+
+function TrustCell({ label, value, detail }: { label: string; value: string; detail: string }) { return <div className="rounded border border-border/70 bg-surface/40 px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div><div className="mt-1 text-xs font-semibold text-foreground">{value.replaceAll("_", " ")}</div><div className="mt-0.5 truncate text-[11px] text-muted-foreground">{detail}</div></div>; }
 
 function RunReliabilityPanel({ reliability }: { reliability: Awaited<ReturnType<typeof reliabilityApi.run>> }) {
   const attempts = reliability.attempts || [];
