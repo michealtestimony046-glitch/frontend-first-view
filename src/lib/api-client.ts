@@ -416,6 +416,14 @@ export interface RunScreenshot {
   t?: number;
   label: string;
   url?: string;
+  annotatedFilename?: string;
+  annotatedUrl?: string | null;
+  annotationStatus?: "APPLIED" | "SKIPPED" | string;
+  annotationBox?: { x: number; y: number; width: number; height: number };
+  viewport?: { width: number; height: number; deviceMode?: string; isMobile?: boolean };
+  redactionStatus?: string;
+  redactionDetectorCount?: number;
+  ocrUsed?: boolean;
 }
 export interface RunError {
   subtype: string;
