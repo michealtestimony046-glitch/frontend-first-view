@@ -74,7 +74,7 @@ function MiaPage() {
       <header className="border-b border-white/10 bg-[#080b0d]/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-5 px-6 lg:px-10">
           <Link to="/" aria-label="Matrix QA home" className="inline-flex items-center gap-2.5">
-            <img src="/matrixqa-favicon.png" alt="" className="h-7 w-7" />
+            <img src="/matrixqa-icon.svg" alt="" className="h-7 w-7" />
             <span className="font-display text-sm font-semibold tracking-[0.18em]">MATRIX QA</span>
           </Link>
           <div className="flex items-center gap-3 text-xs">
