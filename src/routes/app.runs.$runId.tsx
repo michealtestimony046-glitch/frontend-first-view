@@ -631,6 +631,7 @@ function ExecutionStatusNotice({ report }: { report: RunReport }) {
 function V2PlanResults({ plan }: { plan: V2TestPlan }) {
   const allowed = plan.policyDecisions.filter((decision) => decision.status === "ALLOWED" || decision.status === "APPROVED").length;
   const blocked = plan.policyDecisions.filter((decision) => decision.status === "BLOCKED" || decision.status === "REJECTED").length;
+  const viewportMatrix = plan.projectMap?.viewportMatrix ?? plan.projectMap?.billingBreakdown?.viewportMatrix ?? [];
   return (
     <section className="mt-8 surface-card overflow-hidden">
       <div className="border-b border-border px-5 py-4">
@@ -648,6 +649,7 @@ function V2PlanResults({ plan }: { plan: V2TestPlan }) {
           {plan.scenarios.length} planned scenario{plan.scenarios.length === 1 ? "" : "s"} · {allowed} policy decision{allowed === 1 ? "" : "s"} allowed · {blocked} blocked
         </p>
       </div>
+      {viewportMatrix.length > 1 && <ViewportOutcomeMatrix plan={plan} />}
       <div className="grid gap-6 p-5 lg:grid-cols-[1.25fr_1fr]">
         <div>
           <h3 className="font-display text-sm font-semibold">Scenario outcomes</h3>
@@ -663,6 +665,44 @@ function V2PlanResults({ plan }: { plan: V2TestPlan }) {
             )}
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function ViewportOutcomeMatrix({ plan }: { plan: V2TestPlan }) {
+  const viewports = plan.projectMap?.viewportMatrix ?? plan.projectMap?.billingBreakdown?.viewportMatrix ?? [];
+  const cases = plan.testCases ?? [];
+  if (viewports.length <= 1) return null;
+  return (
+    <section className="border-y border-border bg-surface-2/20 px-5 py-4" aria-label="Viewport outcomes">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-display text-sm font-semibold">Viewport outcomes</h3>
+          <p className="mt-1 text-xs text-muted-foreground">Each approved scenario was evaluated in an isolated browser context. A result is scoped to the viewport where it was observed.</p>
+        </div>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-primary">{viewports.length} conditions</span>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        {viewports.map((viewport) => {
+          const viewportCases = cases.filter((testCase) => testCase.device === viewport.id);
+          const passed = viewportCases.filter((testCase) => testCase.status === "PASSED").length;
+          return (
+            <div key={viewport.id} className="border border-border bg-background/35 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div><div className="text-xs font-semibold text-foreground">{viewport.label}</div><div className="mt-1 font-mono text-[10px] text-muted-foreground">{viewport.preset} · {viewport.width}×{viewport.height}</div></div>
+                <span className="font-mono text-[10px] text-muted-foreground">{passed}/{viewportCases.length || plan.scenarios.length} pass</span>
+              </div>
+              <div className="mt-3 divide-y divide-border border-y border-border">
+                {plan.scenarios.map((scenario) => {
+                  const testCase = viewportCases.find((candidate) => candidate.scenarioId === scenario.id);
+                  const outcome = testCase?.status ?? "NEEDS_REVIEW";
+                  return <div key={`${viewport.id}:${scenario.id}`} className="flex items-center justify-between gap-2 py-2"><span className="min-w-0 truncate text-xs text-foreground/80">{scenario.name}</span><OutcomeBadge value={outcome} /></div>;
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -709,6 +749,18 @@ function describeScenarioResult(result: unknown) {
   }
   if (typeof record.message === "string" && record.message.trim()) return record.message;
   if (typeof record.url === "string" && record.url.trim()) return `Rendered ${record.url}`;
+  if (Array.isArray(record.viewportResults)) {
+    const results = record.viewportResults.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item))).slice(0, 6);
+    const summarized = results.map((item) => {
+      const viewport = item.viewport && typeof item.viewport === "object" && !Array.isArray(item.viewport) ? item.viewport as Record<string, unknown> : {};
+      const label = typeof viewport.label === "string" ? viewport.label : typeof item.device === "string" ? item.device : "viewport";
+      const status = typeof item.status === "string" ? item.status.replaceAll("_", " ") : "needs review";
+      const nested = item.result && typeof item.result === "object" && !Array.isArray(item.result) ? item.result as Record<string, unknown> : {};
+      const detail = typeof nested.assertionNarrative === "string" ? nested.assertionNarrative : typeof nested.actual === "string" ? nested.actual : "";
+      return `${label}: ${status}${detail ? ` — ${detail}` : ""}`;
+    });
+    if (summarized.length > 0) return summarized.join(" · ");
+  }
   return "No textual result was recorded for this scenario.";
 }
 
@@ -1240,6 +1292,8 @@ function QaActivityPanel({ state }: { state: QaLiveState | null }) {
   const healthy = state.persistence.health === "healthy";
   const viewport = state.run.currentViewport;
   const viewportText = formatViewportLabel(viewport);
+  const viewportMatrix = state.run.viewportMatrix ?? [];
+  const viewportMatrixText = viewportMatrix.length > 1 ? viewportMatrix.map((item) => `${item.label} (${item.width}×${item.height})`).join(" · ") : null;
   const syncedText = state.persistence.lastSyncedAt ? new Date(state.persistence.lastSyncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "pending";
   return (
     <section className="border-b border-white/10 bg-black/10 px-3 py-3 backdrop-blur-md sm:px-4" aria-label="QA Activity and Agent Notes" aria-live="polite">
@@ -1253,7 +1307,7 @@ function QaActivityPanel({ state }: { state: QaLiveState | null }) {
       <div className="mt-3 grid gap-1.5 font-mono text-[10px] leading-4 text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex min-w-0 gap-2"><span className="shrink-0 text-primary/80">phase$</span><span className="truncate text-foreground/80">{state.run.currentPhase || "not recorded"}</span></div>
         <div className="flex min-w-0 gap-2"><span className="shrink-0 text-primary/80">route$</span><span className="truncate text-foreground/80">{state.run.currentRoute || state.run.targetUrl}</span></div>
-        <div className="flex min-w-0 gap-2"><span className="shrink-0 text-primary/80">viewport$</span><span className="text-foreground/80">{viewportText}</span></div>
+        <div className="flex min-w-0 gap-2"><span className="shrink-0 text-primary/80">viewport$</span><span className="min-w-0 text-foreground/80"><span>{viewportText}{viewportMatrix.length > 1 ? ` · ${viewportMatrix.length} contexts` : ""}</span>{viewportMatrixText && <span className="mt-0.5 block truncate text-[9px] text-muted-foreground" title={viewportMatrixText}>{viewportMatrixText}</span>}</span></div>
         <div className="flex min-w-0 gap-2"><span className="shrink-0 text-primary/80">sync$</span><span className="text-foreground/80">seq {state.persistence.latestSyncedSequence}/{state.persistence.latestEventSequence} · {syncedText}{state.persistence.backlog ? ` · ${state.persistence.backlog} pending` : ""}</span></div>
       </div>
       <div className="mt-3 max-h-[420px] overflow-auto rounded-md border border-white/10 bg-background/15 px-3 py-3 sm:max-h-[500px]">
