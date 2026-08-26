@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 export function MatrixMark({ size = 28, className = "" }: { size?: number; className?: string }) {
   return (
     <img
-      src="/matrixqa-favicon.png"
+      src="/matrixqa-icon.svg"
       width={size}
       height={size}
       className={`object-contain ${className}`}
