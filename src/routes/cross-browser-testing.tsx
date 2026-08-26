@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SpecialTopicPage } from "@/components/special-topic-page";
 import { seoHead } from "@/lib/seo";
-import { specialTopicPages } from "./special-topic-content";
+import { finalFourPages } from "./final-four-content";
 
-const page = specialTopicPages["/javascript-error-monitoring"];
+const page = finalFourPages["/cross-browser-testing"];
 
-export const Route = createFileRoute("/javascript-error-monitoring")({
+export const Route = createFileRoute("/cross-browser-testing")({
   head: () =>
     seoHead({
-      title: "JavaScript Error Monitoring with Browser Evidence | Matrix QA",
+      title: "Cross-Browser Testing for Web Apps | Matrix QA",
       description: page.description,
-      path: "/javascript-error-monitoring",
+      path: "/cross-browser-testing",
       faqItems: page.faqs,
     }),
   component: () => <SpecialTopicPage config={page} />,

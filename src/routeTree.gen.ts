@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AccessibilityTestingRouteImport } from './routes/accessibility-testing'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
@@ -18,6 +19,7 @@ import { Route as AuthenticationTestingRouteImport } from './routes/authenticati
 import { Route as AutomatedBrowserTestingRouteImport } from './routes/automated-browser-testing'
 import { Route as CiCdTestingRouteImport } from './routes/ci-cd-testing'
 import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as CrossBrowserTestingRouteImport } from './routes/cross-browser-testing'
 import { Route as EndToEndTestingRouteImport } from './routes/end-to-end-testing'
 import { Route as EvidenceBasedBugReportsRouteImport } from './routes/evidence-based-bug-reports'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -25,9 +27,12 @@ import { Route as FeaturesRouteImport } from './routes/features'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as JavascriptErrorMonitoringRouteImport } from './routes/javascript-error-monitoring'
 import { Route as MiaRouteImport } from './routes/mia'
+import { Route as PlaywrightTestingRouteImport } from './routes/playwright-testing'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as QaFixtureRouteImport } from './routes/qa-fixture'
+import { Route as QaForSaasRouteImport } from './routes/qa-for-saas'
+import { Route as QaForStartupsRouteImport } from './routes/qa-for-startups'
 import { Route as SampleReportRouteImport } from './routes/sample-report'
 import { Route as StagingEnvironmentTestingRouteImport } from './routes/staging-environment-testing'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -57,6 +62,11 @@ import { Route as AppSettingsOrganizationRouteImport } from './routes/app.settin
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccessibilityTestingRoute = AccessibilityTestingRouteImport.update({
@@ -99,6 +109,11 @@ const CookiesRoute = CookiesRouteImport.update({
   path: '/cookies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrossBrowserTestingRoute = CrossBrowserTestingRouteImport.update({
+  id: '/cross-browser-testing',
+  path: '/cross-browser-testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EndToEndTestingRoute = EndToEndTestingRouteImport.update({
   id: '/end-to-end-testing',
   path: '/end-to-end-testing',
@@ -135,6 +150,11 @@ const MiaRoute = MiaRouteImport.update({
   path: '/mia',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlaywrightTestingRoute = PlaywrightTestingRouteImport.update({
+  id: '/playwright-testing',
+  path: '/playwright-testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
@@ -148,6 +168,16 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const QaFixtureRoute = QaFixtureRouteImport.update({
   id: '/qa-fixture',
   path: '/qa-fixture',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QaForSaasRoute = QaForSaasRouteImport.update({
+  id: '/qa-for-saas',
+  path: '/qa-for-saas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QaForStartupsRoute = QaForStartupsRouteImport.update({
+  id: '/qa-for-startups',
+  path: '/qa-for-startups',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SampleReportRoute = SampleReportRouteImport.update({
@@ -279,6 +309,7 @@ const AppSettingsOrganizationRoute = AppSettingsOrganizationRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/accessibility-testing': typeof AccessibilityTestingRoute
   '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
@@ -287,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/automated-browser-testing': typeof AutomatedBrowserTestingRoute
   '/ci-cd-testing': typeof CiCdTestingRoute
   '/cookies': typeof CookiesRoute
+  '/cross-browser-testing': typeof CrossBrowserTestingRoute
   '/end-to-end-testing': typeof EndToEndTestingRoute
   '/evidence-based-bug-reports': typeof EvidenceBasedBugReportsRoute
   '/faq': typeof FaqRoute
@@ -294,9 +326,12 @@ export interface FileRoutesByFullPath {
   '/how-it-works': typeof HowItWorksRoute
   '/javascript-error-monitoring': typeof JavascriptErrorMonitoringRoute
   '/mia': typeof MiaRoute
+  '/playwright-testing': typeof PlaywrightTestingRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
+  '/qa-for-saas': typeof QaForSaasRoute
+  '/qa-for-startups': typeof QaForStartupsRoute
   '/sample-report': typeof SampleReportRoute
   '/staging-environment-testing': typeof StagingEnvironmentTestingRoute
   '/terms': typeof TermsRoute
@@ -325,6 +360,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/accessibility-testing': typeof AccessibilityTestingRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRouteWithChildren
@@ -332,6 +368,7 @@ export interface FileRoutesByTo {
   '/automated-browser-testing': typeof AutomatedBrowserTestingRoute
   '/ci-cd-testing': typeof CiCdTestingRoute
   '/cookies': typeof CookiesRoute
+  '/cross-browser-testing': typeof CrossBrowserTestingRoute
   '/end-to-end-testing': typeof EndToEndTestingRoute
   '/evidence-based-bug-reports': typeof EvidenceBasedBugReportsRoute
   '/faq': typeof FaqRoute
@@ -339,9 +376,12 @@ export interface FileRoutesByTo {
   '/how-it-works': typeof HowItWorksRoute
   '/javascript-error-monitoring': typeof JavascriptErrorMonitoringRoute
   '/mia': typeof MiaRoute
+  '/playwright-testing': typeof PlaywrightTestingRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
+  '/qa-for-saas': typeof QaForSaasRoute
+  '/qa-for-startups': typeof QaForStartupsRoute
   '/sample-report': typeof SampleReportRoute
   '/staging-environment-testing': typeof StagingEnvironmentTestingRoute
   '/terms': typeof TermsRoute
@@ -370,6 +410,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/accessibility-testing': typeof AccessibilityTestingRoute
   '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
@@ -378,6 +419,7 @@ export interface FileRoutesById {
   '/automated-browser-testing': typeof AutomatedBrowserTestingRoute
   '/ci-cd-testing': typeof CiCdTestingRoute
   '/cookies': typeof CookiesRoute
+  '/cross-browser-testing': typeof CrossBrowserTestingRoute
   '/end-to-end-testing': typeof EndToEndTestingRoute
   '/evidence-based-bug-reports': typeof EvidenceBasedBugReportsRoute
   '/faq': typeof FaqRoute
@@ -385,9 +427,12 @@ export interface FileRoutesById {
   '/how-it-works': typeof HowItWorksRoute
   '/javascript-error-monitoring': typeof JavascriptErrorMonitoringRoute
   '/mia': typeof MiaRoute
+  '/playwright-testing': typeof PlaywrightTestingRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/qa-fixture': typeof QaFixtureRoute
+  '/qa-for-saas': typeof QaForSaasRoute
+  '/qa-for-startups': typeof QaForStartupsRoute
   '/sample-report': typeof SampleReportRoute
   '/staging-environment-testing': typeof StagingEnvironmentTestingRoute
   '/terms': typeof TermsRoute
@@ -418,6 +463,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/accessibility-testing'
     | '/admin'
     | '/app'
@@ -426,6 +472,7 @@ export interface FileRouteTypes {
     | '/automated-browser-testing'
     | '/ci-cd-testing'
     | '/cookies'
+    | '/cross-browser-testing'
     | '/end-to-end-testing'
     | '/evidence-based-bug-reports'
     | '/faq'
@@ -433,9 +480,12 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/javascript-error-monitoring'
     | '/mia'
+    | '/playwright-testing'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
+    | '/qa-for-saas'
+    | '/qa-for-startups'
     | '/sample-report'
     | '/staging-environment-testing'
     | '/terms'
@@ -464,6 +514,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/accessibility-testing'
     | '/admin'
     | '/auth'
@@ -471,6 +522,7 @@ export interface FileRouteTypes {
     | '/automated-browser-testing'
     | '/ci-cd-testing'
     | '/cookies'
+    | '/cross-browser-testing'
     | '/end-to-end-testing'
     | '/evidence-based-bug-reports'
     | '/faq'
@@ -478,9 +530,12 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/javascript-error-monitoring'
     | '/mia'
+    | '/playwright-testing'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
+    | '/qa-for-saas'
+    | '/qa-for-startups'
     | '/sample-report'
     | '/staging-environment-testing'
     | '/terms'
@@ -508,6 +563,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/accessibility-testing'
     | '/admin'
     | '/app'
@@ -516,6 +572,7 @@ export interface FileRouteTypes {
     | '/automated-browser-testing'
     | '/ci-cd-testing'
     | '/cookies'
+    | '/cross-browser-testing'
     | '/end-to-end-testing'
     | '/evidence-based-bug-reports'
     | '/faq'
@@ -523,9 +580,12 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/javascript-error-monitoring'
     | '/mia'
+    | '/playwright-testing'
     | '/pricing'
     | '/privacy'
     | '/qa-fixture'
+    | '/qa-for-saas'
+    | '/qa-for-startups'
     | '/sample-report'
     | '/staging-environment-testing'
     | '/terms'
@@ -555,6 +615,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AccessibilityTestingRoute: typeof AccessibilityTestingRoute
   AdminRoute: typeof AdminRoute
   AppRoute: typeof AppRouteWithChildren
@@ -563,6 +624,7 @@ export interface RootRouteChildren {
   AutomatedBrowserTestingRoute: typeof AutomatedBrowserTestingRoute
   CiCdTestingRoute: typeof CiCdTestingRoute
   CookiesRoute: typeof CookiesRoute
+  CrossBrowserTestingRoute: typeof CrossBrowserTestingRoute
   EndToEndTestingRoute: typeof EndToEndTestingRoute
   EvidenceBasedBugReportsRoute: typeof EvidenceBasedBugReportsRoute
   FaqRoute: typeof FaqRoute
@@ -570,9 +632,12 @@ export interface RootRouteChildren {
   HowItWorksRoute: typeof HowItWorksRoute
   JavascriptErrorMonitoringRoute: typeof JavascriptErrorMonitoringRoute
   MiaRoute: typeof MiaRoute
+  PlaywrightTestingRoute: typeof PlaywrightTestingRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   QaFixtureRoute: typeof QaFixtureRoute
+  QaForSaasRoute: typeof QaForSaasRoute
+  QaForStartupsRoute: typeof QaForStartupsRoute
   SampleReportRoute: typeof SampleReportRoute
   StagingEnvironmentTestingRoute: typeof StagingEnvironmentTestingRoute
   TermsRoute: typeof TermsRoute
@@ -589,6 +654,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accessibility-testing': {
@@ -647,6 +719,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CookiesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cross-browser-testing': {
+      id: '/cross-browser-testing'
+      path: '/cross-browser-testing'
+      fullPath: '/cross-browser-testing'
+      preLoaderRoute: typeof CrossBrowserTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/end-to-end-testing': {
       id: '/end-to-end-testing'
       path: '/end-to-end-testing'
@@ -696,6 +775,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MiaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/playwright-testing': {
+      id: '/playwright-testing'
+      path: '/playwright-testing'
+      fullPath: '/playwright-testing'
+      preLoaderRoute: typeof PlaywrightTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pricing': {
       id: '/pricing'
       path: '/pricing'
@@ -715,6 +801,20 @@ declare module '@tanstack/react-router' {
       path: '/qa-fixture'
       fullPath: '/qa-fixture'
       preLoaderRoute: typeof QaFixtureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qa-for-saas': {
+      id: '/qa-for-saas'
+      path: '/qa-for-saas'
+      fullPath: '/qa-for-saas'
+      preLoaderRoute: typeof QaForSaasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qa-for-startups': {
+      id: '/qa-for-startups'
+      path: '/qa-for-startups'
+      fullPath: '/qa-for-startups'
+      preLoaderRoute: typeof QaForStartupsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sample-report': {
@@ -968,6 +1068,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AccessibilityTestingRoute: AccessibilityTestingRoute,
   AdminRoute: AdminRoute,
   AppRoute: AppRouteWithChildren,
@@ -976,6 +1077,7 @@ const rootRouteChildren: RootRouteChildren = {
   AutomatedBrowserTestingRoute: AutomatedBrowserTestingRoute,
   CiCdTestingRoute: CiCdTestingRoute,
   CookiesRoute: CookiesRoute,
+  CrossBrowserTestingRoute: CrossBrowserTestingRoute,
   EndToEndTestingRoute: EndToEndTestingRoute,
   EvidenceBasedBugReportsRoute: EvidenceBasedBugReportsRoute,
   FaqRoute: FaqRoute,
@@ -983,9 +1085,12 @@ const rootRouteChildren: RootRouteChildren = {
   HowItWorksRoute: HowItWorksRoute,
   JavascriptErrorMonitoringRoute: JavascriptErrorMonitoringRoute,
   MiaRoute: MiaRoute,
+  PlaywrightTestingRoute: PlaywrightTestingRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   QaFixtureRoute: QaFixtureRoute,
+  QaForSaasRoute: QaForSaasRoute,
+  QaForStartupsRoute: QaForStartupsRoute,
   SampleReportRoute: SampleReportRoute,
   StagingEnvironmentTestingRoute: StagingEnvironmentTestingRoute,
   TermsRoute: TermsRoute,

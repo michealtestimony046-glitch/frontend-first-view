@@ -11,6 +11,7 @@ export const Route = createFileRoute("/ci-cd-testing")({
       title: page.title,
       description: page.description,
       path: "/ci-cd-testing",
+      faqItems: page.faqs,
     }),
   component: () => <SeoTopicPage config={page} />,
 });

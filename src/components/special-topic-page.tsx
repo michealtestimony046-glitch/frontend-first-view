@@ -1,23 +1,35 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/logo";
+import { DISCORD_SUPPORT_URL } from "@/lib/support";
 import {
   Activity,
   ArrowRight,
+  Code2,
   Check,
   ChevronRight,
   CircleAlert,
   FileCheck2,
   Gauge,
   Globe2,
+  MonitorSmartphone,
   Layers3,
   LockKeyhole,
   Network,
   Radar,
+  Rocket,
   ShieldCheck,
   Terminal,
   TriangleAlert,
+  UsersRound,
 } from "lucide-react";
-type Variant = "observatory" | "control-room" | "field-manual";
+type Variant =
+  | "observatory"
+  | "control-room"
+  | "field-manual"
+  | "compatibility"
+  | "workbench"
+  | "tenant-board"
+  | "launch-desk";
 
 type Section = {
   kicker: string;
@@ -50,13 +62,17 @@ export type SpecialTopicPageConfig = {
 };
 
 function Header({ variant }: { variant: Variant }) {
-  const light = variant === "field-manual";
+  const light = variant === "field-manual" || variant === "launch-desk";
   return (
     <header
       className={`border-b ${light ? "border-[#1e2a22]/15 bg-[#efeee8]/90" : "border-white/10 bg-[#080b0d]/90"} sticky top-0 z-30 backdrop-blur-xl`}
     >
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-5 px-6 lg:px-10">
-        <Logo className={light ? "text-[#17201b]" : "text-white"} size={28} />
+        <Logo
+          className={light ? "text-[#17201b]" : "text-white"}
+          size={28}
+          tone={light ? "light" : "dark"}
+        />
         <nav
           className={`hidden items-center gap-5 text-xs sm:flex ${light ? "text-[#526057]" : "text-white/60"}`}
           aria-label="Primary navigation"
@@ -291,10 +307,282 @@ function FieldManualHero({ config }: { config: SpecialTopicPageConfig }) {
   );
 }
 
+function CompatibilityHero({ config }: { config: SpecialTopicPageConfig }) {
+  const browsers = ["Chromium", "Firefox", "WebKit", "Mobile"];
+  return (
+    <section className="border-b border-[#9db7ff]/15 bg-[#0b1020] text-[#eef3ff]">
+      <div className="mx-auto max-w-7xl px-6 py-14 lg:px-10 lg:py-24">
+        <div className="grid gap-12 lg:grid-cols-[.8fr_1.2fr] lg:items-end">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[.22em] text-[#9db7ff]">
+              {config.eyebrow}
+            </p>
+            <h1 className="mt-6 font-display text-5xl font-medium leading-[.96] tracking-[-.05em] sm:text-7xl">
+              {config.title}
+            </h1>
+            <p className="mt-7 max-w-xl text-lg leading-8 text-[#eef3ff]/60">{config.summary}</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/auth"
+                search={{ mode: "signup", returnTo: "/app" }}
+                className="inline-flex items-center gap-2 rounded-md bg-[#9db7ff] px-4 py-3 text-sm font-semibold text-[#0b1020]"
+              >
+                {config.cta}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <span className="self-center font-mono text-[10px] uppercase tracking-widest text-[#eef3ff]/35">
+                {config.intent}
+              </span>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-[#9db7ff]/20 bg-[#111a32] p-5">
+            <div className="flex items-center justify-between border-b border-[#9db7ff]/15 pb-4 font-mono text-[10px] uppercase tracking-[.18em] text-[#9db7ff]">
+              <span className="flex items-center gap-2">
+                <MonitorSmartphone className="h-4 w-4" /> compatibility switchboard
+              </span>
+              <span>matrix view</span>
+            </div>
+            <div className="mt-5 overflow-hidden rounded-xl border border-[#9db7ff]/15">
+              <div className="grid grid-cols-[1.25fr_repeat(4,.8fr)] bg-[#182442] text-[10px] uppercase tracking-widest text-[#eef3ff]/45">
+                <span className="p-3">journey</span>
+                {browsers.map((browser) => (
+                  <span key={browser} className="p-3 text-center">
+                    {browser}
+                  </span>
+                ))}
+              </div>
+              {["Sign-in", "Core form", "Responsive nav", "Error state"].map((journey, row) => (
+                <div
+                  key={journey}
+                  className="grid grid-cols-[1.25fr_repeat(4,.8fr)] border-t border-[#9db7ff]/10 text-xs"
+                >
+                  <span className="p-3 text-[#eef3ff]/65">{journey}</span>
+                  {browsers.map((browser, col) => (
+                    <span
+                      key={browser}
+                      className="grid place-items-center border-l border-[#9db7ff]/10 p-3"
+                    >
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${row === 2 && col === 3 ? "bg-[#efb36b]" : row === 3 && col === 1 ? "bg-[#f06f75]" : "bg-[#8ed9b4]"}`}
+                      />
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-xs text-[#eef3ff]/45">
+              <Radar className="h-3.5 w-3.5 text-[#9db7ff]" /> A compatibility matrix is a plan for
+              evidence, not a promise of universal support.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WorkbenchHero({ config }: { config: SpecialTopicPageConfig }) {
+  return (
+    <section className="border-b border-[#d6a8ff]/15 bg-[#130d1c] text-[#f6efff]">
+      <div className="mx-auto grid max-w-7xl gap-10 px-6 py-14 lg:grid-cols-[1.1fr_.9fr] lg:items-center lg:px-10 lg:py-24">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[.22em] text-[#d6a8ff]">
+            {config.eyebrow}
+          </p>
+          <h1 className="mt-6 max-w-3xl font-display text-5xl font-medium leading-[.96] tracking-[-.05em] sm:text-7xl">
+            {config.title}
+          </h1>
+          <p className="mt-7 max-w-2xl text-lg leading-8 text-[#f6efff]/60">{config.summary}</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              to="/auth"
+              search={{ mode: "signup", returnTo: "/app" }}
+              className="inline-flex items-center gap-2 rounded-md bg-[#d6a8ff] px-4 py-3 text-sm font-semibold text-[#130d1c]"
+            >
+              {config.cta}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              to="/end-to-end-testing"
+              className="inline-flex items-center gap-2 rounded-md border border-[#d6a8ff]/25 px-4 py-3 text-sm text-[#f6efff]/70"
+            >
+              Read the E2E guide <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-[#d6a8ff]/20 bg-[#1c1229] p-4 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-[#d6a8ff]/15 pb-3 font-mono text-[10px] uppercase tracking-[.16em] text-[#d6a8ff]">
+            <span className="flex items-center gap-2">
+              <Code2 className="h-3.5 w-3.5" /> test workbench
+            </span>
+            <span>trace ready</span>
+          </div>
+          <pre className="mt-5 overflow-hidden rounded-xl border border-[#d6a8ff]/15 bg-[#0d0a13] p-4 font-mono text-xs leading-6 text-[#f6efff]/70">
+            <code>{`test('checkout path', async ({ page }) => {
+  await page.goto('/checkout');
+  await page.getByRole('button').click();
+  await expect(page).toHaveURL(/done/);
+});`}</code>
+          </pre>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-widest text-[#f6efff]/45">
+            <span className="rounded-md border border-[#d6a8ff]/15 p-2">locator</span>
+            <span className="rounded-md border border-[#d6a8ff]/15 p-2">isolation</span>
+            <span className="rounded-md border border-[#d6a8ff]/15 p-2">trace</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TenantBoardHero({ config }: { config: SpecialTopicPageConfig }) {
+  return (
+    <section className="border-b border-[#f2b18e]/15 bg-[#1d1115] text-[#fff2ec]">
+      <div className="mx-auto max-w-7xl px-6 py-14 lg:px-10 lg:py-24">
+        <div className="flex flex-wrap items-end justify-between gap-10">
+          <div className="max-w-3xl">
+            <p className="font-mono text-[10px] uppercase tracking-[.22em] text-[#f2b18e]">
+              {config.eyebrow}
+            </p>
+            <h1 className="mt-6 font-display text-5xl font-medium leading-[.96] tracking-[-.05em] sm:text-7xl">
+              {config.title}
+            </h1>
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-[#fff2ec]/60">{config.summary}</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/auth"
+                search={{ mode: "signup", returnTo: "/app" }}
+                className="inline-flex items-center gap-2 rounded-md bg-[#f2b18e] px-4 py-3 text-sm font-semibold text-[#1d1115]"
+              >
+                {config.cta}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/authentication-testing"
+                className="inline-flex items-center gap-2 rounded-md border border-[#f2b18e]/25 px-4 py-3 text-sm text-[#fff2ec]/70"
+              >
+                Review auth coverage <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+          <div className="w-full max-w-xl rounded-2xl border border-[#f2b18e]/20 bg-[#2a171d] p-4">
+            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-[#f2b18e]">
+              <span className="flex items-center gap-2">
+                <UsersRound className="h-4 w-4" /> tenant operations board
+              </span>
+              <span>scope first</span>
+            </div>
+            <div className="mt-5 grid gap-2 md:grid-cols-3">
+              {["Acme / admin", "Acme / member", "Beta / owner"].map((lane, index) => (
+                <div key={lane} className="rounded-xl border border-[#f2b18e]/15 bg-[#1d1115] p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#8ed9b4]" />
+                    <span className="font-mono text-[10px] text-[#fff2ec]/35">0{index + 1}</span>
+                  </div>
+                  <p className="mt-7 text-sm font-semibold">{lane}</p>
+                  <p className="mt-2 text-xs leading-5 text-[#fff2ec]/45">
+                    role-aware path and data boundary
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center gap-2 border-t border-[#f2b18e]/15 pt-3 text-xs text-[#fff2ec]/45">
+              <ShieldCheck className="h-3.5 w-3.5 text-[#f2b18e]" /> A browser journey can provide
+              evidence; it cannot certify tenant isolation.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LaunchDeskHero({ config }: { config: SpecialTopicPageConfig }) {
+  return (
+    <section className="border-b border-[#213426]/15 bg-[#e6f0d8] text-[#17201b]">
+      <div className="mx-auto max-w-7xl px-6 py-14 lg:px-10 lg:py-24">
+        <div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr] lg:items-center">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[.22em] text-[#4b795b]">
+              {config.eyebrow}
+            </p>
+            <h1 className="mt-6 font-display text-5xl font-medium leading-[.96] tracking-[-.05em] sm:text-7xl">
+              {config.title}
+            </h1>
+            <p className="mt-7 max-w-xl text-lg leading-8 text-[#526057]">{config.summary}</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/auth"
+                search={{ mode: "signup", returnTo: "/app" }}
+                className="inline-flex items-center gap-2 rounded-md bg-[#17201b] px-4 py-3 text-sm font-semibold text-[#f5f4ed]"
+              >
+                {config.cta}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <span className="self-center font-mono text-[10px] uppercase tracking-widest text-[#718474]">
+                {config.intent}
+              </span>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-[#213426]/15 bg-[#f5f7ec] p-6">
+            <div className="flex items-center justify-between border-b border-[#213426]/15 pb-4 font-mono text-[10px] uppercase tracking-widest text-[#4b795b]">
+              <span className="flex items-center gap-2">
+                <Rocket className="h-4 w-4" /> launch desk
+              </span>
+              <span>protect first</span>
+            </div>
+            <div className="mt-5 grid gap-2 md:grid-cols-[1.1fr_.9fr]">
+              <div className="space-y-2">
+                {["Activation / sign up", "Core value moment", "Recovery / support"].map(
+                  (journey, index) => (
+                    <div
+                      key={journey}
+                      className="flex items-center justify-between rounded-lg border border-[#213426]/15 bg-white/60 p-3"
+                    >
+                      <span className="text-sm font-semibold">{journey}</span>
+                      <span
+                        className={`rounded-full px-2 py-1 font-mono text-[10px] ${index === 0 ? "bg-[#f6d37e] text-[#5b4512]" : "bg-[#cde6c8] text-[#315438]"}`}
+                      >
+                        {index === 0 ? "high risk" : "protect"}
+                      </span>
+                    </div>
+                  ),
+                )}
+              </div>
+              <div className="rounded-xl border border-[#213426]/15 bg-[#17201b] p-4 text-[#f5f4ed]">
+                <div className="font-mono text-[10px] uppercase tracking-widest text-[#9fe7b5]">
+                  risk canvas
+                </div>
+                <div className="mt-6 grid grid-cols-2 gap-2 text-center">
+                  <div className="rounded-lg bg-[#9fe7b5]/15 p-3">
+                    <div className="font-display text-2xl">3</div>
+                    <div className="mt-1 text-[10px] text-white/45">paths to protect</div>
+                  </div>
+                  <div className="rounded-lg bg-[#f6d37e]/15 p-3">
+                    <div className="font-display text-2xl">1</div>
+                    <div className="mt-1 text-[10px] text-white/45">next risk review</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-2 border-t border-[#213426]/15 pt-4 font-mono text-[10px] uppercase tracking-widest text-[#4b795b]">
+              <Check className="h-3.5 w-3.5" /> Start with evidence your team can act on.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function SpecialHero({ config }: { config: SpecialTopicPageConfig }) {
   if (config.variant === "observatory") return <ObservatoryHero config={config} />;
   if (config.variant === "control-room") return <ControlRoomHero config={config} />;
-  return <FieldManualHero config={config} />;
+  if (config.variant === "field-manual") return <FieldManualHero config={config} />;
+  if (config.variant === "compatibility") return <CompatibilityHero config={config} />;
+  if (config.variant === "workbench") return <WorkbenchHero config={config} />;
+  if (config.variant === "tenant-board") return <TenantBoardHero config={config} />;
+  return <LaunchDeskHero config={config} />;
 }
 
 function SectionBlock({
@@ -306,7 +594,7 @@ function SectionBlock({
   index: number;
   variant: Variant;
 }) {
-  const light = variant === "field-manual";
+  const light = variant === "field-manual" || variant === "launch-desk";
   return (
     <article
       className={`border-b py-10 last:border-b-0 ${light ? "border-[#1e2a22]/15" : "border-white/10"}`}
@@ -352,7 +640,7 @@ function SectionBlock({
 }
 
 export function SpecialTopicPage({ config }: { config: SpecialTopicPageConfig }) {
-  const light = config.variant === "field-manual";
+  const light = config.variant === "field-manual" || config.variant === "launch-desk";
   return (
     <div
       className={
@@ -575,6 +863,7 @@ export function SpecialTopicPage({ config }: { config: SpecialTopicPageConfig })
             <Link to="/privacy">Privacy</Link>
             <Link to="/cookies">Cookies</Link>
             <Link to="/faq">FAQ</Link>
+            <a href={DISCORD_SUPPORT_URL} target="_blank" rel="noopener noreferrer">Support on Discord</a>
           </div>
           <span>© {new Date().getFullYear()} Matrix QA · Tr Labs</span>
         </div>

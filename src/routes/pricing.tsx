@@ -8,10 +8,11 @@ import { seoHead } from "@/lib/seo";
 export const Route = createFileRoute("/pricing")({
   head: () =>
     seoHead({
-      title: "Pricing · Matrix QA Preview",
+      title: "Matrix QA Pricing | Free Public Preview",
       description:
-        "Matrix QA is free during Public Preview while we validate the Core Engine. No credit card. Paid plans will be introduced as the product expands.",
+        "Matrix QA is free during Public Preview with no credit card or checkout. See what is available today and which future plans are directional.",
       path: "/pricing",
+      faqItems: pricingFaqs,
     }),
   component: PricingPage,
 });
@@ -24,6 +25,29 @@ type ComingPlan = {
   features: string[];
   cta: string;
 };
+
+const pricingFaqs = [
+  {
+    question: "Is Matrix QA free right now?",
+    answer:
+      "Yes. Matrix QA is free during Public Preview. There is no credit card requirement and no checkout flow in the current Preview experience.",
+  },
+  {
+    question: "What is included in the Preview?",
+    answer:
+      "The current Preview is designed to evaluate the Matrix QA Core Engine, including browser-worker journeys, evidence capture, bug reports, and the dashboard experience. Usage limits may change while the platform is being improved.",
+  },
+  {
+    question: "Are the Starter, Pro, Business, and Enterprise prices available today?",
+    answer:
+      "No. The displayed paid plans and prices are directional roadmap information. They are marked Planned and are not available for purchase during Public Preview.",
+  },
+  {
+    question: "How do I try Matrix QA?",
+    answer:
+      "Join the Public Preview from the signup route, then use the authenticated console to evaluate the current browser-worker and evidence-reporting experience.",
+  },
+] satisfies { question: string; answer: string }[];
 
 const comingPlans: ComingPlan[] = [
   {
@@ -160,6 +184,7 @@ function PricingPage() {
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
               to="/auth"
+              search={{ mode: "signup", returnTo: "/app" }}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow hover:-translate-y-px"
             >
               Request early access
@@ -225,6 +250,7 @@ function PricingPage() {
             <div className="relative mt-7 flex flex-wrap items-center justify-between gap-3">
               <Link
                 to="/auth"
+                search={{ mode: "signup", returnTo: "/app" }}
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow"
               >
                 Join Preview
@@ -339,23 +365,48 @@ function PricingPage() {
         </div>
       </section>
 
-      <section className="border-t border-border bg-surface/30">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-5 px-6 py-12">
-          <div>
+      <section
+        className="border-t border-border bg-surface/30"
+        aria-labelledby="pricing-faq-heading"
+      >
+        <div className="mx-auto max-w-5xl px-6 py-16 md:py-20">
+          <div className="max-w-2xl">
             <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
-              Need answers?
+              Pricing answers
             </span>
-            <h2 className="mt-2 font-display text-2xl font-semibold">Read the living FAQ.</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Usage, evidence, Preview, and what is planned next.
+            <h2
+              id="pricing-faq-heading"
+              className="mt-3 font-display text-2xl font-semibold md:text-3xl"
+            >
+              What is available today?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              The clearest way to read the roadmap is to separate the current Preview from plans
+              that are still directional.
             </p>
           </div>
-          <Link
-            to="/faq"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent"
-          >
-            Open FAQ <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            {pricingFaqs.map((item) => (
+              <article
+                key={item.question}
+                className="rounded-xl border border-border bg-background/60 p-5"
+              >
+                <h3 className="font-display text-base font-semibold">{item.question}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.answer}</p>
+              </article>
+            ))}
+          </div>
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface/50 p-5">
+            <p className="text-sm text-muted-foreground">
+              Need more detail on usage, evidence, or Preview status?
+            </p>
+            <Link
+              to="/faq"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface/60 px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent"
+            >
+              Open the full FAQ <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -371,6 +422,7 @@ function PricingPage() {
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link
               to="/auth"
+              search={{ mode: "signup", returnTo: "/app" }}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow"
             >
               Join Preview

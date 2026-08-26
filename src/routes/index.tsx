@@ -17,12 +17,17 @@ import {
 import { Logo } from "@/components/logo";
 import { BrowserFrame } from "@/components/browser-frame";
 import { LaunchConsoleLink } from "@/components/launch-console-link";
-import { canonicalLink } from "@/lib/seo";
+import { seoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    links: [canonicalLink("/")],
-  }),
+  head: () =>
+    seoHead({
+      title: "Matrix QA | Evidence-Grade Browser QA",
+      description:
+        "Matrix QA runs authorized web journeys in a browser and organizes evidence, runtime signals, reports, and findings for human investigation.",
+      path: "/",
+      breadcrumbLabel: "Home",
+    }),
   component: Landing,
 });
 
@@ -465,6 +470,7 @@ function Landing() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
               to="/auth"
+              search={{ mode: "signup", returnTo: "/app" }}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow"
             >
               <Zap className="h-4 w-4" />
@@ -488,6 +494,9 @@ function Landing() {
               className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground"
               aria-label="Legal navigation"
             >
+              <Link to="/about" className="transition-colors hover:text-primary">
+                About Matrix QA
+              </Link>
               <Link to="/terms" className="transition-colors hover:text-primary">
                 Terms of Service
               </Link>

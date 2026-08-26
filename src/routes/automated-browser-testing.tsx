@@ -2,6 +2,24 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeoPageShell } from "@/components/seo-page-shell";
 import { seoHead } from "@/lib/seo";
 
+const AUTOMATED_BROWSER_TESTING_FAQS = [
+  {
+    question: "Does Matrix QA replace Playwright or Cypress?",
+    answer:
+      "No. Matrix QA is a hosted browser-QA workflow focused on configured journeys, evidence capture, and findings. Teams may use it alongside their existing browser test frameworks.",
+  },
+  {
+    question: "Can it test authenticated web apps?",
+    answer:
+      "Yes, where the project has an authorized target and a dedicated test account or supported authentication setup. Never provide credentials for a system you are not permitted to test.",
+  },
+  {
+    question: "What is the difference between browser testing and API testing?",
+    answer:
+      "Browser testing validates the user-visible journey through the interface and observes the integrated application behavior. API testing focuses on direct service requests. Matrix QA’s core workflow is browser-first.",
+  },
+];
+
 export const Route = createFileRoute("/automated-browser-testing")({
   head: () =>
     seoHead({
@@ -9,6 +27,7 @@ export const Route = createFileRoute("/automated-browser-testing")({
       description:
         "Automate critical browser journeys with Matrix QA. Capture screenshots, console errors, network failures, timestamps, and evidence-backed findings.",
       path: "/automated-browser-testing",
+      faqItems: AUTOMATED_BROWSER_TESTING_FAQS,
     }),
   component: AutomatedBrowserTestingPage,
 });
@@ -138,23 +157,7 @@ function AutomatedBrowserTestingPage() {
           ),
         },
       ]}
-      faqs={[
-        {
-          question: "Does Matrix QA replace Playwright or Cypress?",
-          answer:
-            "No. Matrix QA is a hosted browser-QA workflow focused on configured journeys, evidence capture, and findings. Teams may use it alongside their existing browser test frameworks.",
-        },
-        {
-          question: "Can it test authenticated web apps?",
-          answer:
-            "Yes, where the project has an authorized target and a dedicated test account or supported authentication setup. Never provide credentials for a system you are not permitted to test.",
-        },
-        {
-          question: "What is the difference between browser testing and API testing?",
-          answer:
-            "Browser testing validates the user-visible journey through the interface and observes the integrated application behavior. API testing focuses on direct service requests. Matrix QA’s core workflow is browser-first.",
-        },
-      ]}
+      faqs={AUTOMATED_BROWSER_TESTING_FAQS}
       cta="Run a browser check"
       variant="terminal"
     />

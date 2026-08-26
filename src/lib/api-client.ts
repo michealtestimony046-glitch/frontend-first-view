@@ -417,6 +417,14 @@ export interface RunScreenshot {
   t?: number;
   label: string;
   url?: string;
+  annotatedFilename?: string;
+  annotatedUrl?: string | null;
+  annotationStatus?: "APPLIED" | "SKIPPED" | string;
+  annotationBox?: { x: number; y: number; width: number; height: number };
+  viewport?: { width: number; height: number; deviceMode?: string; isMobile?: boolean };
+  redactionStatus?: string;
+  redactionDetectorCount?: number;
+  ocrUsed?: boolean;
 }
 export interface RunError {
   subtype: string;
@@ -560,6 +568,32 @@ export interface V2TestDataFixture {
   createdAt?: string;
   updatedAt?: string;
 }
+export type V2FindingWorkflowStatus = "OPEN" | "IN_PROGRESS" | "FIXED_PENDING_RETEST" | "VERIFIED_FIXED" | "REOPENED" | "WONT_FIX";
+export interface V2FindingRetest {
+  id: string;
+  workflowId: string;
+  runId: string;
+  verdict: "PASSED" | "FAILED";
+  summary?: string | null;
+  evidenceIdsJson?: unknown;
+  createdAt?: string;
+}
+export interface V2FindingWorkflow {
+  id: string;
+  projectId: string;
+  failureSignatureId?: string | null;
+  title: string;
+  status: V2FindingWorkflowStatus;
+  issueKey?: string | null;
+  issueUrl?: string | null;
+  ownerId?: string | null;
+  expectedBehavior?: string | null;
+  actualBehavior?: string | null;
+  remediationNote?: string | null;
+  retests?: V2FindingRetest[];
+  createdAt?: string;
+  updatedAt?: string;
+}
 export type QuickScanFindingCategory = "meta" | "accessibility" | "links" | "content";
 export interface QuickScanFinding {
   category: QuickScanFindingCategory;
@@ -608,6 +642,58 @@ export interface V2WebPrecheck {
   checkedAt: string;
 }
 
+export type V2JourneyGraphState = {
+  id: string;
+  kind: "route" | "interaction" | "review";
+  route?: string;
+  title?: string;
+  target?: string;
+  features?: string[];
+  evidenceRef?: string;
+  tier?: V2PolicyTier;
+  reason?: string;
+};
+export type V2JourneyGraphTransition = {
+  id: string;
+  from: string;
+  to: string;
+  trigger: string;
+  tool: "open_observed_route" | "click_approved_action" | "review";
+  approved: boolean;
+};
+export type V2JourneyGraph = {
+  version: 1;
+  startStateId: string;
+  states: V2JourneyGraphState[];
+  transitions: V2JourneyGraphTransition[];
+  counts: { routes: number; interactions: number; reviewRequired: number; transitions: number };
+  generatedFrom: "READ_ONLY_DISCOVERY";
+};
+export type V2MatrixProfile = {
+  id: string;
+  role: "ANONYMOUS" | "TEST_ACCOUNT" | "BROWSER_HANDOFF";
+  device: "DESKTOP" | "MOBILE";
+  browser: "CHROMIUM";
+  network: "DEFAULT";
+  dataState: "PUBLIC_OR_EMPTY" | "FIXTURE";
+  edgeCase: "NONE" | "RESPONSIVE_LAYOUT";
+  priorityScore: number;
+  rationale: string;
+  executable: true;
+  generatedFrom: "DETERMINISTIC_MATRIX_V1";
+};
+export type V2MatrixSummary = {
+  version: 1;
+  mode: V2PlannerMode;
+  profiles: V2MatrixProfile[];
+  counts: { total: number; roles: number; devices: number; browsers: number; networks: number; dataStates: number; edgeCases: number };
+  dimensions: { role: V2MatrixProfile["role"][]; device: V2MatrixProfile["device"][]; browser: V2MatrixProfile["browser"][]; network: V2MatrixProfile["network"][]; dataState: V2MatrixProfile["dataState"][]; edgeCase: V2MatrixProfile["edgeCase"][] };
+  pruned: Array<{ dimension: string; value: string; reason: string }>;
+  generatedFrom: "OBSERVED_PLAN_AND_EXECUTION_CAPABILITIES";
+  baseScenarioCount?: number;
+  expandedScenarioCount?: number;
+};
+
 export interface V2ApplicationScan {
   id: string;
   projectId: string;
@@ -633,7 +719,9 @@ export interface V2ApplicationScan {
     precheck?: V2WebPrecheck;
     mission?: V2MissionSpec;
     coverageFrontier?: V2CoverageFrontier;
-    features?: string[];
+     journeyGraph?: V2JourneyGraph;
+     matrixSummary?: V2MatrixSummary;
+     features?: string[];
     scannedPages?: Array<{ url: string; route: string; title: string; features?: string[]; authSignals?: Record<string, boolean> }>;
     actions?: Array<{ key: string; text: string; tag: string; tier: V2PolicyTier; reason: string; locatorCandidates?: Array<Record<string, string>> }>;
     riskSummary?: { safe: number; caution: number; dangerous: number };
@@ -664,6 +752,7 @@ export interface V2Scenario {
   caseStatus?: V2CaseStatus | null;
   steps?: unknown;
   locators?: unknown;
+  journeyGraph?: unknown;
   result?: unknown;
   viewportResults?: Array<{ testCaseId: string; status: V2CaseStatus; device?: string | null; browser?: string | null; network?: string | null; result?: unknown; viewport?: V2Viewport | null }>;
 }
@@ -697,6 +786,8 @@ export interface V2TestPlan {
   plannerValidation?: { status?: string; scenarioCount?: number; candidateCount?: number; viewportCount?: number; deterministicPolicyAuthority?: boolean } | null;
   projectMap?: {
     mission?: V2MissionSpec;
+    journeyGraph?: V2JourneyGraph;
+    matrixSummary?: V2MatrixSummary;
     coverageFrontier?: V2CoverageFrontier;
     aiPlan?: V2AiPlanSummary;
     viewportMatrix?: V2Viewport[];
@@ -706,7 +797,7 @@ export interface V2TestPlan {
   updatedAt?: string;
   scenarios: V2Scenario[];
   policyDecisions: V2PolicyDecision[];
-  testCases?: Array<{ id: string; scenarioId: string; status: V2CaseStatus; device?: string | null; browser?: string | null; network?: string | null; result?: unknown; viewport?: V2Viewport | null }>;
+  testCases?: Array<{ id: string; scenarioId: string; status: V2CaseStatus; role?: string | null; device?: string | null; browser?: string | null; network?: string | null; dataState?: string | null; result?: unknown; viewport?: V2Viewport | null }>;
 }
 
 export interface RunOutcome {
@@ -803,6 +894,12 @@ export interface RunReport {
   liveAiSummary?: AiLiveSummary | null;
   aiOverview?: AiRunOverview | null;
   quickScanHandoff?: QuickScanHandoff | null;
+  controlPlane?: {
+    disposition?: "TRUSTED" | "WARNING" | "UNVERIFIED";
+    environment?: { id?: string; name?: string; kind?: string; healthStatus?: string; passedChecks?: number; totalChecks?: number; requestedTargetMatches?: boolean };
+    dependencies?: { status?: string; total?: number; healthy?: number };
+    fixture?: { id?: string; name?: string; strategy?: string; status?: string; validationStatus?: string; executable?: boolean };
+  } | null;
   aiSummaryBillableMatrixUnits?: number;
   events?: RunEvent[];
   assertions?: RunAssertion[];
@@ -1103,6 +1200,137 @@ export interface AdminCustomerAccount {
   runCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export type AlphaRewardTier = "NONE" | "ALPHA_PARTICIPANT" | "INTERVIEW_PARTICIPANT" | "WINNER";
+
+export interface AdminAlphaRewardGrant {
+  id: string;
+  tier: AlphaRewardTier;
+  publicTierSnapshot: string;
+  startAt: string;
+  expiresAt: string;
+  grantedAt: string;
+  grantReason?: string | null;
+  revokedAt?: string | null;
+  revokeReason?: string | null;
+}
+
+export interface AdminAlphaParticipant {
+  id: string;
+  email: string;
+  fullName?: string | null;
+  accountStatus: string;
+  alphaRewardTier: AlphaRewardTier;
+  alphaRewardStartAt?: string | null;
+  alphaRewardExpiresAt?: string | null;
+  alphaRewardGrants: AdminAlphaRewardGrant[];
+  activeReward?: AdminAlphaRewardGrant | null;
+  alphaParticipant?: {
+    id: string;
+    displayName?: string | null;
+    participatedInTesting: boolean;
+    tasksCompleted?: string | null;
+    importantIssues?: string | null;
+    featuresRequested?: string | null;
+    likedUseful?: string | null;
+    joinedLiveInterview: boolean;
+    interviewKeyPoints?: string | null;
+    participationQuality?: number | null;
+    winnerStatus: boolean;
+    feedback: Array<{ id: string; note: string; createdAt: string; author?: { id: string; fullName?: string | null; email: string } | null }>;
+  } | null;
+}
+
+export interface AdminWorkforceAgent {
+  key: string;
+  name: string;
+  role: string;
+  capabilities: string[];
+  maxSlots: number;
+}
+
+export interface AdminWorkforceSnapshot {
+  id: string;
+  runId: string;
+  workspaceId: string;
+  mode: "QUICK_SMOKE" | "STANDARD_ADAPTIVE" | "DEEP_MATRIX";
+  status: "INITIALIZING" | "ACTIVE" | "COMPLETED" | "FAILED" | "STOPPED";
+  coordinatorAgentKey: string;
+  activeAgentKeys: string[];
+  missionSnapshot?: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string | null;
+  agents: AdminWorkforceAgent[];
+  tasks: Array<{
+    id: string;
+    taskKey: string;
+    agentKey: string;
+    requestedByAgentKey: string;
+    capability: string;
+    objective: string;
+    scope: Record<string, unknown>;
+    priority: number;
+    riskTier: string;
+    budgetUnits: number;
+    deadlineAt: string;
+    status: string;
+    result?: unknown;
+    evidenceRefs: string[];
+    coverageKeys: string[];
+    failureReason?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    acceptedAt?: string | null;
+    startedAt?: string | null;
+    completedAt?: string | null;
+  }>;
+  messages: Array<{
+    id: string;
+    taskId?: string | null;
+    messageType: string;
+    fromAgentKey: string;
+    toAgentKey?: string | null;
+    capability?: string | null;
+    objective?: string | null;
+    scope?: Record<string, unknown> | null;
+    priority: number;
+    riskTier: string;
+    budgetUnits: number;
+    deadlineAt?: string | null;
+    reason?: string | null;
+    evidenceRefs: string[];
+    status: string;
+    summary: string;
+    createdAt: string;
+  }>;
+  coverageClaims: Array<{
+    id: string;
+    taskId?: string | null;
+    agentKey: string;
+    coverageKey: string;
+    dimension: string;
+    status: string;
+    scope: Record<string, unknown>;
+    evidenceRefs: string[];
+    conflictReason?: string | null;
+    claimedAt: string;
+    completedAt?: string | null;
+  }>;
+  capacitySnapshots: Array<{
+    id: string;
+    agentKey: string;
+    maxSlots: number;
+    activeSlots: number;
+    availableSlots: number;
+    capabilities: string[];
+    health: string;
+    lastHeartbeatAt: string;
+    currentTaskIds: string[];
+    draining: boolean;
+    createdAt: string;
+  }>;
 }
 
 export interface AdminClientView {
@@ -1673,6 +1901,15 @@ export const reliabilityApi = {
 
 export const adminApi = {
   listCustomerAccounts: (): Promise<AdminCustomerAccount[]> => apiRequest('/admin/customers', { requiresAuth: true }),
+  listAlphaParticipants: (search?: string): Promise<AdminAlphaParticipant[]> => apiRequest(`/admin/alpha-event/participants${search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`, { requiresAuth: true, cache: 'no-store' }),
+  listWorkforceAgents: (): Promise<AdminWorkforceAgent[]> => apiRequest('/admin/workforce/agents', { requiresAuth: true, cache: 'no-store' }),
+  workforceRun: (runId: string): Promise<AdminWorkforceSnapshot> => apiRequest(`/admin/workforce/runs/${encodeURIComponent(runId)}`, { requiresAuth: true, cache: 'no-store' }),
+  approveWorkforceDelegation: (messageId: string, reason?: string): Promise<unknown> => apiRequest(`/admin/workforce/delegations/${encodeURIComponent(messageId)}/approve`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
+  rejectWorkforceDelegation: (messageId: string, reason?: string): Promise<unknown> => apiRequest(`/admin/workforce/delegations/${encodeURIComponent(messageId)}/reject`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
+  grantAlphaReward: (data: { email: string; tier: Exclude<AlphaRewardTier, 'NONE'>; startAt?: string; reason?: string }): Promise<{ grant: AdminAlphaRewardGrant; user: { id: string; email: string; fullName?: string | null }; replacedGrantIds: string[]; unlimitedRuns: boolean }> => apiRequest('/admin/alpha-event/rewards', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  revokeAlphaReward: (grantId: string, reason?: string): Promise<{ id: string; revoked: boolean; activeReward?: AdminAlphaRewardGrant | null; reason?: string }> => apiRequest(`/admin/alpha-event/rewards/${encodeURIComponent(grantId)}/revoke`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
+  updateAlphaParticipant: (userId: string, data: Partial<Omit<NonNullable<AdminAlphaParticipant['alphaParticipant']>, 'id' | 'feedback'>>): Promise<NonNullable<AdminAlphaParticipant['alphaParticipant']>> => apiRequest(`/admin/alpha-event/participants/${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
+  addAlphaParticipantFeedback: (userId: string, note: string): Promise<{ id: string; note: string; createdAt: string; author?: { id: string; fullName?: string | null; email: string } | null }> => apiRequest(`/admin/alpha-event/participants/${encodeURIComponent(userId)}/feedback`, { method: 'POST', body: JSON.stringify({ note }), requiresAuth: true }),
   viewAsClient: (userId: string): Promise<AdminClientView> => apiRequest(`/admin/users/${encodeURIComponent(userId)}/view-as-client`, { requiresAuth: true }),
   changeCustomerAccountStatus: (userId: string, data: { status: 'ACTIVE' | 'SUSPENDED' | 'DISABLED'; reason?: string }) => apiRequest<AdminCustomerAccount & { sessionsRevoked: boolean }>(`/admin/users/${encodeURIComponent(userId)}/status`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   listAllocationRequests: (status?: string): Promise<AdminAllocationRequest[]> => apiRequest(`/admin/allocation-requests${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
@@ -1777,9 +2014,14 @@ export const v2Api = {
   updateTestDataFixture: (fixtureId: string, data: { name?: string; description?: string; strategy?: V2FixtureStrategy; status?: V2FixtureStatus; seedSpec?: unknown; resetSpec?: unknown; maskedFields?: string[] }): Promise<V2TestDataFixture> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   validateTestDataFixture: (fixtureId: string): Promise<{ fixture: V2TestDataFixture; status: string; executable: boolean; message: string }> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/validate`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true }),
   executeTestDataFixture: (fixtureId: string, operation: 'seed' | 'reset', confirmed: boolean): Promise<{ fixture: V2TestDataFixture; operation: string; status: string; durationMs: number }> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/execute`, { method: 'POST', body: JSON.stringify({ operation, confirmed }), requiresAuth: true, timeoutMs: 20_000 }),
+  listFindingWorkflows: (projectId: string, status?: V2FindingWorkflowStatus): Promise<V2FindingWorkflow[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
+  createFindingWorkflow: (projectId: string, data: { failureSignatureId?: string; title: string; issueKey?: string; issueUrl?: string; ownerId?: string; expectedBehavior?: string; actualBehavior?: string; remediationNote?: string }): Promise<V2FindingWorkflow> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  updateFindingWorkflow: (projectId: string, workflowId: string, data: { status?: V2FindingWorkflowStatus; issueKey?: string; issueUrl?: string; ownerId?: string; remediationNote?: string }): Promise<V2FindingWorkflow> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows/${encodeURIComponent(workflowId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
+  createFindingRetest: (projectId: string, workflowId: string, runId: string, summary?: string): Promise<{ workflow: V2FindingWorkflow; retest: V2FindingRetest; verdict: string; evidenceCount: number }> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows/${encodeURIComponent(workflowId)}/retests`, { method: 'POST', body: JSON.stringify({ runId, summary }), requiresAuth: true }),
   startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string; missionGoal?: string; accessMode?: V2MissionAccessMode } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
   getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
+  getJourneyGraph: (scanId: string): Promise<{ scanId: string; projectId: string; targetOrigin: string; generatedAt?: string | null; graph: V2JourneyGraph }> => apiRequest(`/scans/${encodeURIComponent(scanId)}/journey-graph`, { requiresAuth: true }),
   createPlanFromScan: async (scanId: string, data: { name: string; mode?: V2PlannerMode | string; missionGoal?: string; accessMode?: V2MissionAccessMode; fixtureId?: string }): Promise<V2TestPlan> => {
     const payload = { ...data, ...(data.mode ? { mode: normalizeV2PlannerMode(data.mode) } : {}) };
     const request = () => apiRequest<V2TestPlan>(`/scans/${encodeURIComponent(scanId)}/plans`, {

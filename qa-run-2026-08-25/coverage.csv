@@ -1,0 +1,10 @@
+coverage_id,target,dimension,priority,status,evidence_ids,reason,next_action
+COV-public-route-audit,Public route cluster,SEO/AEO,high,in_progress,,Identify duplicate or thin content before edits,Audit route metadata and visible answer content
+COV-homepage,/,SEO/AEO/performance,high,planned,,Primary public entry route,Inspect SSR head and direct-answer clarity
+COV-pricing,/pricing,SEO/AEO/product-truth,high,planned,,Pricing and preview claims must be accurate,Audit visible plan and FAQ opportunities
+COV-sample-report,/sample-report,SEO/AEO/trust,high,planned,,Evidence/report concepts are central to search intent,Audit direct-answer and internal-link opportunities
+COV-topic-cluster,Public topic pages,SEO/AEO/internal-links,high,planned,,Avoid repetitive page templates and improve crawl context,Compare headings FAQ data and links across route families
+COV-mia,/mia,SEO/AEO/product-truth,medium,planned,,AI capability page needs precise limits,Audit visible claims and metadata
+COV-mobile,Representative public routes,Responsive,high,planned,,Prior mobile PageSpeed NO_FCP report and open performance PR,Run mobile headless/browser smoke after changes
+COV-runtime,Representative public routes,Runtime,medium,planned,,Correlate content changes with actual loading behavior,Inspect console/network/timing observations
+COV-crawl-assets,robots sitemap llm,Technical SEO,high,planned,,Discovery assets must reflect current public routes,Validate live/static output and private exclusions

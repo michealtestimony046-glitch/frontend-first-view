@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+
 import { Component, type ErrorInfo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -93,6 +94,19 @@ class RunDetailErrorBoundary extends Component<{ children: ReactNode }, { hasErr
     return this.props.children;
   }
 }
+
+const formatViewportLabel = (viewport: unknown): string => {
+  if (!viewport || typeof viewport !== "object") return "not recorded";
+  const value = viewport as { width?: unknown; height?: unknown; deviceMode?: unknown; isMobile?: unknown };
+  if (typeof value.width !== "number" || typeof value.height !== "number") return "not recorded";
+  const mode = String(value.deviceMode || "").toLowerCase();
+  const device = value.isMobile === true || mode.includes("mobile") || value.width < 600
+    ? "Mobile"
+    : mode.includes("tablet") || value.width < 1100
+      ? "Tablet"
+      : "Desktop";
+  return `${device} · ${value.width}×${value.height}`;
+};
 
 export const Route = createFileRoute("/app/runs/$runId")({
   head: ({ params }) => ({
@@ -438,6 +452,7 @@ function RunDetailPage() {
         )}
         {report.metadata?.queue && <QueueStateNotice queue={report.metadata.queue} />}
         {report.outcome && <OutcomeNotice report={report} />}
+        {report.controlPlane && <RunControlPlanePanel controlPlane={report.controlPlane} />}
         {report.incomplete && (
           <div className="mt-5 rounded-md border border-primary/25 bg-primary/5 p-4 text-sm text-muted-foreground">
             This run is still processing. The report will refresh automatically when the worker reaches a terminal state.
@@ -513,6 +528,16 @@ function RunDetailPage() {
     </RunDetailErrorBoundary>
   );
 }
+
+function RunControlPlanePanel({ controlPlane }: { controlPlane: NonNullable<RunReport["controlPlane"]> }) {
+  const environment = controlPlane.environment;
+  const dependencies = controlPlane.dependencies;
+  const fixture = controlPlane.fixture;
+  const trusted = controlPlane.disposition === "TRUSTED";
+  return <section className={`mt-5 rounded-md border p-4 ${trusted ? "border-success/25 bg-success/5" : "border-warning/30 bg-warning/5"}`} aria-label="Environment and test-data trust"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Run conditions</div><h2 className="mt-1 font-display text-base font-semibold">{trusted ? "Trusted test conditions" : "Conditions need review"}</h2><p className="mt-1 text-xs text-muted-foreground">This signal describes what Matrix QA verified before the worker started.</p></div><span className={`rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-wider ${trusted ? "border-success/30 bg-success/10 text-success" : "border-warning/30 bg-warning/10 text-warning"}`}>{String(controlPlane.disposition || "UNVERIFIED").replaceAll("_", " ")}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-3"><TrustCell label="Environment" value={environment?.healthStatus || "NOT_CONFIGURED"} detail={environment?.passedChecks !== undefined ? `${environment.passedChecks}/${environment.totalChecks} checks passed` : "No health probe"} /><TrustCell label="Dependencies" value={dependencies?.status || "NOT_CHECKED"} detail={dependencies?.healthy !== undefined ? `${dependencies.healthy}/${dependencies.total} healthy` : "No dependency check"} /><TrustCell label="Fixture" value={fixture?.validationStatus || fixture?.status || "NOT_CONFIGURED"} detail={fixture?.name || "No fixture selected"} /></div></section>;
+}
+
+function TrustCell({ label, value, detail }: { label: string; value: string; detail: string }) { return <div className="rounded border border-border/70 bg-surface/40 px-3 py-2"><div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div><div className="mt-1 text-xs font-semibold text-foreground">{value.replaceAll("_", " ")}</div><div className="mt-0.5 truncate text-[11px] text-muted-foreground">{detail}</div></div>; }
 
 function RunReliabilityPanel({ reliability }: { reliability: Awaited<ReturnType<typeof reliabilityApi.run>> }) {
   const attempts = reliability.attempts || [];
@@ -1000,6 +1025,7 @@ function ScreenshotsTab({
   setSelected: (n: number) => void;
 }) {
   const shots = report.screenshots ?? [];
+  const [showBugFocus, setShowBugFocus] = useState(false);
   if (!shots.length)
     return (
       <EmptyState
@@ -1016,12 +1042,22 @@ function ScreenshotsTab({
           <h3 className="font-display text-sm font-semibold">{shot.label}</h3>
           <p className="font-mono text-[10px] text-muted-foreground">
             captured at {msToClock(shot.t ?? shot.timestamp)}
+            {shot.viewport ? ` · ${formatViewportLabel(shot.viewport)}` : ""}
+            {shot.redactionStatus ? ` · ${shot.redactionStatus.toLowerCase().replaceAll("_", " ")}` : ""}
           </p>
+          {shot.annotatedUrl && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => setShowBugFocus((value) => !value)} className="rounded-md border border-primary/30 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10">
+                {showBugFocus ? "Show normal frame" : "Show bug focus"}
+              </button>
+              <span className="text-[11px] text-muted-foreground">The bug-focus view is an annotated derivative; the normal redacted frame remains the source evidence.</span>
+            </div>
+          )}
         </div>
-        {shot.url ? (
+        {(showBugFocus ? shot.annotatedUrl : shot.url) ? (
           <img
-            src={shot.url}
-            alt={shot.label}
+            src={(showBugFocus ? shot.annotatedUrl : shot.url) || undefined}
+            alt={showBugFocus ? `${shot.label} — bug focus` : shot.label}
             className="max-h-[680px] w-full object-contain bg-surface-2"
           />
         ) : (
@@ -1052,6 +1088,7 @@ function ScreenshotsTab({
                   <p className="font-mono text-[10px] text-muted-foreground">
                     {msToClock(s.t ?? s.timestamp)}
                   </p>
+                  {s.viewport && <p className="text-[10px] text-primary/80">{formatViewportLabel(s.viewport)}</p>}
                 </div>
               </button>
             </li>
@@ -1254,7 +1291,7 @@ function QaActivityPanel({ state }: { state: QaLiveState | null }) {
   if (!state) return null;
   const healthy = state.persistence.health === "healthy";
   const viewport = state.run.currentViewport;
-  const viewportText = viewport && typeof viewport.width === "number" && typeof viewport.height === "number" ? `${viewport.width}×${viewport.height}` : "not recorded";
+  const viewportText = formatViewportLabel(viewport);
   const viewportMatrix = state.run.viewportMatrix ?? [];
   const viewportMatrixText = viewportMatrix.length > 1 ? viewportMatrix.map((item) => `${item.label} (${item.width}×${item.height})`).join(" · ") : null;
   const syncedText = state.persistence.lastSyncedAt ? new Date(state.persistence.lastSyncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "pending";

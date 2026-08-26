@@ -2,6 +2,7 @@ import { ArrowRight, CheckCircle2, ChevronRight, ShieldCheck, Sparkles } from "l
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/logo";
+import { DISCORD_SUPPORT_URL } from "@/lib/support";
 
 type SeoCard = { title: string; body: string };
 export type SeoPageVariant = "standard" | "editorial" | "split" | "terminal";
@@ -31,6 +32,10 @@ const relatedGuides = [
   { to: "/evidence-based-bug-reports", label: "Evidence-based reports" },
   { to: "/authentication-testing", label: "Authentication testing" },
   { to: "/accessibility-testing", label: "Accessibility testing" },
+  { to: "/cross-browser-testing", label: "Cross-browser testing" },
+  { to: "/playwright-testing", label: "Playwright testing" },
+  { to: "/qa-for-saas", label: "QA for SaaS" },
+  { to: "/qa-for-startups", label: "QA for startups" },
   { to: "/mia", label: "Meet Mia" },
 ] as const;
 
@@ -367,6 +372,7 @@ export function SeoPageShell(props: SeoPageShellProps) {
               <Link to="/privacy">Privacy</Link>
               <Link to="/cookies">Cookies</Link>
               <Link to="/faq">FAQ</Link>
+              <a href={DISCORD_SUPPORT_URL} target="_blank" rel="noopener noreferrer">Support on Discord</a>
             </nav>
             <p className="font-mono text-xs text-muted-foreground">
               © {new Date().getFullYear()} Matrix QA · Tr Labs

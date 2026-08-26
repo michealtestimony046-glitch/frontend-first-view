@@ -11,6 +11,7 @@ export const Route = createFileRoute("/staging-environment-testing")({
       title: "Staging Environment Testing for Safer Releases | Matrix QA",
       description: page.description,
       path: "/staging-environment-testing",
+      faqItems: page.faqs,
     }),
   component: () => <SpecialTopicPage config={page} />,
 });
