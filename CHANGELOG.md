@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.3.0...v0.4.0) (2026-08-26)
+
+
+### Features
+
+* show responsive viewport execution matrix ([6bd1e28](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/6bd1e286b9499bba44de723d4fb9397b22f18afb))
+
 ## [0.3.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.2.0...v0.3.0) (2026-08-26)
 
 
