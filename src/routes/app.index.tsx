@@ -20,9 +20,9 @@ import {
   Chrome,
 } from "lucide-react";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -312,23 +312,23 @@ function AppDashboard() {
           </header>
           <div className="h-[200px] px-2 pt-4" role="img" aria-label={`Seven-day run status trend with ${totalTrendRuns} total runs and ${trendFindings} findings captured.`}>
             {totalTrendRuns === 0 ? <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border text-center text-xs text-muted-foreground">No runs recorded in the last 7 days.</div> : <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={trend} margin={{ top: 4, right: 12, left: 0, bottom: 8 }}>
+              <LineChart data={trend} margin={{ top: 4, right: 12, left: 0, bottom: 8 }}>
                 <CartesianGrid vertical={false} stroke="oklch(1 0 0 / 0.08)" />
                 <XAxis dataKey="day" stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} width={24} allowDecimals={false} />
                 <Tooltip
-                  cursor={{ fill: "oklch(1 0 0 / 0.06)" }}
+                  cursor={{ stroke: "oklch(1 0 0 / 0.18)", strokeDasharray: "4 4" }}
                   contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: "var(--muted-foreground)" }}
                 />
                 <Legend wrapperStyle={{ fontSize: 10, color: "var(--muted-foreground)", paddingTop: 4 }} />
-                <Bar dataKey="passed" name="Passed" stackId="runs" fill="oklch(0.7 0.18 150)" />
-                <Bar dataKey="findings" name="Findings" stackId="runs" fill="oklch(0.68 0.2 260)" />
-                <Bar dataKey="failed" name="Failed" stackId="runs" fill="oklch(0.68 0.22 22)" />
-                <Bar dataKey="blocked" name="Blocked" stackId="runs" fill="oklch(0.72 0.16 70)" />
-                <Bar dataKey="running" name="Running" stackId="runs" fill="oklch(0.72 0.16 90)" />
-                <Bar dataKey="queued" name="Queued" stackId="runs" fill="oklch(0.68 0.02 250)" radius={[3, 3, 0, 0]} />
-              </BarChart>
+                <Line type="monotone" dataKey="passed" name="Passed" stroke="oklch(0.7 0.18 150)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                <Line type="monotone" dataKey="findings" name="Findings" stroke="oklch(0.68 0.2 260)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                <Line type="monotone" dataKey="failed" name="Failed" stroke="oklch(0.68 0.22 22)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                <Line type="monotone" dataKey="blocked" name="Blocked" stroke="oklch(0.72 0.16 70)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                <Line type="monotone" dataKey="running" name="Running" stroke="oklch(0.72 0.16 90)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                <Line type="monotone" dataKey="queued" name="Queued" stroke="oklch(0.68 0.02 250)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+              </LineChart>
             </ResponsiveContainer>}
           </div>
           <div className="mt-auto flex items-end justify-between border-t border-border px-5 py-4">
