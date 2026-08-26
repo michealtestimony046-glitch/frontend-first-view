@@ -1229,6 +1229,97 @@ export interface AdminAlphaParticipant {
   } | null;
 }
 
+export interface AdminWorkforceAgent {
+  key: string;
+  name: string;
+  role: string;
+  capabilities: string[];
+  maxSlots: number;
+}
+
+export interface AdminWorkforceSnapshot {
+  id: string;
+  runId: string;
+  workspaceId: string;
+  mode: "QUICK_SMOKE" | "STANDARD_ADAPTIVE" | "DEEP_MATRIX";
+  status: "INITIALIZING" | "ACTIVE" | "COMPLETED" | "FAILED" | "STOPPED";
+  coordinatorAgentKey: string;
+  activeAgentKeys: string[];
+  missionSnapshot?: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string | null;
+  agents: AdminWorkforceAgent[];
+  tasks: Array<{
+    id: string;
+    taskKey: string;
+    agentKey: string;
+    requestedByAgentKey: string;
+    capability: string;
+    objective: string;
+    scope: Record<string, unknown>;
+    priority: number;
+    riskTier: string;
+    budgetUnits: number;
+    deadlineAt: string;
+    status: string;
+    result?: unknown;
+    evidenceRefs: string[];
+    coverageKeys: string[];
+    failureReason?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    acceptedAt?: string | null;
+    startedAt?: string | null;
+    completedAt?: string | null;
+  }>;
+  messages: Array<{
+    id: string;
+    taskId?: string | null;
+    messageType: string;
+    fromAgentKey: string;
+    toAgentKey?: string | null;
+    capability?: string | null;
+    objective?: string | null;
+    scope?: Record<string, unknown> | null;
+    priority: number;
+    riskTier: string;
+    budgetUnits: number;
+    deadlineAt?: string | null;
+    reason?: string | null;
+    evidenceRefs: string[];
+    status: string;
+    summary: string;
+    createdAt: string;
+  }>;
+  coverageClaims: Array<{
+    id: string;
+    taskId?: string | null;
+    agentKey: string;
+    coverageKey: string;
+    dimension: string;
+    status: string;
+    scope: Record<string, unknown>;
+    evidenceRefs: string[];
+    conflictReason?: string | null;
+    claimedAt: string;
+    completedAt?: string | null;
+  }>;
+  capacitySnapshots: Array<{
+    id: string;
+    agentKey: string;
+    maxSlots: number;
+    activeSlots: number;
+    availableSlots: number;
+    capabilities: string[];
+    health: string;
+    lastHeartbeatAt: string;
+    currentTaskIds: string[];
+    draining: boolean;
+    createdAt: string;
+  }>;
+}
+
 export interface AdminClientView {
   client: Pick<AdminCustomerAccount, "id" | "email" | "fullName" | "emailVerified" | "accountStatus" | "createdAt"> & { isStaff: boolean };
   organizations: Array<{
@@ -1798,6 +1889,10 @@ export const reliabilityApi = {
 export const adminApi = {
   listCustomerAccounts: (): Promise<AdminCustomerAccount[]> => apiRequest('/admin/customers', { requiresAuth: true }),
   listAlphaParticipants: (search?: string): Promise<AdminAlphaParticipant[]> => apiRequest(`/admin/alpha-event/participants${search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`, { requiresAuth: true, cache: 'no-store' }),
+  listWorkforceAgents: (): Promise<AdminWorkforceAgent[]> => apiRequest('/admin/workforce/agents', { requiresAuth: true, cache: 'no-store' }),
+  workforceRun: (runId: string): Promise<AdminWorkforceSnapshot> => apiRequest(`/admin/workforce/runs/${encodeURIComponent(runId)}`, { requiresAuth: true, cache: 'no-store' }),
+  approveWorkforceDelegation: (messageId: string, reason?: string): Promise<unknown> => apiRequest(`/admin/workforce/delegations/${encodeURIComponent(messageId)}/approve`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
+  rejectWorkforceDelegation: (messageId: string, reason?: string): Promise<unknown> => apiRequest(`/admin/workforce/delegations/${encodeURIComponent(messageId)}/reject`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
   grantAlphaReward: (data: { email: string; tier: Exclude<AlphaRewardTier, 'NONE'>; startAt?: string; reason?: string }): Promise<{ grant: AdminAlphaRewardGrant; user: { id: string; email: string; fullName?: string | null }; replacedGrantIds: string[]; unlimitedRuns: boolean }> => apiRequest('/admin/alpha-event/rewards', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   revokeAlphaReward: (grantId: string, reason?: string): Promise<{ id: string; revoked: boolean; activeReward?: AdminAlphaRewardGrant | null; reason?: string }> => apiRequest(`/admin/alpha-event/rewards/${encodeURIComponent(grantId)}/revoke`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
   updateAlphaParticipant: (userId: string, data: Partial<Omit<NonNullable<AdminAlphaParticipant['alphaParticipant']>, 'id' | 'feedback'>>): Promise<NonNullable<AdminAlphaParticipant['alphaParticipant']>> => apiRequest(`/admin/alpha-event/participants/${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
