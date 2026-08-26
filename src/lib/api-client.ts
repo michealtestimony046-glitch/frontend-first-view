@@ -1181,6 +1181,46 @@ export interface AdminCustomerAccount {
   updatedAt: string;
 }
 
+export type AlphaRewardTier = "NONE" | "ALPHA_PARTICIPANT" | "INTERVIEW_PARTICIPANT" | "WINNER";
+
+export interface AdminAlphaRewardGrant {
+  id: string;
+  tier: AlphaRewardTier;
+  publicTierSnapshot: string;
+  startAt: string;
+  expiresAt: string;
+  grantedAt: string;
+  grantReason?: string | null;
+  revokedAt?: string | null;
+  revokeReason?: string | null;
+}
+
+export interface AdminAlphaParticipant {
+  id: string;
+  email: string;
+  fullName?: string | null;
+  accountStatus: string;
+  alphaRewardTier: AlphaRewardTier;
+  alphaRewardStartAt?: string | null;
+  alphaRewardExpiresAt?: string | null;
+  alphaRewardGrants: AdminAlphaRewardGrant[];
+  activeReward?: AdminAlphaRewardGrant | null;
+  alphaParticipant?: {
+    id: string;
+    displayName?: string | null;
+    participatedInTesting: boolean;
+    tasksCompleted?: string | null;
+    importantIssues?: string | null;
+    featuresRequested?: string | null;
+    likedUseful?: string | null;
+    joinedLiveInterview: boolean;
+    interviewKeyPoints?: string | null;
+    participationQuality?: number | null;
+    winnerStatus: boolean;
+    feedback: Array<{ id: string; note: string; createdAt: string; author?: { id: string; fullName?: string | null; email: string } | null }>;
+  } | null;
+}
+
 export interface AdminClientView {
   client: Pick<AdminCustomerAccount, "id" | "email" | "fullName" | "emailVerified" | "accountStatus" | "createdAt"> & { isStaff: boolean };
   organizations: Array<{
@@ -1749,6 +1789,11 @@ export const reliabilityApi = {
 
 export const adminApi = {
   listCustomerAccounts: (): Promise<AdminCustomerAccount[]> => apiRequest('/admin/customers', { requiresAuth: true }),
+  listAlphaParticipants: (search?: string): Promise<AdminAlphaParticipant[]> => apiRequest(`/admin/alpha-event/participants${search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`, { requiresAuth: true, cache: 'no-store' }),
+  grantAlphaReward: (data: { email: string; tier: Exclude<AlphaRewardTier, 'NONE'>; startAt?: string; reason?: string }): Promise<{ grant: AdminAlphaRewardGrant; user: { id: string; email: string; fullName?: string | null }; replacedGrantIds: string[]; unlimitedRuns: boolean }> => apiRequest('/admin/alpha-event/rewards', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  revokeAlphaReward: (grantId: string, reason?: string): Promise<{ id: string; revoked: boolean; activeReward?: AdminAlphaRewardGrant | null; reason?: string }> => apiRequest(`/admin/alpha-event/rewards/${encodeURIComponent(grantId)}/revoke`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
+  updateAlphaParticipant: (userId: string, data: Partial<Omit<NonNullable<AdminAlphaParticipant['alphaParticipant']>, 'id' | 'feedback'>>): Promise<NonNullable<AdminAlphaParticipant['alphaParticipant']>> => apiRequest(`/admin/alpha-event/participants/${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
+  addAlphaParticipantFeedback: (userId: string, note: string): Promise<{ id: string; note: string; createdAt: string; author?: { id: string; fullName?: string | null; email: string } | null }> => apiRequest(`/admin/alpha-event/participants/${encodeURIComponent(userId)}/feedback`, { method: 'POST', body: JSON.stringify({ note }), requiresAuth: true }),
   viewAsClient: (userId: string): Promise<AdminClientView> => apiRequest(`/admin/users/${encodeURIComponent(userId)}/view-as-client`, { requiresAuth: true }),
   changeCustomerAccountStatus: (userId: string, data: { status: 'ACTIVE' | 'SUSPENDED' | 'DISABLED'; reason?: string }) => apiRequest<AdminCustomerAccount & { sessionsRevoked: boolean }>(`/admin/users/${encodeURIComponent(userId)}/status`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
   listAllocationRequests: (status?: string): Promise<AdminAllocationRequest[]> => apiRequest(`/admin/allocation-requests${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),

@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowLeft, BrainCircuit, Check, CircleAlert, CircleDollarSign, Database, Download, Eye, ListChecks, Loader2, Mail, Menu, Radio, RefreshCw, Search, Send, ShieldCheck, Users, X } from "lucide-react";
+import { Activity, ArrowLeft, BrainCircuit, Check, CircleAlert, CircleDollarSign, Database, Download, Eye, ListChecks, Loader2, Mail, Menu, Radio, RefreshCw, Search, Send, ShieldCheck, UserPlus, Users, X } from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { adminApi, type AdminAiProviderConfig, type AdminAllocationRequest, type AdminClientView, type AdminControlTowerSnapshot, type AdminCustomerAccount, type AdminOllamaRequestDiagnostic, type AdminOperationsMetrics, type AdminProviderCreditSnapshot, type AdminTelemetrySummary, type AdminMatrixUnitSnapshot, type ManagedSecretMetadata, type StaffManagementData, type StaffReliabilityDashboard, type StaffNotificationRecipient, type TargetComplaint, type TargetComplaintStatus, type TargetSuspension, type WorkerHealth } from "@/lib/api-client";
+import { adminApi, type AdminAiProviderConfig, type AdminAllocationRequest, type AdminAlphaParticipant, type AdminClientView, type AdminControlTowerSnapshot, type AdminCustomerAccount, type AdminOllamaRequestDiagnostic, type AdminOperationsMetrics, type AdminProviderCreditSnapshot, type AdminTelemetrySummary, type AdminMatrixUnitSnapshot, type AlphaRewardTier, type ManagedSecretMetadata, type StaffManagementData, type StaffReliabilityDashboard, type StaffNotificationRecipient, type TargetComplaint, type TargetComplaintStatus, type TargetSuspension, type WorkerHealth } from "@/lib/api-client";
 import { StaffManagementPanel } from "@/components/staff-management-panel";
 import { useAuth } from "@/lib/auth-context";
 import { AdminAiModelsTab } from "@/components/admin-ai-models-tab";
 import { AdminSecretsTab } from "@/components/admin-secrets-tab";
+import { AdminAlphaEventTab } from "@/components/admin-alpha-event-tab";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin Console · Matrix QA" }, { name: "robots", content: "noindex" }] }),
   component: AdminPage,
 });
 
-type AdminTab = "control_tower" | "queue" | "notifications" | "telemetry" | "reliability" | "ai_models" | "secrets" | "staff" | "customers" | "complaints" | "client_view";
+type AdminTab = "control_tower" | "queue" | "notifications" | "telemetry" | "reliability" | "ai_models" | "secrets" | "staff" | "customers" | "complaints" | "client_view" | "alpha_event";
 
 type OllamaRequestRow = NonNullable<AdminTelemetrySummary["aiUsage"]>["recent"][number];
 
@@ -61,6 +62,7 @@ function AdminPage() {
   const [health, setHealth] = useState<WorkerHealth | null>(null);
   const [staffData, setStaffData] = useState<StaffManagementData | null>(null);
   const [customers, setCustomers] = useState<AdminCustomerAccount[]>([]);
+  const [alphaParticipants, setAlphaParticipants] = useState<AdminAlphaParticipant[]>([]);
   const [complaints, setComplaints] = useState<TargetComplaint[]>([]);
   const [suspensions, setSuspensions] = useState<TargetSuspension[]>([]);
   const [clientView, setClientView] = useState<AdminClientView | null>(null);
@@ -81,7 +83,7 @@ function AdminPage() {
     setError("");
     try {
       const canManageStaff = user?.staffRole === "OWNER" || user?.staffRole === "OPERATIONS_ADMIN";
-      const [requestData, recipientData, telemetryData, matrixUnitData, aiProviderData, healthData, managedSecretData, staffManagementData, controlTowerData, metricsData, reliabilityData, customerData, complaintData, suspensionData] = await Promise.all([
+      const [requestData, recipientData, telemetryData, matrixUnitData, aiProviderData, healthData, managedSecretData, staffManagementData, controlTowerData, metricsData, reliabilityData, customerData, alphaParticipantData, complaintData, suspensionData] = await Promise.all([
         adminApi.listAllocationRequests("PENDING"),
         adminApi.listRecipients(),
         adminApi.telemetry(),
@@ -94,6 +96,7 @@ function AdminPage() {
         adminApi.metrics(7),
         adminApi.reliability(30),
         adminApi.listCustomerAccounts(),
+        adminApi.listAlphaParticipants().catch(() => []),
         adminApi.listTargetComplaints(),
         adminApi.listTargetSuspensions(),
       ]);
@@ -109,6 +112,7 @@ function AdminPage() {
       setMetrics(metricsData);
       setReliability(reliabilityData);
       setCustomers(customerData);
+      setAlphaParticipants(alphaParticipantData);
       setComplaints(complaintData);
       setSuspensions(suspensionData);
     } catch (cause) {
@@ -265,6 +269,47 @@ function AdminPage() {
     finally { setBusyId(null); }
   };
 
+  const grantAlphaReward = async (data: { email: string; tier: Exclude<AlphaRewardTier, "NONE">; startAt?: string; reason?: string }) => {
+    setBusyId("alpha-grant"); setError(""); setMessage("");
+    try {
+      const result = await adminApi.grantAlphaReward(data);
+      setAlphaParticipants(await adminApi.listAlphaParticipants());
+      setMessage(`${result.user.email} received ${result.grant.tier.replaceAll("_", " ").toLowerCase()}; the reward expires ${new Date(result.grant.expiresAt).toLocaleString()}.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to grant the alpha event reward."); }
+    finally { setBusyId(null); }
+  };
+
+  const revokeAlphaReward = async (grantId: string) => {
+    const reason = window.prompt("Reason for revoking this alpha event reward", "") ?? "";
+    setBusyId(`alpha-revoke-${grantId}`); setError(""); setMessage("");
+    try {
+      await adminApi.revokeAlphaReward(grantId, reason.trim() || undefined);
+      setAlphaParticipants(await adminApi.listAlphaParticipants());
+      setMessage("Alpha event reward revoked. The client now falls back to the normal access-limit gate.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to revoke the alpha event reward."); }
+    finally { setBusyId(null); }
+  };
+
+  const saveAlphaParticipant = async (userId: string, data: Parameters<typeof adminApi.updateAlphaParticipant>[1]) => {
+    setBusyId(`alpha-participant-${userId}`); setError(""); setMessage("");
+    try {
+      await adminApi.updateAlphaParticipant(userId, data);
+      setAlphaParticipants(await adminApi.listAlphaParticipants());
+      setMessage("Participant record saved.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save the participant record."); }
+    finally { setBusyId(null); }
+  };
+
+  const addAlphaParticipantFeedback = async (userId: string, note: string) => {
+    setBusyId(`alpha-feedback-${userId}`); setError(""); setMessage("");
+    try {
+      await adminApi.addAlphaParticipantFeedback(userId, note);
+      setAlphaParticipants(await adminApi.listAlphaParticipants());
+      setMessage("Participant feedback added.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to add participant feedback."); }
+    finally { setBusyId(null); }
+  };
+
   const reviewComplaint = async (complaint: TargetComplaint, status: TargetComplaintStatus, suspendTarget = false) => {
     const prompt = suspendTarget ? `Reason for suspending ${complaint.targetUrl}` : `Optional note for ${status.toLowerCase().replaceAll("_", " ")}`;
     const staffNote = window.prompt(prompt, complaint.staffNote ?? "") ?? "";
@@ -308,7 +353,7 @@ function AdminPage() {
     <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-primary"><ShieldCheck className="h-4 w-4" /> Matrix QA staff</div><h1 className="mt-2 font-display text-2xl font-semibold">Admin console</h1><p className="mt-1 text-sm text-muted-foreground">Private-alpha operations, allocation decisions, notifications, and cost telemetry.</p></div><button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent"><RefreshCw className="h-3.5 w-3.5" /> Refresh</button></div>
     {error && <div className="mt-5 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}{message && <div className="mt-5 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-primary">{message}</div>}
     {loading ? <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading staff data…</div> : tab === "control_tower" ? <ControlTowerTab snapshot={controlTower} metrics={metrics} providers={aiProviders} onOpenAiModels={() => setTab("ai_models")} /> :
- tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : tab === "customers" ? <CustomersTab customers={customers} busyId={busyId} onStatusChange={changeCustomerStatus} onViewAsClient={viewAsClient} /> : tab === "client_view" ? <ClientViewTab customers={customers} busyId={busyId} clientView={clientView} loading={clientViewLoading} onViewAsClient={viewAsClient} onReturn={returnToClientAccounts} /> : tab === "complaints" ? <ComplaintsTab complaints={complaints} suspensions={suspensions} busyId={busyId} onReview={reviewComplaint} onSuspend={(complaint) => { void reviewComplaint(complaint, "UNDER_REVIEW", true); }} onRevoke={revokeSuspension} /> : tab === "telemetry" ? <TelemetryTab telemetry={telemetry} health={health} exporting={exporting} onExport={exportAudit} providerCredits={providerCredits} providerCreditsLoading={providerCreditsLoading} providerCreditsRefreshing={providerCreditsRefreshing} providerCreditsError={providerCreditsError} onRefreshProviderCredits={() => void loadProviderCredits(true)} matrixUnits={matrixUnits} /> : tab === "reliability" ? <ReliabilityTab data={reliability} busyId={busyId} onReview={reviewReliabilityQuarantine} /> : tab === "ai_models" ? <AdminAiModelsTab configs={aiProviders} busyId={busyId} managedSecretNames={secrets.map((secret) => secret.name)} onSave={saveAiProvider} onHealthCheck={healthCheckAiProvider} onRemove={removeAiProvider} /> : tab === "secrets" && (user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") ? <AdminSecretsTab secrets={secrets} role={user.staffRole} busyId={busyId} onSaved={saveManagedSecret} onDeleted={deleteManagedSecret} setMessage={setMessage} setError={setError} /> : staffData ? <StaffManagementPanel data={staffData} role={user.staffRole} onChanged={load} setMessage={setMessage} setError={setError} /> : <div className="mt-6 surface-card p-6 text-sm text-muted-foreground">Staff management is available to owners and operations administrators.</div>}
+ tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "alpha_event" ? <AdminAlphaEventTab rows={alphaParticipants} canManageRewards={user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN"} busyId={busyId} onGrant={grantAlphaReward} onRevoke={revokeAlphaReward} onSaveParticipant={saveAlphaParticipant} onAddFeedback={addAlphaParticipantFeedback} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : tab === "customers" ? <CustomersTab customers={customers} busyId={busyId} onStatusChange={changeCustomerStatus} onViewAsClient={viewAsClient} /> : tab === "client_view" ? <ClientViewTab customers={customers} busyId={busyId} clientView={clientView} loading={clientViewLoading} onViewAsClient={viewAsClient} onReturn={returnToClientAccounts} /> : tab === "complaints" ? <ComplaintsTab complaints={complaints} suspensions={suspensions} busyId={busyId} onReview={reviewComplaint} onSuspend={(complaint) => { void reviewComplaint(complaint, "UNDER_REVIEW", true); }} onRevoke={revokeSuspension} /> : tab === "telemetry" ? <TelemetryTab telemetry={telemetry} health={health} exporting={exporting} onExport={exportAudit} providerCredits={providerCredits} providerCreditsLoading={providerCreditsLoading} providerCreditsRefreshing={providerCreditsRefreshing} providerCreditsError={providerCreditsError} onRefreshProviderCredits={() => void loadProviderCredits(true)} matrixUnits={matrixUnits} /> : tab === "reliability" ? <ReliabilityTab data={reliability} busyId={busyId} onReview={reviewReliabilityQuarantine} /> : tab === "ai_models" ? <AdminAiModelsTab configs={aiProviders} busyId={busyId} managedSecretNames={secrets.map((secret) => secret.name)} onSave={saveAiProvider} onHealthCheck={healthCheckAiProvider} onRemove={removeAiProvider} /> : tab === "secrets" && (user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") ? <AdminSecretsTab secrets={secrets} role={user.staffRole} busyId={busyId} onSaved={saveManagedSecret} onDeleted={deleteManagedSecret} setMessage={setMessage} setError={setError} /> : staffData ? <StaffManagementPanel data={staffData} role={user.staffRole} onChanged={load} setMessage={setMessage} setError={setError} /> : <div className="mt-6 surface-card p-6 text-sm text-muted-foreground">Staff management is available to owners and operations administrators.</div>}
   </div></AdminShell>;
 }
 
@@ -319,6 +364,7 @@ function AdminShell({ activeTab, onTabChange, canManageStaff, children }: { acti
     { label: "Overview", items: [{ key: "control_tower", label: "Control tower", icon: Activity }] },
     { label: "Operations", items: [{ key: "queue", label: "Queue & capacity", icon: ListChecks }, { key: "telemetry", label: "Telemetry", icon: Radio }, { key: "reliability", label: "Reliability", icon: Activity }, { key: "notifications", label: "Notifications", icon: Mail }] },
     { label: "Security", items: [{ key: "client_view", label: "Client view", icon: Eye }, { key: "customers", label: "Client accounts", icon: Users }, { key: "complaints", label: "Target complaints", icon: CircleAlert }] },
+    { label: "Research", items: [{ key: "alpha_event", label: "Alpha event", icon: UserPlus }] },
     { label: "Configuration", items: [{ key: "ai_models", label: "AI providers", icon: BrainCircuit }, ...(canManageStaff ? [{ key: "secrets" as const, label: "Secrets", icon: Database }, { key: "staff" as const, label: "Staff management", icon: Users }] : [])] },
   ];
   const sidebar = <div className="flex h-full flex-col bg-background text-muted-foreground"><div className="flex h-16 items-center gap-3 border-b border-border px-5"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-display text-sm font-bold text-primary-foreground">M</div><div><div className="font-display text-sm font-semibold tracking-wide text-foreground">Matrix QA</div><div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Control tower</div></div></div><div className="border-b border-border px-5 py-4"><div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operations workspace</div><div className="mt-1 truncate text-sm font-medium text-foreground">Private alpha</div></div><nav aria-label="Admin navigation" className="flex-1 overflow-y-auto px-3 py-4">{groups.map((group) => <div key={group.label} className="mb-5"><div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{group.label}</div><div className="space-y-1">{group.items.map((item) => { const Icon = item.icon; const active = activeTab === item.key; return <button key={item.key} type="button" onClick={() => { onTabChange(item.key); setMobileOpen(false); }} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${active ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}><Icon className="h-4 w-4" />{item.label}</button>; })}</div></div>)}</nav><div className="border-t border-border p-4"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{(user?.fullName || user?.email || "MQ").slice(0, 2).toUpperCase()}</div><div className="min-w-0"><div className="truncate text-xs font-medium text-foreground">{user?.fullName || "Staff operator"}</div><div className="truncate text-[10px] text-muted-foreground">{user?.staffRole || "Staff"}</div></div></div></div></div>;
