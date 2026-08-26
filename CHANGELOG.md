@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.2.0...v0.3.0) (2026-08-26)
+
+
+### Features
+
+* add alpha event staff controls ([4636944](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/463694408aa0ad90f3ac5713fee6764677b9a229))
+* improve run trend and viewport evidence UI ([d401c57](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/d401c57e30bf32097db706dd2980c2f853975085))
+
+
+### Performance
+
+* serve lightweight logo asset in page chrome ([b78c118](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/b78c1183243d8e1fa7fccfe9afc0394ffbb8791e))
+
 ## [0.2.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.1.0...v0.2.0) (2026-08-25)
 
 
