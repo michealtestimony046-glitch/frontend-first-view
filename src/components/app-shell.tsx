@@ -2,7 +2,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, FolderKanban, ListChecks, Bug, FileText, Settings, ScrollText, Activity, Database,
   ChevronDown, ChevronUp, Bell, HelpCircle, Menu, X, MoreHorizontal, Check, Plus,
-  Search, Cog, LogOut, KeyRound, UserCircle, Loader2, PlusCircle, CircleDollarSign, ShieldCheck,
+  Search, Cog, LogOut, KeyRound, UserCircle, Loader2, PlusCircle, CircleDollarSign, ShieldCheck, Users,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Logo, MatrixMark } from "./logo";
@@ -17,6 +17,7 @@ const nav: NavItem[] = [
   { label: "Projects", to: "/app/projects", icon: FolderKanban },
   { label: "Environments & data", to: "/app/environments", icon: Database },
   { label: "Discovery", to: "/app/discovery", icon: Search },
+  { label: "Worker health", to: "/app/workforce", icon: Users },
   { label: "Test Runs", to: "/app/runs", icon: ListChecks },
   { label: "Issues", to: "/app/issues", icon: Bug },
   { label: "Audit Log", to: "/app/audit", icon: ScrollText },

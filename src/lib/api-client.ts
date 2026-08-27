@@ -2044,7 +2044,43 @@ export const quickScanApi = {
   }),
 };
 
+export type CustomerWorkerHealthState = "HEALTHY" | "DEGRADED" | "STALE" | "DRAINING" | "UNREPORTED" | "STANDBY";
+export type CustomerWorkerPoolStatus = "HEALTHY" | "DEGRADED" | "NO_ACTIVE_RUN";
+export interface CustomerWorkerHealthAgent {
+  key: string;
+  name: string;
+  role: string;
+  capabilities: string[];
+  activation: "ACTIVE" | "STANDBY";
+  health: CustomerWorkerHealthState;
+  healthPercent: number | null;
+  lastHeartbeatAt: string | null;
+  heartbeatAgeMs: number | null;
+  draining: boolean;
+  activeSlots: number;
+  maxSlots: number;
+  availableSlots: number;
+  currentTaskCount: number;
+  taskCounts: Record<string, number>;
+  assignedCapabilities: string[];
+}
+export interface CustomerWorkerPoolHealth {
+  version: "v1";
+  observational: true;
+  executionModel: "CONTROLLED_SEQUENTIAL_BROWSER_RUNNER";
+  workspaceId: string;
+  generatedAt: string;
+  status: CustomerWorkerPoolStatus;
+  healthPercent: number | null;
+  run: { id: string | null; mode: string | null; status: string | null; updatedAt: string | null };
+  capacity: { activeSlots: number; maxSlots: number; availableSlots: number; utilizationPercent: number };
+  workers: { registered: number; active: number; idle: number; busy: number; unavailable: number };
+  tasks: { total: number; queued: number; accepted: number; running: number; completed: number; failed: number; blocked: number; needsReview: number; muReserved: number };
+  agents: CustomerWorkerHealthAgent[];
+}
+
 export const v2Api = {
+  getWorkerPoolHealth: (projectId: string): Promise<CustomerWorkerPoolHealth> => apiRequest(`/projects/${encodeURIComponent(projectId)}/workforce-health`, { requiresAuth: true, cache: "no-store" }),
   listEnvironments: (projectId: string): Promise<V2Environment[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
   createEnvironment: (data: { organizationId: string; workspaceId: string; projectId: string; name: string; kind?: V2EnvironmentKind; baseUrl: string; description?: string; healthChecks?: unknown[]; expectedConfig?: unknown; allowedHostnames?: unknown }): Promise<V2Environment> => apiRequest('/environments', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   updateEnvironment: (environmentId: string, data: { name?: string; kind?: V2EnvironmentKind; baseUrl?: string; description?: string; healthChecks?: unknown[]; expectedConfig?: unknown; allowedHostnames?: unknown }): Promise<V2Environment> => apiRequest(`/environments/${encodeURIComponent(environmentId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),

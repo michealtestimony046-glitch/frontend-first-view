@@ -36,6 +36,7 @@ import {
 } from "recharts";
 import type { RunReport, RunStatus, TriggerRunResponse } from "@/lib/api-client";
 import { V2RunPreflight } from "@/components/v2-run-preflight";
+import { WorkerPoolHealth } from "@/components/worker-pool-health";
 import {
   formatLiveDate,
   formatLiveDuration,
@@ -262,6 +263,10 @@ function AppDashboard() {
           tone="warning"
           hint={`${stats.warnings} retained events`}
         />
+      </div>
+
+      <div className="mt-6">
+        <WorkerPoolHealth projectId={live.activeProject?.id} compact />
       </div>
 
       {/* Recent runs + Failure trend */}

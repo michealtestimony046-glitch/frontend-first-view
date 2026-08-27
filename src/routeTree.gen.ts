@@ -50,6 +50,7 @@ import { Route as AppReliabilityRouteImport } from './routes/app.reliability'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppRunsRouteImport } from './routes/app.runs'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppWorkforceRouteImport } from './routes/app.workforce'
 import { Route as AuthConfirmEmailRouteImport } from './routes/auth.confirm-email'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as LearnFiveWorkerQaCollaborationRouteImport } from './routes/learn/five-worker-qa-collaboration'
@@ -272,6 +273,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWorkforceRoute = AppWorkforceRouteImport.update({
+  id: '/workforce',
+  path: '/workforce',
+  getParentRoute: () => AppRoute,
+} as any)
 const AuthConfirmEmailRoute = AuthConfirmEmailRouteImport.update({
   id: '/confirm-email',
   path: '/confirm-email',
@@ -386,6 +392,7 @@ export interface FileRoutesByFullPath {
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
   '/app/settings': typeof AppSettingsRouteWithChildren
+  '/app/workforce': typeof AppWorkforceRoute
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/learn/five-worker-qa-collaboration': typeof LearnFiveWorkerQaCollaborationRoute
@@ -441,6 +448,7 @@ export interface FileRoutesByTo {
   '/app/reliability': typeof AppReliabilityRoute
   '/app/reports': typeof AppReportsRoute
   '/app/settings': typeof AppSettingsRouteWithChildren
+  '/app/workforce': typeof AppWorkforceRoute
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/learn/five-worker-qa-collaboration': typeof LearnFiveWorkerQaCollaborationRoute
@@ -499,6 +507,7 @@ export interface FileRoutesById {
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
   '/app/settings': typeof AppSettingsRouteWithChildren
+  '/app/workforce': typeof AppWorkforceRoute
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/learn/five-worker-qa-collaboration': typeof LearnFiveWorkerQaCollaborationRoute
@@ -558,6 +567,7 @@ export interface FileRouteTypes {
     | '/app/reports'
     | '/app/runs'
     | '/app/settings'
+    | '/app/workforce'
     | '/auth/confirm-email'
     | '/auth/reset-password'
     | '/learn/five-worker-qa-collaboration'
@@ -613,6 +623,7 @@ export interface FileRouteTypes {
     | '/app/reliability'
     | '/app/reports'
     | '/app/settings'
+    | '/app/workforce'
     | '/auth/confirm-email'
     | '/auth/reset-password'
     | '/learn/five-worker-qa-collaboration'
@@ -670,6 +681,7 @@ export interface FileRouteTypes {
     | '/app/reports'
     | '/app/runs'
     | '/app/settings'
+    | '/app/workforce'
     | '/auth/confirm-email'
     | '/auth/reset-password'
     | '/learn/five-worker-qa-collaboration'
@@ -1016,6 +1028,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/workforce': {
+      id: '/app/workforce'
+      path: '/workforce'
+      fullPath: '/app/workforce'
+      preLoaderRoute: typeof AppWorkforceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/auth/confirm-email': {
       id: '/auth/confirm-email'
       path: '/confirm-email'
@@ -1156,6 +1175,7 @@ interface AppRouteChildren {
   AppReportsRoute: typeof AppReportsRoute
   AppRunsRoute: typeof AppRunsRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
+  AppWorkforceRoute: typeof AppWorkforceRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -1171,6 +1191,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsRoute: AppReportsRoute,
   AppRunsRoute: AppRunsRouteWithChildren,
   AppSettingsRoute: AppSettingsRouteWithChildren,
+  AppWorkforceRoute: AppWorkforceRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
