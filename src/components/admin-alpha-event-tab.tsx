@@ -460,7 +460,7 @@ export function AdminAlphaEventTab({
                       Add feedback
                     </button>
                   </form>
-                  <div className="mt-3 divide-y divide-border">
+                  <div className="mt-3 max-h-64 overflow-y-auto divide-y divide-border pr-1">
                     {(selected.alphaParticipant?.feedback || []).map((entry) => (
                       <div key={entry.id} className="py-3 text-xs">
                         <div className="flex items-center justify-between gap-3 text-muted-foreground">
