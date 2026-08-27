@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 const FIRST_TEST_READY_KEY = "matrix_qa_first_test_ready";
 import {
@@ -17,7 +17,6 @@ import {
   XCircle,
   Eye,
   BarChart3,
-  Chrome,
   Clock3,
   Loader2,
   RefreshCw,
@@ -37,6 +36,7 @@ import {
 import type { RunReport, RunStatus, TriggerRunResponse } from "@/lib/api-client";
 import { V2RunPreflight } from "@/components/v2-run-preflight";
 import { WorkerPoolHealth } from "@/components/worker-pool-health";
+import { BrowserBadge } from "@/components/browser-badge";
 import {
   formatLiveDate,
   formatLiveDuration,
@@ -308,8 +308,8 @@ function AppDashboard() {
                     <span className="font-mono text-xs text-muted-foreground">{runNumber(runs, r.id)}</span>
                     <span className="truncate text-sm text-foreground">{r.project.name}</span>
                     <StatusPill status={statusFromApi(r.status)} />
-                    <span className="hidden items-center gap-1.5 text-xs text-muted-foreground xl:flex">
-                      <Chrome className="h-3.5 w-3.5" /> Chromium
+                    <span className="hidden items-center text-xs text-muted-foreground xl:flex">
+                      <BrowserBadge compact />
                     </span>
                     <span className="truncate text-xs text-muted-foreground">{formatLiveDate(r.startedAt ?? r.createdAt)}</span>
                     <span className="font-mono text-xs text-foreground">{formatLiveDuration(reportForRun(reports, r.id)?.durationSec)}</span>
@@ -520,7 +520,7 @@ function AppDashboard() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <MiniStat label="Browser" value="Chromium" icon={Chrome} />
+              <MiniStat label="Browser" content={<BrowserBadge compact />} />
               <MiniStat label="Duration" value={latest.duration} />
               <MiniStat label="Steps" value={String(latest.steps)} />
               <MiniStat label="Issues" value={String(latest.issues)} />
@@ -793,7 +793,8 @@ function MiniStat({
   icon: Icon,
 }: {
   label: string;
-  value: string;
+  value?: string;
+  content?: ReactNode;
   icon?: typeof Activity;
 }) {
   return (
@@ -802,8 +803,7 @@ function MiniStat({
         {label}
       </div>
       <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
-        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
-        {value}
+        {content ?? <>{Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}{value}</>}
       </div>
     </div>
   );

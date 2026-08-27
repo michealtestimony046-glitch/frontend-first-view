@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ChevronRight, Chrome, Loader2, Play, Search, X } from "lucide-react";
+import { ChevronRight, Loader2, Play, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   organizationsApi,
@@ -10,6 +10,7 @@ import {
   type TriggerRunResponse,
 } from "@/lib/api-client";
 import { V2RunPreflight } from "@/components/v2-run-preflight";
+import { BrowserBadge } from "@/components/browser-badge";
 
 const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
 const ACTIVE_PROJECT_KEY = "matrix_qa_active_project";
@@ -289,8 +290,8 @@ function RunRow({
         <span className="font-mono text-xs text-muted-foreground">#{index + 1}</span>
         <span className="truncate font-mono text-xs text-foreground">{run.targetUrl}</span>
         <div className="flex flex-wrap items-center gap-1.5"><StatusPill status={run.status} /></div>
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Chrome className="h-3.5 w-3.5" /> Chromium
+        <span className="inline-flex items-center text-xs text-muted-foreground">
+          <BrowserBadge compact />
         </span>
         <span className="truncate text-xs text-muted-foreground">
           {formatDate(run.createdAt || run.startedAt)}
