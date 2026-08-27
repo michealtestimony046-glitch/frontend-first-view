@@ -482,7 +482,7 @@ export const finalFourPages: Record<string, SpecialTopicPageConfig> = {
       {
         number: "03",
         title: "Protect the release",
-        body: "Run the small suite against a controlled preview or staging URL and review the evidence together.",
+        body: "Run the small suite against a controlled pre-release or staging URL and review the evidence together.",
       },
     ],
     sections: [

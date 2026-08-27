@@ -152,7 +152,7 @@ export const seoTopicPages: Record<string, SeoTopicPageConfig> = {
       },
       {
         title: "Run against the right environment",
-        body: "Use a stable staging or preview URL, safe test data, and a repeatable mission instruction.",
+        body: "Use a stable staging or pre-release URL, safe test data, and a repeatable mission instruction.",
       },
       {
         title: "Review before promotion",
@@ -219,7 +219,7 @@ export const seoTopicPages: Record<string, SeoTopicPageConfig> = {
       {
         question: "Should I run browser tests on every commit?",
         answer:
-          "Usually, teams balance fast lower-level checks on every change with a focused browser suite at a useful deployment or preview stage. Choose the cadence that matches your target stability and release risk.",
+          "Usually, teams balance fast lower-level checks on every change with a focused browser suite at a useful deployment or pre-release stage. Choose the cadence that matches your target stability and release risk.",
       },
       {
         question: "What should a CI browser check include?",

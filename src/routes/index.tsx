@@ -81,12 +81,12 @@ function Landing() {
                 <span className="absolute inset-0 animate-ping rounded-full bg-primary/60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
               </span>
-              Public Preview · Autonomous QA Worker
+              Matrix QA launch · Autonomous QA Worker
             </span>
             <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-gradient sm:text-5xl md:text-7xl lg:text-7xl xl:text-8xl">
               Proof your app works.
               <br />
-              <span className="text-primary">Every deploy.</span>
+              <span className="text-primary">Before you ship.</span>
             </h1>
 
             <p className="mx-auto mt-6 max-w-3xl text-base text-muted-foreground md:text-lg">
@@ -112,7 +112,7 @@ function Landing() {
               </Link>
             </div>
             <p className="mt-5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-              no card · no install · one URL is enough
+              no card · no install · start with an authorized URL
             </p>
 
             {/* Value strip — four product pillars */}
@@ -147,7 +147,7 @@ function Landing() {
             </div>
           </div>
 
-          {/* Hero preview */}
+          {/* Hero console */}
           <div className="relative mx-auto mt-16 max-w-6xl">
             <div className="pointer-events-none absolute -inset-x-16 -top-8 -bottom-8 bg-[radial-gradient(600px_200px_at_50%_0%,var(--primary)/0.2,transparent)]" />
             <div className="relative rounded-2xl border border-border bg-surface/70 p-2 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] backdrop-blur">
@@ -263,7 +263,7 @@ function Landing() {
                 n: "01",
                 icon: ArrowRight,
                 title: "Enter your app's URL",
-                body: "Point Matrix QA at any staging or production URL. No install, no config.",
+                body: "Point Matrix QA at an authorized staging or production URL. No install, no config.",
               },
               {
                 n: "02",
@@ -354,18 +354,18 @@ function Landing() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <span className="font-mono text-xs uppercase tracking-widest text-primary">
-                Roadmap
+                Product path
               </span>
               <h2 className="mt-3 font-display text-3xl font-semibold md:text-4xl">
-                What's live today — and what's coming next.
+                A clear path from browser signal to broader coverage.
               </h2>
             </div>
             <span className="rounded-full border border-border bg-surface/60 px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-              Public build in progress
+              Launch status · capabilities vary by plan
             </span>
           </div>
 
-          {/* Available now */}
+          {/* Available in launch */}
           <div className="mt-10">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
@@ -373,25 +373,28 @@ function Landing() {
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
               </span>
               <span className="font-mono text-[11px] uppercase tracking-widest text-primary">
-                Available now
+                Available in launch
               </span>
             </div>
             <ol className="mt-4 grid gap-4 md:grid-cols-3">
               {[
                 {
                   icon: Cpu,
-                  title: "Browser Worker",
-                  body: "Sequential automation across login, signup, navigation, and forms.",
+                  title: "Quick Smoke",
+                  body: "One bounded browser journey with a clear evidence question.",
+                  href: "/learn/quick-smoke-testing",
                 },
                 {
                   icon: Camera,
-                  title: "Evidence Capture",
-                  body: "Screenshots, console logs, and network traces synced to every action.",
+                  title: "Evidence and reports",
+                  body: "Screenshots, browser events, runtime signals, timestamps, and findings when captured.",
+                  href: "/sample-report",
                 },
                 {
                   icon: FileSearch,
-                  title: "Dashboard Reports",
-                  body: "Findings ranked by severity, tied to reproducible evidence.",
+                  title: "Free workspace access",
+                  body: "Start with the Free plan, then compare Matrix Units, retention, and worker limits.",
+                  href: "/pricing",
                 },
               ].map((s) => (
                 <li
@@ -404,47 +407,97 @@ function Landing() {
                       Live
                     </span>
                   </div>
-                  <h3 className="mt-4 font-display text-base font-semibold">{s.title}</h3>
+                  <Link
+                    to={s.href}
+                    className="mt-4 block font-display text-base font-semibold hover:text-primary"
+                  >
+                    {s.title}
+                  </Link>
                   <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
                 </li>
               ))}
             </ol>
           </div>
 
-          {/* Coming next */}
+          {/* Available by plan or alpha */}
           <div className="mt-12">
             <div className="flex items-center gap-2">
               <Clock className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-                Coming next
+                Available by plan or alpha
               </span>
             </div>
             <ol className="mt-4 grid gap-4 md:grid-cols-3">
               {[
                 {
-                  tag: "Planned",
+                  title: "Standard Adaptive",
+                  body: "Expand a reviewed journey across supported viewport profiles.",
+                  href: "/learn/standard-adaptive-testing",
+                },
+                {
                   title: "Application Mapping",
-                  body: "Project scanner, journey graph, and safety policy engine.",
+                  body: "Quick Scan observes routes, actions, features, and a journey graph for review.",
+                  href: "/learn/quick-scan",
                 },
                 {
-                  tag: "Planned",
-                  title: "Matrix Simulation",
-                  body: "Roles × viewports × environments explored in parallel.",
-                },
-                {
-                  tag: "Planned",
-                  title: "Repair Packages",
-                  body: "Fix bundles routed to your coding agent.",
+                  title: "Governed collaboration",
+                  body: "Coordinator-led assignments, capacity, handoffs, and shared evidence where enabled.",
+                  href: "/learn/five-worker-qa-collaboration",
                 },
               ].map((s) => (
                 <li
-                  key={`${s.title}-${s.tag}`}
+                  key={s.title}
                   className="relative rounded-xl border border-border bg-surface/40 p-5"
                 >
                   <div className="flex items-center justify-between">
                     <Rocket className="h-4 w-4 text-muted-foreground" />
                     <span className="rounded-full border border-border bg-background/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                      {s.tag}
+                      Tier / alpha
+                    </span>
+                  </div>
+                  <Link
+                    to={s.href}
+                    className="mt-4 block font-display text-base font-semibold hover:text-primary"
+                  >
+                    {s.title}
+                  </Link>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {/* Next frontier */}
+          <div className="mt-12">
+            <div className="flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+                Next frontier
+              </span>
+            </div>
+            <ol className="mt-4 grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  title: "Broader matrix coverage",
+                  body: "Expand beyond the currently supported roles, devices, data states, and environments.",
+                },
+                {
+                  title: "Agent-ready repair packages",
+                  body: "Package repair guidance for coding agents beyond the current Markdown report surface.",
+                },
+                {
+                  title: "CLI and integrations",
+                  body: "Bring GitHub, CLI, and broader integrations to production through specific supported workflows.",
+                },
+              ].map((s) => (
+                <li
+                  key={s.title}
+                  className="relative rounded-xl border border-border bg-surface/40 p-5"
+                >
+                  <div className="flex items-center justify-between">
+                    <Rocket className="h-4 w-4 text-muted-foreground" />
+                    <span className="rounded-full border border-border bg-background/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Planned
                     </span>
                   </div>
                   <h3 className="mt-4 font-display text-base font-semibold">{s.title}</h3>
@@ -464,8 +517,8 @@ function Landing() {
             Ship without shipping bugs.
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-            Join the early developer cohort. Matrix QA is free during Preview while we prove the
-            engine.
+            Start with the Free plan or compare launch access before you run your first authorized
+            journey.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -474,7 +527,7 @@ function Landing() {
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow"
             >
               <Zap className="h-4 w-4" />
-              Get early access
+              Get started
             </Link>
             <Link
               to="/app"

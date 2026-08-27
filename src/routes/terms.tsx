@@ -30,9 +30,9 @@ const sections: LegalSection[] = [
           planning and analysis, and return reports, findings, and artifacts.
         </LegalParagraph>
         <LegalParagraph>
-          Matrix QA is preview software. A report is not a guarantee that every defect, outage,
-          security issue, accessibility issue, or unsafe behavior has been found. Review important
-          results with qualified people before relying on them.
+          Matrix QA is a live software service. A report is not a guarantee that every defect,
+          outage, security issue, accessibility issue, or unsafe behavior has been found. Review
+          important results with qualified people before relying on them.
         </LegalParagraph>
       </>
     ),
@@ -122,9 +122,10 @@ const sections: LegalSection[] = [
           are not invoices unless an applicable paid plan or order says otherwise.
         </LegalParagraph>
         <LegalParagraph>
-          The current public billing experience is Preview billing: invoices and payment methods are
-          disabled. If paid plans launch, the applicable prices, taxes, unit rules, refunds, expiry,
-          and overage terms will be shown with the purchase.
+          The current public billing experience includes Free and Starter plan information, Matrix
+          Unit allocations, and a display-only top-up catalog. Checkout and payment methods may be
+          unavailable for particular products or packages; applicable prices, taxes, unit rules,
+          refunds, expiry, and overage terms will be shown with the relevant purchase.
         </LegalParagraph>
       </>
     ),

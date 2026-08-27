@@ -156,7 +156,7 @@ export const specialTopicPages: Record<string, SpecialTopicPageConfig> = {
     eyebrow: "Release readiness / environment control",
     title: "Test the release candidate before it becomes the release.",
     description:
-      "Use Matrix QA to validate authorized staging and preview URLs with controlled journeys, test data, browser evidence, and release-aware findings—without claiming automatic deployment or production parity.",
+      "Use Matrix QA to validate authorized staging and pre-release URLs with controlled journeys, test data, browser evidence, and release-aware findings—without claiming automatic deployment or production parity.",
     summary:
       "A staging environment is valuable when it answers a release question. Matrix QA helps teams walk the critical journey against a controlled pre-production URL and keep the evidence attached to the environment that produced it.",
     intent: "For release teams validating a candidate build before production exposure.",
@@ -167,7 +167,7 @@ export const specialTopicPages: Record<string, SpecialTopicPageConfig> = {
       {
         label: "target",
         value: "authorized",
-        body: "Point the project at the preview or staging URL your team is allowed to test.",
+        body: "Point the project at the pre-release or staging URL your team is allowed to test.",
       },
       {
         label: "data",
@@ -184,7 +184,7 @@ export const specialTopicPages: Record<string, SpecialTopicPageConfig> = {
       {
         number: "01",
         title: "Name the environment",
-        body: "Record whether the target is a preview deployment, staging environment, or another authorized pre-release surface.",
+        body: "Record whether the target is a pre-release deployment, staging environment, or another authorized release surface.",
       },
       {
         number: "02",
@@ -202,11 +202,11 @@ export const specialTopicPages: Record<string, SpecialTopicPageConfig> = {
         kicker: "the environment question",
         title: "Staging is not a magic word. It is a decision context.",
         paragraphs: [
-          "A staging or preview URL is useful because it creates a place to observe a change before users encounter it at full scale. The important question is not simply whether the page is called staging. It is whether the target has the code, configuration, backing services, credentials, data, and feature flags needed to make the result meaningful.",
+          "A staging or pre-release URL is useful because it creates a place to observe a change before users encounter it at full scale. The important question is not simply whether the page is called staging. It is whether the target has the code, configuration, backing services, credentials, data, and feature flags needed to make the result meaningful.",
           "Matrix QA does not create that environment for you. It starts from the URL and instructions your team provides, then validates the journey that the environment exposes. The report should therefore name the environment and record the assumptions that affect the result.",
         ],
         bullets: [
-          "Preview deployment created from a pull request",
+          "Pre-release deployment created from a pull request",
           "Shared staging environment for a release candidate",
           "Pre-production route with dedicated test credentials",
           "Authorized production smoke path when explicitly controlled",
@@ -216,7 +216,7 @@ export const specialTopicPages: Record<string, SpecialTopicPageConfig> = {
         kicker: "the runway",
         title: "Move through environments without confusing confidence with proof.",
         paragraphs: [
-          "Development is where a change is built and explored. A preview environment can make one change reviewable. Staging is often where several services and a release candidate are assembled. Production is where real users and real consequences exist. Each step changes the quality of evidence available to the team.",
+          "Development is where a change is built and explored. A pre-release environment can make one change reviewable. Staging is often where several services and a release candidate are assembled. Production is where real users and real consequences exist. Each step changes the quality of evidence available to the team.",
           "The closer a non-production environment is to production, the more useful the comparison can be—but similarity must be checked rather than assumed. Differences in backing services, feature flags, third-party availability, data shape, browser configuration, and secrets can produce different results.",
         ],
       },
@@ -263,7 +263,7 @@ export const specialTopicPages: Record<string, SpecialTopicPageConfig> = {
       {
         question: "Can Matrix QA create my staging environment?",
         answer:
-          "No. Matrix QA tests an authorized URL and configured journey. Your team remains responsible for provisioning the preview or staging environment, data, credentials, integrations, and deployment process.",
+          "No. Matrix QA tests an authorized URL and configured journey. Your team remains responsible for provisioning the pre-release or staging environment, data, credentials, integrations, and deployment process.",
       },
       {
         question: "Does a staging pass prove production is safe?",
@@ -411,7 +411,7 @@ export const specialTopicPages: Record<string, SpecialTopicPageConfig> = {
         kicker: "the first week",
         title: "A practical operating plan for building coverage.",
         paragraphs: [
-          "In the first week, select three journeys: one authentication path, one core product action, and one recovery or validation path. Run them against an authorized staging or preview URL with dedicated test data. Review the evidence with the engineers who own the affected routes and services.",
+          "In the first week, select three journeys: one authentication path, one core product action, and one recovery or validation path. Run them against an authorized staging or pre-release URL with dedicated test data. Review the evidence with the engineers who own the affected routes and services.",
           "Then expand deliberately. Add a journey only when it protects a meaningful product promise, has a safe test boundary, and has an owner who can interpret the result. Revisit the set after releases, because application behavior and dependencies change over time.",
         ],
       },

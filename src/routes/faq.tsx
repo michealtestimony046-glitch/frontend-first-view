@@ -7,9 +7,9 @@ import { seoHead } from "@/lib/seo";
 export const Route = createFileRoute("/faq")({
   head: () =>
     seoHead({
-      title: "Matrix QA FAQ | Browser Testing, Evidence & Preview",
+      title: "Matrix QA FAQ | Browser Testing, Evidence & Usage",
       description:
-        "Answers about Matrix QA browser testing, evidence reports, Preview access, usage, safety, and the current console.",
+        "Answers about Matrix QA browser testing, evidence reports, plan access, usage, safety, and the current console.",
       path: "/faq",
       breadcrumbLabel: "FAQ",
       faqItems: FAQS.map(({ q, a }) => ({ question: q, answer: a })),
@@ -40,7 +40,7 @@ function FaqPage() {
               search={{ mode: "signup", returnTo: "/app" }}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground"
             >
-              Join Preview <ArrowRight className="h-3.5 w-3.5" />
+              Get started <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>
@@ -55,8 +55,8 @@ function FaqPage() {
             Questions developers ask first.
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-            A living guide to Matrix QA Preview, the browser worker, evidence reports, usage, and
-            the current console.
+            A living guide to Matrix QA, the browser worker, evidence reports, usage, and the
+            current console.
           </p>
         </div>
 
@@ -70,7 +70,7 @@ function FaqPage() {
           <div>
             <div className="text-sm font-semibold">Still have a question?</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              Join Preview and ask from inside your workspace.
+              Create a workspace and ask from inside your console.
             </div>
           </div>
           <Link
