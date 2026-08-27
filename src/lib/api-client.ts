@@ -179,6 +179,47 @@ export interface Organization {
 export interface CreateOrganizationRequest {
   name: string;
 }
+
+export type PublicPlan = "FREE" | "STARTER" | "PRO" | "BUSINESS" | "ENTERPRISE";
+export type EntitlementAccessSource = "FREE" | "SUBSCRIPTION" | "ALPHA" | "STAFF" | "ADMIN";
+
+export interface EffectivePlanResponse {
+  organizationId: string | null;
+  plan: PublicPlan;
+  accessSource: EntitlementAccessSource;
+  alphaRewardActive: boolean;
+  monthlyMu: number;
+  maxProjects: number;
+  maxSeats: number;
+  maxActiveRuns: number;
+  maxLogicalWorkers: number;
+  allowedModes: string[];
+  fiveWorkerCollaboration: boolean;
+  delegation: boolean;
+  coverageMemory: string;
+  independentReproduction: boolean;
+  failureAnalysis: string;
+  topUps: string;
+  retentionDays: number;
+  deepMatrix: boolean;
+}
+
+export interface MatrixUnitTopUpPackage {
+  id: string;
+  matrixUnits: number;
+  priceUsd: number;
+  pricePerMuUsd: number;
+  billing: "one_time" | string;
+}
+
+export interface MatrixUnitTopUpCatalog {
+  currency: string;
+  formulaVersion: string;
+  muPriceUsd: number;
+  packages: MatrixUnitTopUpPackage[];
+  purchaseEnabled: boolean;
+  purchaseNote: string;
+}
 export interface Workspace {
   id: string;
   organizationId: string;
@@ -980,6 +1021,13 @@ export const authApi = {
   },
 };
 
+export const plansApi = {
+  effective: (organizationId?: string): Promise<EffectivePlanResponse> => {
+    const query = organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : "";
+    return apiRequest(`/plans/effective${query}`, { requiresAuth: true, cache: "no-store" });
+  },
+};
+
 export const organizationsApi = {
   list: (): Promise<Organization[]> => apiRequest("/organizations", { requiresAuth: true }),
   create: (data: CreateOrganizationRequest): Promise<Organization> =>
@@ -1055,6 +1103,7 @@ export interface AllocationExtensionRequest {
 }
 
 export const creditsApi = {
+  topUpOptions: (): Promise<MatrixUnitTopUpCatalog> => apiRequest("/credits/top-up-options", { requiresAuth: true, cache: "no-store" }),
   getSummary: (organizationId: string): Promise<CreditsSummary> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/summary`, { requiresAuth: true }),
   getLedger: (organizationId: string): Promise<CreditsLedgerEntry[]> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/ledger`, { requiresAuth: true }),
   getRequests: (organizationId: string): Promise<AllocationExtensionRequest[]> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/requests`, { requiresAuth: true }),
