@@ -25,10 +25,9 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -61,14 +60,14 @@ type DashboardState = "loading" | "error" | "empty" | "partial" | "ready";
 type DashboardStatusKey = "passed" | "findings" | "failed" | "blocked" | "running" | "queued" | "partiallyTested";
 type DashboardStatusTotals = Record<DashboardStatusKey, number>;
 
-const trendSeries: Array<{ key: DashboardStatusKey; label: string; color: string; dash?: string }> = [
+const trendSeries: Array<{ key: DashboardStatusKey; label: string; color: string }> = [
   { key: "passed", label: "Passed", color: "#79e6a0" },
   { key: "findings", label: "Findings", color: "#80aaff" },
-  { key: "partiallyTested", label: "Partial", color: "#d59bff" },
   { key: "failed", label: "Failed", color: "#ff7070" },
   { key: "blocked", label: "Blocked", color: "#f0b24d" },
-  { key: "running", label: "Running", color: "#9be7b6", dash: "5 4" },
-  { key: "queued", label: "Queued", color: "#a9b3c2", dash: "2 4" },
+  { key: "queued", label: "Queued", color: "#a9b3c2" },
+  { key: "partiallyTested", label: "Partial", color: "#d59bff" },
+  { key: "running", label: "Running", color: "#9be7b6" },
 ];
 
 function AppDashboard() {
@@ -78,6 +77,7 @@ function AppDashboard() {
   const [autoStartFirstRun, setAutoStartFirstRun] = useState(false);
   const [showRunModal, setShowRunModal] = useState(false);
   const [utilityPanel, setUtilityPanel] = useState<"notifications" | "help" | null>(null);
+  const [trendFilter, setTrendFilter] = useState<"all" | DashboardStatusKey>("all");
   const runs = live.runs;
   const issues = live.issues;
   const reports = live.reports;
@@ -93,7 +93,17 @@ function AppDashboard() {
   const stats = { total, passed, failed, warnings };
   const statusTotals = buildStatusTotals(runs);
   const trend = buildOverallTrend(runs);
-  const activeTrendSeries = trendSeries.filter((series) => statusTotals[series.key] > 0);
+  const trendTotals = trend.reduce<DashboardStatusTotals>((totals, point) => {
+    trendSeries.forEach((series) => {
+      totals[series.key] += point[series.key];
+    });
+    return totals;
+  }, { passed: 0, findings: 0, failed: 0, blocked: 0, running: 0, queued: 0, partiallyTested: 0 });
+  const activeTrendSeries = trendSeries.filter(
+    (series) =>
+      trendTotals[series.key] > 0 &&
+      (trendFilter === "all" || series.key === trendFilter),
+  );
   const dashboardState: DashboardState = live.loading
     ? "loading"
     : live.error
@@ -112,8 +122,9 @@ function AppDashboard() {
     issues: latestReport?.bugs ?? latestReport?.summary?.bugCount ?? latestReport?.errors?.length ?? 0,
   };
   const usage = { used: total, cap: Number.POSITIVE_INFINITY, atCap: false };
-  const totalTrendRuns = trend.reduce((sum, point) => sum + point.passed + point.findings + point.partiallyTested + point.running + point.blocked + point.failed + point.queued, 0);
-  const trendFindings = trend.reduce((sum, point) => sum + point.findings, 0);
+  const totalTrendRuns = Object.values(trendTotals).reduce((sum, count) => sum + count, 0);
+  const trendFindings = trendTotals.findings;
+  const visibleTrendRuns = trendFilter === "all" ? totalTrendRuns : trendTotals[trendFilter];
   const activeCount = statusTotals.running + statusTotals.queued;
   const attentionCount = statusTotals.failed + statusTotals.blocked + statusTotals.findings + statusTotals.partiallyTested;
   const lastUpdated = latestRun?.startedAt ?? latestRun?.createdAt ?? null;
@@ -345,55 +356,78 @@ function AppDashboard() {
         </section>
 
         {/* Overall run trend */}
-        <section className="surface-card flex flex-col overflow-hidden">
-              <header className="flex items-center justify-between border-b border-border px-5 py-4">
+        <section className="surface-card flex min-h-[390px] flex-col overflow-hidden">
+          <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
             <div>
-              <h2 className="font-display text-base font-semibold">
-                Overall Run Trend
-              </h2>
-              <p className="text-[11px] text-muted-foreground">Last 7 days · all run statuses</p>
+              <h2 className="font-display text-base font-semibold">Overall Run Trend</h2>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Last 7 days · all run statuses</p>
             </div>
+            <label className="sr-only" htmlFor="trend-status-filter">Filter trend statuses</label>
+            <select
+              id="trend-status-filter"
+              value={trendFilter}
+              onChange={(event) => setTrendFilter(event.target.value as "all" | DashboardStatusKey)}
+              className="h-8 shrink-0 rounded-md border border-border bg-surface-2/70 px-2.5 text-[11px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            >
+              <option value="all">All statuses</option>
+              {trendSeries.map((series) => <option key={series.key} value={series.key}>{series.label}</option>)}
+            </select>
           </header>
-          <div className="h-[210px] px-3 pt-4 sm:h-[230px]" role="img" aria-label={`Seven-day run status trend with ${totalTrendRuns} total runs and ${trendFindings} findings captured.`}>
+          <div className="h-[270px] px-2 pt-5 sm:h-[290px] sm:px-3" role="img" aria-label={`Seven-day run status trend with ${visibleTrendRuns} visible runs and ${trendFindings} findings captured.`}>
             {dashboardState === "loading" && !runs.length ? (
               <TrendState title="Loading run activity" detail="The chart will appear when current workspace data arrives." tone="info" loading />
             ) : dashboardState === "error" && !runs.length ? (
               <TrendState title="Run activity unavailable" detail={live.error || "Refresh to try the live data source again."} tone="error" />
-            ) : totalTrendRuns === 0 ? (
-              <TrendState title="No run activity in the last 7 days" detail="Start a test to create the first point in this workspace trend." tone="neutral" />
+            ) : visibleTrendRuns === 0 ? (
+              <TrendState title={trendFilter === "all" ? "No run activity in the last 7 days" : `No ${trendFilterLabel(trendFilter).toLowerCase()} runs in the last 7 days`} detail="Start a test to create the first point in this workspace trend." tone="neutral" />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trend} margin={{ top: 4, right: 8, left: -12, bottom: 8 }}>
-                  <CartesianGrid vertical={false} stroke="oklch(1 0 0 / 0.08)" />
-                  <XAxis dataKey="day" stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} width={28} allowDecimals={false} />
+                <AreaChart data={trend} margin={{ top: 6, right: 10, left: -14, bottom: 14 }}>
+                  <defs>
+                    {trendSeries.map((series) => (
+                      <linearGradient key={series.key} id={`trend-fill-${series.key}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={series.color} stopOpacity={series.key === "failed" ? 0.28 : 0.14} />
+                        <stop offset="100%" stopColor={series.color} stopOpacity={0.01} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="rgba(152, 166, 190, 0.14)" strokeDasharray="2 5" />
+                  <XAxis dataKey="day" tick={<TrendXAxisTick />} tickLine={false} axisLine={false} interval={0} height={36} />
+                  <YAxis stroke="rgba(164, 177, 198, 0.75)" fontSize={10} tickLine={false} axisLine={false} width={30} allowDecimals={false} />
                   <Tooltip
-                    cursor={{ stroke: "oklch(1 0 0 / 0.18)", strokeDasharray: "4 4" }}
-                    contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: "var(--muted-foreground)" }}
+                    cursor={{ stroke: "rgba(191, 205, 227, 0.28)", strokeDasharray: "4 4" }}
+                    contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, color: "var(--foreground)" }}
+                    labelStyle={{ color: "var(--muted-foreground)", marginBottom: 4 }}
+                    itemStyle={{ color: "var(--foreground)" }}
                   />
                   {activeTrendSeries.map((series) => (
-                    <Line key={series.key} type="monotone" dataKey={series.key} name={series.label} stroke={series.color} strokeWidth={3} strokeDasharray={series.dash} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                    <Area
+                      key={series.key}
+                      type="monotone"
+                      dataKey={series.key}
+                      name={series.label}
+                      stroke={series.color}
+                      strokeWidth={2}
+                      fill={`url(#trend-fill-${series.key})`}
+                      fillOpacity={1}
+                      dot={{ r: 3, fill: series.color, stroke: "var(--surface)", strokeWidth: 1.5 }}
+                      activeDot={{ r: 5, fill: series.color, stroke: "var(--surface)", strokeWidth: 2 }}
+                      connectNulls
+                    />
                   ))}
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             )}
           </div>
-          <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-5 py-2.5 text-[10px] text-muted-foreground">
-            {activeTrendSeries.length ? activeTrendSeries.map((series) => <span key={series.key} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: series.color }} />{series.label}<strong className="font-mono text-foreground">{statusTotals[series.key]}</strong></span>) : <span>No status series to display yet.</span>}
+          <div className="grid min-h-12 grid-cols-2 gap-x-3 gap-y-2 border-t border-border px-5 py-3 text-[10px] text-muted-foreground sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
+            {activeTrendSeries.length ? activeTrendSeries.map((series) => <span key={series.key} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: series.color }} />{series.label}<strong className="font-mono text-foreground">{trendTotals[series.key]}</strong></span>) : <span>No status series to display yet.</span>}
           </div>
           <div className="mt-auto flex items-end justify-between border-t border-border px-5 py-4">
             <div>
-              <div className="text-[11px] text-muted-foreground">
-                Total runs in period
-              </div>
-              <div className="font-display text-2xl font-semibold">
-                {totalTrendRuns}
-              </div>
+              <div className="text-[11px] text-muted-foreground">{trendFilter === "all" ? "Total runs in period" : `${trendFilterLabel(trendFilter)} runs in period`}</div>
+              <div className="font-display text-2xl font-semibold">{visibleTrendRuns}</div>
             </div>
-            <span className="font-mono text-[11px] text-primary">
-              {trendFindings} findings captured
-            </span>
+            <span className="font-mono text-[11px] text-primary">{trendFindings} findings captured</span>
           </div>
         </section>
       </div>
@@ -623,8 +657,35 @@ function buildOverallTrend(runs: Array<{ status: string; startedAt?: string | nu
       else if (run.status === "FAILED") counts.failed += 1;
       else counts.queued += 1;
     });
-    return { day: date.toLocaleDateString(undefined, { weekday: "short" }), ...counts };
+    return {
+      day: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      weekday: date.toLocaleDateString(undefined, { weekday: "short" }),
+      ...counts,
+    };
   });
+}
+
+function trendFilterLabel(filter: "all" | DashboardStatusKey) {
+  if (filter === "all") return "All status";
+  return trendSeries.find((series) => series.key === filter)?.label ?? "Selected status";
+}
+
+function TrendXAxisTick({
+  x,
+  y,
+  payload,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string; payload?: { weekday?: string } };
+}) {
+  if (typeof x !== "number" || typeof y !== "number") return null;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={12} textAnchor="middle" fill="rgba(164, 177, 198, 0.82)" fontSize={9}>{payload?.value}</text>
+      <text x={0} y={0} dy={25} textAnchor="middle" fill="rgba(139, 151, 173, 0.68)" fontSize={8}>{payload?.payload?.weekday}</text>
+    </g>
+  );
 }
 
 function durationForRun(run: { startedAt?: string | null; finishedAt?: string | null; createdAt?: string } | null, report?: RunReport | null) {
