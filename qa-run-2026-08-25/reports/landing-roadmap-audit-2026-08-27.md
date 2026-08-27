@@ -104,3 +104,8 @@ The explicit exclusions were preserved. The homepage still contains `indisputabl
 The whole-repository `pnpm lint` command remains red because the repository contains 2,180 pre-existing Prettier errors and 18 warnings outside this focused change set. Targeted lint for the modified files passed, so this baseline debt is reported rather than mass-formatted unrelated files.
 
 The local validation artifacts are preserved in `qa-run-2026-08-25/reports/mobile-launch-qa-2026-08-27/`, with the resumable checkpoint at `qa-run-2026-08-25/reports/launch-validation-checkpoint-2026-08-27.md` and the append-only ledger event `EVT-0022`. These tests cover the anonymous public launch surface and representative route families only; they do not establish universal browser/device compatibility, authenticated entitlement correctness, payment behavior, or production deployment success.
+
+
+### Publication status
+
+Commit `fc6687d` was pushed to `fix/live-launch-positioning` and published as [PR #202](https://github.com/michealtestimony046-glitch/frontend-first-view/pull/202). The focused PR is open, all required checks are green, and GitHub reports it as clean/mergeable. It was intentionally **not merged**, because the current launch-positioning instruction did not explicitly authorize merging this final PR. Production should not be described as updated until an authorized merge and deployment occur. GitHub currently reports PRs #176 and #177 as already merged; neither was touched during this task.
