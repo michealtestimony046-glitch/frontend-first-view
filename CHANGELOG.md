@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.5.0...v0.6.0) (2026-08-27)
+
+
+### Features
+
+* **dashboard:** clarify operational overview states ([#190](https://github.com/michealtestimony046-glitch/frontend-first-view/issues/190)) ([d59df81](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/d59df81c0073cf818e40c97f75acae1521e5849a))
+
 ## [0.5.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.4.0...v0.5.0) (2026-08-27)
 
 ### Chores
