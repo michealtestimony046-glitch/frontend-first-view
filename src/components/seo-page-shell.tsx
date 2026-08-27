@@ -37,6 +37,12 @@ const relatedGuides = [
   { to: "/qa-for-saas", label: "QA for SaaS" },
   { to: "/qa-for-startups", label: "QA for startups" },
   { to: "/mia", label: "Meet Mia" },
+  { to: "/learn/matrix-units", label: "Matrix Units" },
+  { to: "/learn/quick-smoke-testing", label: "Quick Smoke" },
+  { to: "/learn/standard-adaptive-testing", label: "Standard Adaptive" },
+  { to: "/learn/five-worker-qa-collaboration", label: "Five-worker collaboration" },
+  { to: "/learn/matrix-unit-top-ups", label: "Matrix Unit top-ups" },
+  { to: "/learn/quick-scan", label: "Quick Scan preflight" },
 ] as const;
 
 function PrimaryAction({ label }: { label: string }) {
@@ -372,7 +378,9 @@ export function SeoPageShell(props: SeoPageShellProps) {
               <Link to="/privacy">Privacy</Link>
               <Link to="/cookies">Cookies</Link>
               <Link to="/faq">FAQ</Link>
-              <a href={DISCORD_SUPPORT_URL} target="_blank" rel="noopener noreferrer">Support on Discord</a>
+              <a href={DISCORD_SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+                Support on Discord
+              </a>
             </nav>
             <p className="font-mono text-xs text-muted-foreground">
               © {new Date().getFullYear()} Matrix QA · Tr Labs

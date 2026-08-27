@@ -52,6 +52,12 @@ import { Route as AppRunsRouteImport } from './routes/app.runs'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AuthConfirmEmailRouteImport } from './routes/auth.confirm-email'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
+import { Route as LearnFiveWorkerQaCollaborationRouteImport } from './routes/learn/five-worker-qa-collaboration'
+import { Route as LearnMatrixUnitTopUpsRouteImport } from './routes/learn/matrix-unit-top-ups'
+import { Route as LearnMatrixUnitsRouteImport } from './routes/learn/matrix-units'
+import { Route as LearnQuickScanRouteImport } from './routes/learn/quick-scan'
+import { Route as LearnQuickSmokeTestingRouteImport } from './routes/learn/quick-smoke-testing'
+import { Route as LearnStandardAdaptiveTestingRouteImport } from './routes/learn/standard-adaptive-testing'
 import { Route as StaffInvitationsAcceptRouteImport } from './routes/staff-invitations.accept'
 import { Route as StaffInvitationsDeclineRouteImport } from './routes/staff-invitations.decline'
 import { Route as AppRunsIndexRouteImport } from './routes/app.runs.index'
@@ -276,6 +282,38 @@ const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => AuthRoute,
 } as any)
+const LearnFiveWorkerQaCollaborationRoute =
+  LearnFiveWorkerQaCollaborationRouteImport.update({
+    id: '/learn/five-worker-qa-collaboration',
+    path: '/learn/five-worker-qa-collaboration',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LearnMatrixUnitTopUpsRoute = LearnMatrixUnitTopUpsRouteImport.update({
+  id: '/learn/matrix-unit-top-ups',
+  path: '/learn/matrix-unit-top-ups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnMatrixUnitsRoute = LearnMatrixUnitsRouteImport.update({
+  id: '/learn/matrix-units',
+  path: '/learn/matrix-units',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnQuickScanRoute = LearnQuickScanRouteImport.update({
+  id: '/learn/quick-scan',
+  path: '/learn/quick-scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnQuickSmokeTestingRoute = LearnQuickSmokeTestingRouteImport.update({
+  id: '/learn/quick-smoke-testing',
+  path: '/learn/quick-smoke-testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnStandardAdaptiveTestingRoute =
+  LearnStandardAdaptiveTestingRouteImport.update({
+    id: '/learn/standard-adaptive-testing',
+    path: '/learn/standard-adaptive-testing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const StaffInvitationsAcceptRoute = StaffInvitationsAcceptRouteImport.update({
   id: '/staff-invitations/accept',
   path: '/staff-invitations/accept',
@@ -350,6 +388,12 @@ export interface FileRoutesByFullPath {
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/learn/five-worker-qa-collaboration': typeof LearnFiveWorkerQaCollaborationRoute
+  '/learn/matrix-unit-top-ups': typeof LearnMatrixUnitTopUpsRoute
+  '/learn/matrix-units': typeof LearnMatrixUnitsRoute
+  '/learn/quick-scan': typeof LearnQuickScanRoute
+  '/learn/quick-smoke-testing': typeof LearnQuickSmokeTestingRoute
+  '/learn/standard-adaptive-testing': typeof LearnStandardAdaptiveTestingRoute
   '/staff-invitations/accept': typeof StaffInvitationsAcceptRoute
   '/staff-invitations/decline': typeof StaffInvitationsDeclineRoute
   '/app/': typeof AppIndexRoute
@@ -399,6 +443,12 @@ export interface FileRoutesByTo {
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/learn/five-worker-qa-collaboration': typeof LearnFiveWorkerQaCollaborationRoute
+  '/learn/matrix-unit-top-ups': typeof LearnMatrixUnitTopUpsRoute
+  '/learn/matrix-units': typeof LearnMatrixUnitsRoute
+  '/learn/quick-scan': typeof LearnQuickScanRoute
+  '/learn/quick-smoke-testing': typeof LearnQuickSmokeTestingRoute
+  '/learn/standard-adaptive-testing': typeof LearnStandardAdaptiveTestingRoute
   '/staff-invitations/accept': typeof StaffInvitationsAcceptRoute
   '/staff-invitations/decline': typeof StaffInvitationsDeclineRoute
   '/app': typeof AppIndexRoute
@@ -451,6 +501,12 @@ export interface FileRoutesById {
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/learn/five-worker-qa-collaboration': typeof LearnFiveWorkerQaCollaborationRoute
+  '/learn/matrix-unit-top-ups': typeof LearnMatrixUnitTopUpsRoute
+  '/learn/matrix-units': typeof LearnMatrixUnitsRoute
+  '/learn/quick-scan': typeof LearnQuickScanRoute
+  '/learn/quick-smoke-testing': typeof LearnQuickSmokeTestingRoute
+  '/learn/standard-adaptive-testing': typeof LearnStandardAdaptiveTestingRoute
   '/staff-invitations/accept': typeof StaffInvitationsAcceptRoute
   '/staff-invitations/decline': typeof StaffInvitationsDeclineRoute
   '/app/': typeof AppIndexRoute
@@ -504,6 +560,12 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/auth/confirm-email'
     | '/auth/reset-password'
+    | '/learn/five-worker-qa-collaboration'
+    | '/learn/matrix-unit-top-ups'
+    | '/learn/matrix-units'
+    | '/learn/quick-scan'
+    | '/learn/quick-smoke-testing'
+    | '/learn/standard-adaptive-testing'
     | '/staff-invitations/accept'
     | '/staff-invitations/decline'
     | '/app/'
@@ -553,6 +615,12 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/auth/confirm-email'
     | '/auth/reset-password'
+    | '/learn/five-worker-qa-collaboration'
+    | '/learn/matrix-unit-top-ups'
+    | '/learn/matrix-units'
+    | '/learn/quick-scan'
+    | '/learn/quick-smoke-testing'
+    | '/learn/standard-adaptive-testing'
     | '/staff-invitations/accept'
     | '/staff-invitations/decline'
     | '/app'
@@ -604,6 +672,12 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/auth/confirm-email'
     | '/auth/reset-password'
+    | '/learn/five-worker-qa-collaboration'
+    | '/learn/matrix-unit-top-ups'
+    | '/learn/matrix-units'
+    | '/learn/quick-scan'
+    | '/learn/quick-smoke-testing'
+    | '/learn/standard-adaptive-testing'
     | '/staff-invitations/accept'
     | '/staff-invitations/decline'
     | '/app/'
@@ -643,6 +717,12 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   VisualRegressionTestingRoute: typeof VisualRegressionTestingRoute
   WebApplicationTestingRoute: typeof WebApplicationTestingRoute
+  LearnFiveWorkerQaCollaborationRoute: typeof LearnFiveWorkerQaCollaborationRoute
+  LearnMatrixUnitTopUpsRoute: typeof LearnMatrixUnitTopUpsRoute
+  LearnMatrixUnitsRoute: typeof LearnMatrixUnitsRoute
+  LearnQuickScanRoute: typeof LearnQuickScanRoute
+  LearnQuickSmokeTestingRoute: typeof LearnQuickSmokeTestingRoute
+  LearnStandardAdaptiveTestingRoute: typeof LearnStandardAdaptiveTestingRoute
   StaffInvitationsAcceptRoute: typeof StaffInvitationsAcceptRoute
   StaffInvitationsDeclineRoute: typeof StaffInvitationsDeclineRoute
 }
@@ -950,6 +1030,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthResetPasswordRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/learn/five-worker-qa-collaboration': {
+      id: '/learn/five-worker-qa-collaboration'
+      path: '/learn/five-worker-qa-collaboration'
+      fullPath: '/learn/five-worker-qa-collaboration'
+      preLoaderRoute: typeof LearnFiveWorkerQaCollaborationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/matrix-unit-top-ups': {
+      id: '/learn/matrix-unit-top-ups'
+      path: '/learn/matrix-unit-top-ups'
+      fullPath: '/learn/matrix-unit-top-ups'
+      preLoaderRoute: typeof LearnMatrixUnitTopUpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/matrix-units': {
+      id: '/learn/matrix-units'
+      path: '/learn/matrix-units'
+      fullPath: '/learn/matrix-units'
+      preLoaderRoute: typeof LearnMatrixUnitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/quick-scan': {
+      id: '/learn/quick-scan'
+      path: '/learn/quick-scan'
+      fullPath: '/learn/quick-scan'
+      preLoaderRoute: typeof LearnQuickScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/quick-smoke-testing': {
+      id: '/learn/quick-smoke-testing'
+      path: '/learn/quick-smoke-testing'
+      fullPath: '/learn/quick-smoke-testing'
+      preLoaderRoute: typeof LearnQuickSmokeTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/standard-adaptive-testing': {
+      id: '/learn/standard-adaptive-testing'
+      path: '/learn/standard-adaptive-testing'
+      fullPath: '/learn/standard-adaptive-testing'
+      preLoaderRoute: typeof LearnStandardAdaptiveTestingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/staff-invitations/accept': {
       id: '/staff-invitations/accept'
       path: '/staff-invitations/accept'
@@ -1096,6 +1218,12 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   VisualRegressionTestingRoute: VisualRegressionTestingRoute,
   WebApplicationTestingRoute: WebApplicationTestingRoute,
+  LearnFiveWorkerQaCollaborationRoute: LearnFiveWorkerQaCollaborationRoute,
+  LearnMatrixUnitTopUpsRoute: LearnMatrixUnitTopUpsRoute,
+  LearnMatrixUnitsRoute: LearnMatrixUnitsRoute,
+  LearnQuickScanRoute: LearnQuickScanRoute,
+  LearnQuickSmokeTestingRoute: LearnQuickSmokeTestingRoute,
+  LearnStandardAdaptiveTestingRoute: LearnStandardAdaptiveTestingRoute,
   StaffInvitationsAcceptRoute: StaffInvitationsAcceptRoute,
   StaffInvitationsDeclineRoute: StaffInvitationsDeclineRoute,
 }
