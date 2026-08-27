@@ -18,6 +18,11 @@ import {
   Eye,
   BarChart3,
   Chrome,
+  Clock3,
+  Loader2,
+  RefreshCw,
+  ShieldCheck,
+  ArrowUpRight,
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -52,6 +57,20 @@ export const Route = createFileRoute("/app/")({
   component: AppDashboard,
 });
 
+type DashboardState = "loading" | "error" | "empty" | "partial" | "ready";
+type DashboardStatusKey = "passed" | "findings" | "failed" | "blocked" | "running" | "queued" | "partiallyTested";
+type DashboardStatusTotals = Record<DashboardStatusKey, number>;
+
+const trendSeries: Array<{ key: DashboardStatusKey; label: string; color: string; dash?: string }> = [
+  { key: "passed", label: "Passed", color: "#79e6a0" },
+  { key: "findings", label: "Findings", color: "#80aaff" },
+  { key: "partiallyTested", label: "Partial", color: "#d59bff" },
+  { key: "failed", label: "Failed", color: "#ff7070" },
+  { key: "blocked", label: "Blocked", color: "#f0b24d" },
+  { key: "running", label: "Running", color: "#9be7b6", dash: "5 4" },
+  { key: "queued", label: "Queued", color: "#a9b3c2", dash: "2 4" },
+];
+
 function AppDashboard() {
   const live = useLivePortfolio();
   const [runTargetUrl, setRunTargetUrl] = useState("");
@@ -72,7 +91,18 @@ function AppDashboard() {
     return sum + outcomeWarning + reportWarnings(reportForRun(reports, run.id));
   }, 0);
   const stats = { total, passed, failed, warnings };
+  const statusTotals = buildStatusTotals(runs);
   const trend = buildOverallTrend(runs);
+  const activeTrendSeries = trendSeries.filter((series) => statusTotals[series.key] > 0);
+  const dashboardState: DashboardState = live.loading
+    ? "loading"
+    : live.error
+      ? "error"
+      : runs.length === 0
+        ? "empty"
+        : reports.length < Math.min(runs.length, 24)
+          ? "partial"
+          : "ready";
   const latest = {
     runId: latestRun?.id ?? "",
     status: statusFromApi(latestRun?.status),
@@ -82,8 +112,11 @@ function AppDashboard() {
     issues: latestReport?.bugs ?? latestReport?.summary?.bugCount ?? latestReport?.errors?.length ?? 0,
   };
   const usage = { used: total, cap: Number.POSITIVE_INFINITY, atCap: false };
-  const totalTrendRuns = trend.reduce((sum, point) => sum + point.passed + point.findings + point.running + point.blocked + point.failed + point.queued, 0);
+  const totalTrendRuns = trend.reduce((sum, point) => sum + point.passed + point.findings + point.partiallyTested + point.running + point.blocked + point.failed + point.queued, 0);
   const trendFindings = trend.reduce((sum, point) => sum + point.findings, 0);
+  const activeCount = statusTotals.running + statusTotals.queued;
+  const attentionCount = statusTotals.failed + statusTotals.blocked + statusTotals.findings + statusTotals.partiallyTested;
+  const lastUpdated = latestRun?.startedAt ?? latestRun?.createdAt ?? null;
 
   useEffect(() => {
     if (!live.activeProject || typeof window === "undefined") return;
@@ -188,8 +221,19 @@ function AppDashboard() {
         </div>
       </div>
 
+      <DashboardPulse
+        state={dashboardState}
+        workspaceName={live.activeWorkspace?.name}
+        lastUpdated={lastUpdated}
+        activeCount={activeCount}
+        attentionCount={attentionCount}
+        total={total}
+        errorMessage={live.error}
+        onRefresh={live.refresh}
+      />
+
       {/* Stat cards */}
-      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:mt-5 lg:grid-cols-4">
         <StatCard
           label="Total Test Runs"
           value={stats.total}
@@ -247,7 +291,7 @@ function AppDashboard() {
               <span>Duration</span>
               <span />
             </div>
-            <ul className="max-h-[26rem] overflow-y-auto">
+            {runs.length === 0 ? <RunListState state={dashboardState} /> : <ul className="max-h-[26rem] overflow-y-auto">
               {runs.slice(0, 6).map((r) => (
                 <li key={r.id}>
                   <Link
@@ -268,11 +312,11 @@ function AppDashboard() {
                   </Link>
                 </li>
               ))}
-            </ul>
+            </ul>}
           </div>
 
           {/* Mobile cards */}
-          <ul className="max-h-[26rem] divide-y divide-border overflow-y-auto md:hidden">
+          {runs.length === 0 ? <RunListState state={dashboardState} /> : <ul className="max-h-[26rem] divide-y divide-border overflow-y-auto md:hidden">
             {runs.slice(0, 6).map((r) => (
               <li key={r.id}>
                 <Link
@@ -297,7 +341,7 @@ function AppDashboard() {
                 </Link>
               </li>
             ))}
-          </ul>
+          </ul>}
         </section>
 
         {/* Overall run trend */}
@@ -310,26 +354,33 @@ function AppDashboard() {
               <p className="text-[11px] text-muted-foreground">Last 7 days · all run statuses</p>
             </div>
           </header>
-          <div className="h-[200px] px-2 pt-4" role="img" aria-label={`Seven-day run status trend with ${totalTrendRuns} total runs and ${trendFindings} findings captured.`}>
-            {totalTrendRuns === 0 ? <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border text-center text-xs text-muted-foreground">No runs recorded in the last 7 days.</div> : <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trend} margin={{ top: 4, right: 12, left: 0, bottom: 8 }}>
-                <CartesianGrid vertical={false} stroke="oklch(1 0 0 / 0.08)" />
-                <XAxis dataKey="day" stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} width={24} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ stroke: "oklch(1 0 0 / 0.18)", strokeDasharray: "4 4" }}
-                  contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: "var(--muted-foreground)" }}
-                />
-                <Legend wrapperStyle={{ fontSize: 10, color: "var(--muted-foreground)", paddingTop: 4 }} />
-                <Line type="monotone" dataKey="passed" name="Passed" stroke="oklch(0.7 0.18 150)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
-                <Line type="monotone" dataKey="findings" name="Findings" stroke="oklch(0.68 0.2 260)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
-                <Line type="monotone" dataKey="failed" name="Failed" stroke="oklch(0.68 0.22 22)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
-                <Line type="monotone" dataKey="blocked" name="Blocked" stroke="oklch(0.72 0.16 70)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
-                <Line type="monotone" dataKey="running" name="Running" stroke="oklch(0.72 0.16 90)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
-                <Line type="monotone" dataKey="queued" name="Queued" stroke="oklch(0.68 0.02 250)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
-              </LineChart>
-            </ResponsiveContainer>}
+          <div className="h-[210px] px-3 pt-4 sm:h-[230px]" role="img" aria-label={`Seven-day run status trend with ${totalTrendRuns} total runs and ${trendFindings} findings captured.`}>
+            {dashboardState === "loading" && !runs.length ? (
+              <TrendState title="Loading run activity" detail="The chart will appear when current workspace data arrives." tone="info" loading />
+            ) : dashboardState === "error" && !runs.length ? (
+              <TrendState title="Run activity unavailable" detail={live.error || "Refresh to try the live data source again."} tone="error" />
+            ) : totalTrendRuns === 0 ? (
+              <TrendState title="No run activity in the last 7 days" detail="Start a test to create the first point in this workspace trend." tone="neutral" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trend} margin={{ top: 4, right: 8, left: -12, bottom: 8 }}>
+                  <CartesianGrid vertical={false} stroke="oklch(1 0 0 / 0.08)" />
+                  <XAxis dataKey="day" stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="oklch(0.68 0.02 250)" fontSize={10} tickLine={false} axisLine={false} width={28} allowDecimals={false} />
+                  <Tooltip
+                    cursor={{ stroke: "oklch(1 0 0 / 0.18)", strokeDasharray: "4 4" }}
+                    contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: "var(--muted-foreground)" }}
+                  />
+                  {activeTrendSeries.map((series) => (
+                    <Line key={series.key} type="monotone" dataKey={series.key} name={series.label} stroke={series.color} strokeWidth={3} strokeDasharray={series.dash} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+          <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-5 py-2.5 text-[10px] text-muted-foreground">
+            {activeTrendSeries.length ? activeTrendSeries.map((series) => <span key={series.key} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: series.color }} />{series.label}<strong className="font-mono text-foreground">{statusTotals[series.key]}</strong></span>) : <span>No status series to display yet.</span>}
           </div>
           <div className="mt-auto flex items-end justify-between border-t border-border px-5 py-4">
             <div>
@@ -537,6 +588,20 @@ function percent(value: number, total: number) {
   return total > 0 ? Math.round((value / total) * 100) : 0;
 }
 
+function buildStatusTotals(runs: Array<{ status: string }>): DashboardStatusTotals {
+  const totals: DashboardStatusTotals = { passed: 0, findings: 0, failed: 0, blocked: 0, running: 0, queued: 0, partiallyTested: 0 };
+  runs.forEach((run) => {
+    if (run.status === "COMPLETED") totals.passed += 1;
+    else if (run.status === "PASSED_WITH_FINDINGS") totals.findings += 1;
+    else if (run.status === "PARTIALLY_TESTED") totals.partiallyTested += 1;
+    else if (run.status === "FAILED") totals.failed += 1;
+    else if (run.status === "BLOCKED") totals.blocked += 1;
+    else if (run.status === "RUNNING" || run.status === "EXECUTING") totals.running += 1;
+    else totals.queued += 1;
+  });
+  return totals;
+}
+
 function buildOverallTrend(runs: Array<{ status: string; startedAt?: string | null; createdAt?: string }>) {
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
@@ -545,13 +610,14 @@ function buildOverallTrend(runs: Array<{ status: string; startedAt?: string | nu
     return date;
   });
   return days.map((date) => {
-    const counts = { passed: 0, findings: 0, running: 0, blocked: 0, failed: 0, queued: 0 };
+    const counts = { passed: 0, findings: 0, partiallyTested: 0, running: 0, blocked: 0, failed: 0, queued: 0 };
     runs.forEach((run) => {
       const started = run.startedAt ?? run.createdAt;
       const parsed = started ? new Date(started) : null;
       if (!parsed || parsed.toDateString() !== date.toDateString()) return;
       if (run.status === "COMPLETED") counts.passed += 1;
       else if (run.status === "PASSED_WITH_FINDINGS") counts.findings += 1;
+      else if (run.status === "PARTIALLY_TESTED") counts.partiallyTested += 1;
       else if (run.status === "RUNNING") counts.running += 1;
       else if (run.status === "BLOCKED") counts.blocked += 1;
       else if (run.status === "FAILED") counts.failed += 1;
@@ -576,6 +642,95 @@ function reportStepCount(report?: RunReport | null) {
   if (Array.isArray(report.events)) return report.events.length;
   if (Array.isArray(report.assertions)) return report.assertions.length;
   return 0;
+}
+
+function RunListState({ state }: { state: DashboardState }) {
+  const content = state === "loading"
+    ? { title: "Loading recent runs", detail: "Fetching the latest workspace activity." }
+    : state === "error"
+      ? { title: "Recent runs unavailable", detail: "Refresh the dashboard to try again." }
+      : { title: "No runs yet", detail: "Start a test to see its status and evidence here." };
+  return (
+    <div className="flex min-h-36 flex-col items-center justify-center gap-1.5 px-5 text-center">
+      {state === "loading" ? <Loader2 className="mb-1 h-5 w-5 animate-spin text-info" /> : <Activity className={`mb-1 h-5 w-5 ${state === "error" ? "text-destructive" : "text-muted-foreground"}`} />}
+      <strong className="text-xs text-foreground">{content.title}</strong>
+      <span className="text-[11px] leading-5 text-muted-foreground">{content.detail}</span>
+    </div>
+  );
+}
+
+function TrendState({ title, detail, tone, loading = false }: { title: string; detail: string; tone: "info" | "error" | "neutral"; loading?: boolean }) {
+  const Icon = loading ? Loader2 : tone === "error" ? AlertTriangle : Clock3;
+  const toneClass = tone === "error" ? "text-destructive" : tone === "info" ? "text-info" : "text-muted-foreground";
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-surface-2/20 px-5 text-center">
+      <Icon className={`h-5 w-5 ${toneClass} ${loading ? "animate-spin" : ""}`} />
+      <strong className="text-xs text-foreground">{title}</strong>
+      <span className="max-w-xs text-[11px] leading-5 text-muted-foreground">{detail}</span>
+    </div>
+  );
+}
+
+function DashboardPulse({
+  state,
+  workspaceName,
+  lastUpdated,
+  activeCount,
+  attentionCount,
+  total,
+  errorMessage,
+  onRefresh,
+}: {
+  state: DashboardState;
+  workspaceName?: string | null;
+  lastUpdated?: string | null;
+  activeCount: number;
+  attentionCount: number;
+  total: number;
+  errorMessage: string | null;
+  onRefresh: () => void;
+}) {
+  const copy = {
+    loading: { label: "Syncing workspace data", detail: "Loading current runs and report signals.", tone: "text-info", Icon: Loader2 },
+    error: { label: "Dashboard sync interrupted", detail: errorMessage || "Some live data could not be loaded.", tone: "text-destructive", Icon: AlertTriangle },
+    empty: { label: "Ready for your first test", detail: "Run a test to start building this workspace’s operating history.", tone: "text-primary", Icon: Play },
+    partial: { label: "Updating report data", detail: "Run activity is live; some report details are still arriving.", tone: "text-warning", Icon: Clock3 },
+    ready: { label: "Monitoring live workspace activity", detail: "Run status and report signals are current for this workspace.", tone: "text-success", Icon: ShieldCheck },
+  }[state];
+  const Icon = copy.Icon;
+  return (
+    <section className="mt-5 overflow-hidden rounded-xl border border-border bg-surface/70 shadow-[0_14px_40px_-28px_rgba(0,0,0,0.9)]" aria-label="Workspace operational pulse" role="status" aria-live="polite">
+      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-current/20 bg-current/10 ${copy.tone}`}>
+            <Icon className={`h-4 w-4 ${state === "loading" ? "animate-spin" : ""}`} />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="truncate text-sm font-semibold text-foreground">{workspaceName || "Selected workspace"}</span>
+              <span className={`font-mono text-[10px] uppercase tracking-[0.16em] ${copy.tone}`}>{copy.label}</span>
+            </div>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{copy.detail}</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
+          <div className="grid grid-cols-3 gap-3 font-mono text-[10px] text-muted-foreground sm:flex sm:items-center sm:gap-4">
+            <span><strong className="block text-sm text-foreground">{activeCount}</strong>active</span>
+            <span><strong className="block text-sm text-foreground">{attentionCount}</strong>attention</span>
+            <span><strong className="block text-sm text-foreground">{total}</strong>runs</span>
+          </div>
+          <button type="button" onClick={onRefresh} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2/50 text-muted-foreground hover:text-foreground" aria-label="Refresh dashboard data" title="Refresh dashboard data">
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 border-t border-border bg-surface-2/25 px-4 py-2.5 font-mono text-[10px] text-muted-foreground sm:px-5">
+        <span className={`h-1.5 w-1.5 rounded-full ${state === "error" ? "bg-destructive" : state === "loading" ? "bg-info" : "bg-success"}`} />
+        <span>{lastUpdated ? `Last activity ${formatLiveDate(lastUpdated)}` : "No activity recorded yet"}</span>
+        {state === "partial" && <span className="text-warning">· report details pending</span>}
+      </div>
+    </section>
+  );
 }
 
 function StatCard({
