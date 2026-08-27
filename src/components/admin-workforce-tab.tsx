@@ -41,6 +41,9 @@ export function AdminWorkforceTab({
   };
 
   const activeWorkers = snapshot?.activeAgentKeys.length ?? 0;
+  const registeredWorkers = snapshot
+    ? agents.filter((agent) => agent.key !== snapshot.coordinatorAgentKey).length
+    : 0;
   const pendingDelegations = snapshot?.messages.filter((message) => message.messageType === "TASK_DELEGATION_REQUEST" && message.status === "PROPOSED") ?? [];
   const latestCapacities = snapshot ? snapshot.agents.map((agent) => ({ agent, capacity: latestCapacityFor(snapshot, agent.key) })) : [];
 
@@ -114,7 +117,7 @@ export function AdminWorkforceTab({
           <div className="space-y-5 p-5">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <Metric label="Mode" value={snapshot.mode} />
-              <Metric label="Workers active" value={`${activeWorkers}/5`} />
+              <Metric label="Workers active" value={`${activeWorkers}/${registeredWorkers}`} />
               <Metric label="Tasks" value={snapshot.tasks.length} />
               <Metric label="Coverage claims" value={snapshot.coverageClaims.length} />
               <Metric label="Pending decisions" value={pendingDelegations.length} />
