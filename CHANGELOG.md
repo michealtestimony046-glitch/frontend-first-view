@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.7.1...v0.8.0) (2026-08-27)
+
+
+### Features
+
+* show organization matrix unit balance ([2dd3e1e](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/2dd3e1e3ee294313b7ef5bb8c7d4a347bd33e65d))
+
+
+### Bug Fixes
+
+* **workforce:** derive inspector worker denominator ([96eea49](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/96eea49ce1c7e573643aba937d385dacce569a03))
+* **workforce:** derive inspector worker totals ([fcbe8bd](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/fcbe8bd465f44249f99b24022117e4ab59f6b218))
+
 ## [0.7.1](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.7.0...v0.7.1) (2026-08-27)
 
 
