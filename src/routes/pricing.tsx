@@ -79,7 +79,7 @@ const pricingPlans: PricingPlan[] = [
     description: "Start with bounded browser evidence before you commit to broader coverage.",
     accent: "border-border bg-surface/55",
     features: [
-      { label: "150 MU each month" },
+      { label: "150 ⟐ each month" },
       { label: "Quick Scan-oriented preflight" },
       { label: "Quick Smoke browser testing" },
       { label: "1 logical worker" },
@@ -108,7 +108,7 @@ const pricingPlans: PricingPlan[] = [
       "border-primary/55 bg-primary/[0.06] shadow-[0_30px_80px_-40px_oklch(0.86_0.18_148/0.6)]",
     badge: "Launch tier",
     features: [
-      { label: "980 MU each month" },
+      { label: "980 ⟐ each month" },
       { label: "Quick Scan + Quick Smoke" },
       { label: "Standard Adaptive multi-viewport testing" },
       { label: "Up to 5 logical worker slots" },
@@ -393,7 +393,7 @@ function PricingPage() {
               Start small. See more when the evidence calls for it.
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-base leading-7 text-muted-foreground md:text-lg">
-              Free gives you a real, bounded browser signal. Starter adds 980 MU, multi-viewport
+              Free gives you a real, bounded browser signal. Starter adds 980 ⟐, multi-viewport
               Standard Adaptive testing, and governed five-worker collaboration without hiding what
               Free users can unlock next.
             </p>
@@ -429,7 +429,7 @@ function PricingPage() {
                 ) : effectivePlan ? (
                   <p className="mt-2 text-sm text-foreground">
                     {accountName ? `${accountName} · ` : ""}
-                    <strong>{planLabel(effectivePlan)}</strong> · {effectivePlan.monthlyMu} MU/month
+                    <strong>{planLabel(effectivePlan)}</strong> · {effectivePlan.monthlyMu} ⟐/month
                     · {effectivePlan.maxLogicalWorkers} logical worker
                     {effectivePlan.maxLogicalWorkers === 1 ? "" : "s"}
                   </p>
@@ -636,7 +636,7 @@ function PricingPage() {
                     One-time package
                   </p>
                   <p className="mt-3 font-display text-2xl font-semibold">
-                    {pkg.matrixUnits.toLocaleString()} MU
+                    {pkg.matrixUnits.toLocaleString()} ⟐
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     ${Number(pkg.priceUsd).toFixed(2)}
