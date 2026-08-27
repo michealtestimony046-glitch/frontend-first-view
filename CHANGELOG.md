@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.6.0...v0.7.0) (2026-08-27)
+
+
+### Features
+
+* add customer worker pool health view ([7770f24](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/7770f245d767a638df172c4643548f4bd4b4504a))
+* add customer Worker Pool Health view ([f14e688](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/f14e6883101a1384cad4b8da639f652b1b893025))
+* add functional pricing and SEO learning pages ([#192](https://github.com/michealtestimony046-glitch/frontend-first-view/issues/192)) ([5f2370a](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/5f2370ad78bf621a5a989363efebe2352c0852fd))
+* show Chrome browser badge in customer dashboard ([9d2b03b](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/9d2b03b58d5352956f602fad4e1981310f7d5539))
+* show Chrome PNG browser badge in dashboard ([c02370c](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/c02370cebac80a265d2fb44d38607f031813f61b))
+
+
+### Bug Fixes
+
+* **dashboard:** match overall trend chart reference ([e5552db](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/e5552dbdf0aadecb6f8c470b2b83a5bafabc7e62))
+
 ## [0.6.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.5.0...v0.6.0) (2026-08-27)
 
 
