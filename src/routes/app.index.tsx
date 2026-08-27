@@ -851,6 +851,7 @@ function StatCard({
 function MiniStat({
   label,
   value,
+  content,
   icon: Icon,
 }: {
   label: string;
