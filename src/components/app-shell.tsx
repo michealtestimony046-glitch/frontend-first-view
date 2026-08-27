@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { organizationsApi, notificationsApi, type Organization } from "@/lib/api-client";
 import { MiaGuide } from "./mia-guide";
 import { DISCORD_SUPPORT_URL } from "@/lib/support";
+import { OrganizationBalanceCard, ORGANIZATION_CHANGED_EVENT } from "./organization-balance-card";
 
 type NavItem = { label: string; to: string; icon: typeof LayoutDashboard; exact?: boolean };
 const nav: NavItem[] = [
@@ -96,7 +97,7 @@ function SidebarBody({ isActive, onNavigate, hideHeader }: { isActive: (item: Na
   const { user } = useAuth();
   return <>
     {!hideHeader && <div className="flex h-14 items-center border-b border-border px-4"><Logo /></div>}
-    <div className="px-3 pb-3 pt-4"><p className="mb-2 px-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Organization</p><WorkspaceSwitcher /></div>
+    <div className="px-3 pb-3 pt-4"><p className="mb-2 px-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Organization</p><WorkspaceSwitcher /><OrganizationBalanceCard instanceId={hideHeader ? "mobile" : "desktop"} /></div>
     <nav className="flex-1 space-y-0.5 overflow-y-auto px-2">{nav.map((item) => <SidebarNavLink key={item.label} item={item} active={isActive(item)} onNavigate={onNavigate} />)}{user?.isStaff && <SidebarNavLink item={{ label: "Admin", to: "/admin", icon: ShieldCheck }} active={isActive({ label: "Admin", to: "/admin", icon: ShieldCheck })} onNavigate={onNavigate} />}</nav>
     <div className="border-t border-border p-3"><UserMenu onNavigate={onNavigate} /></div>
   </>;
@@ -156,7 +157,11 @@ function WorkspaceSwitcher() {
         setOrganizations(items);
         const stored = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_ORG_KEY) : null;
         const selected = items.find((o) => o.id === stored) ?? items[0];
-        if (selected) { setActiveId(selected.id); localStorage.setItem(ACTIVE_ORG_KEY, selected.id); }
+        if (selected) {
+          setActiveId(selected.id);
+          localStorage.setItem(ACTIVE_ORG_KEY, selected.id);
+          window.dispatchEvent(new Event(ORGANIZATION_CHANGED_EVENT));
+        }
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Unable to load organizations."))
       .finally(() => setLoading(false));
@@ -181,6 +186,7 @@ function WorkspaceSwitcher() {
       setOrganizations((current) => [...current, org]);
       setActiveId(org.id);
       localStorage.setItem(ACTIVE_ORG_KEY, org.id);
+      window.dispatchEvent(new Event(ORGANIZATION_CHANGED_EVENT));
       setName(""); setShowCreate(false); setOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to create workspace.");
@@ -199,7 +205,7 @@ function WorkspaceSwitcher() {
       {organizations.length > 0 && <div className="border-b border-border p-2"><div className="flex items-center gap-2 rounded-md border border-border bg-surface-2/60 px-2 py-1.5"><Search className="h-3.5 w-3.5 text-muted-foreground" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search workspaces…" className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground" /></div></div>}
       <ul className="max-h-56 overflow-y-auto p-1">
         {loading && <li className="flex items-center gap-2 px-3 py-4 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />Loading workspaces…</li>}
-        {!loading && filtered.map((w) => <li key={w.id}><button onClick={() => { setActiveId(w.id); localStorage.setItem(ACTIVE_ORG_KEY, w.id); setOpen(false); }} className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${w.id === active?.id ? "bg-primary/10 text-foreground" : "hover:bg-accent"}`}><span className="flex h-5 w-5 items-center justify-center rounded bg-gradient-to-br from-primary to-primary/40 font-mono text-[9px] font-bold text-primary-foreground">{w.name.slice(0, 2).toUpperCase()}</span><span className="min-w-0 flex-1 truncate">{w.name}</span>{w.id === active?.id && <Check className="h-3.5 w-3.5 text-primary" />}</button></li>)}
+        {!loading && filtered.map((w) => <li key={w.id}><button onClick={() => { setActiveId(w.id); localStorage.setItem(ACTIVE_ORG_KEY, w.id); window.dispatchEvent(new Event(ORGANIZATION_CHANGED_EVENT)); setOpen(false); }} className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${w.id === active?.id ? "bg-primary/10 text-foreground" : "hover:bg-accent"}`}><span className="flex h-5 w-5 items-center justify-center rounded bg-gradient-to-br from-primary to-primary/40 font-mono text-[9px] font-bold text-primary-foreground">{w.name.slice(0, 2).toUpperCase()}</span><span className="min-w-0 flex-1 truncate">{w.name}</span>{w.id === active?.id && <Check className="h-3.5 w-3.5 text-primary" />}</button></li>)}
         {!loading && filtered.length === 0 && <li className="px-2 py-3 text-center text-xs text-muted-foreground">No workspaces yet</li>}
       </ul>
       {error && <p className="border-t border-border px-3 py-2 text-[11px] text-destructive">{error}</p>}
