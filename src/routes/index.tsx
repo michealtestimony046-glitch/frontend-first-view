@@ -19,15 +19,25 @@ import { BrowserFrame } from "@/components/browser-frame";
 import { LaunchConsoleLink } from "@/components/launch-console-link";
 import { seoHead } from "@/lib/seo";
 
+const GOOGLE_SITE_VERIFICATION = "_9V3QaOGxbX3Jqhx6fv4Ly-gLO9bnN7x8nqJ6P-vqsg";
+
 export const Route = createFileRoute("/")({
-  head: () =>
-    seoHead({
+  head: () => {
+    const metadata = seoHead({
       title: "Matrix QA | Evidence-Grade Browser QA",
       description:
         "Matrix QA runs authorized web journeys in a browser and organizes evidence, runtime signals, reports, and findings for human investigation.",
       path: "/",
       breadcrumbLabel: "Home",
-    }),
+    });
+    return {
+      ...metadata,
+      meta: [
+        ...metadata.meta,
+        { name: "google-site-verification", content: GOOGLE_SITE_VERIFICATION },
+      ],
+    };
+  },
   component: Landing,
 });
 
