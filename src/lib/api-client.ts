@@ -151,6 +151,14 @@ export interface AuthResponse {
   accessToken: string;
   isNewUser?: boolean;
 }
+export interface BackendHealthResponse {
+  status: "ok" | "degraded" | "error";
+  database: "ok" | "error";
+  schema: { status: string; missingTables: string[] };
+  version: { public: string; build: string };
+  build: string;
+  timestamp: string;
+}
 export type StaffRole = "OWNER" | "OPERATIONS_ADMIN" | "OPERATOR" | "VIEWER";
 export type StaffMembershipStatus = "ACTIVE" | "DISABLED";
 export type StaffInvitationStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED" | "REVOKED";
@@ -967,7 +975,7 @@ export interface RunReport {
 }
 
 export const authApi = {
-  ping: async (): Promise<{ status: string }> => apiRequest("/health"),
+  ping: async (): Promise<BackendHealthResponse> => apiRequest("/health", { cache: "no-store", timeoutMs: 10_000 }),
   signup: async (data: SignUpRequest): Promise<SignUpResponse> =>
     apiRequest("/auth/register", { method: "POST", body: JSON.stringify(data) }),
   verifyEmail: async (data: VerifyEmailRequest): Promise<AuthResponse> => {
