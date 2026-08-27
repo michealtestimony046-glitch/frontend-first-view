@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.1](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.7.0...v0.7.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* remove chrome logo canvas padding ([a768887](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/a768887b37cfd06fd824a14301e08e9f7aed1bc4))
+* remove padding around Chrome browser logo ([8493f14](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/8493f14d8d5f12b789a227c4caeb85930620307f))
+* restore overview mini stat content prop ([15fbe4f](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/15fbe4fe548a4b96daa4c34585a95cbce0300a19))
+* restore Overview rendering after Chrome badge update ([1e602fd](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/1e602fd4d61ee7cac3abba312e53e435153e2b07))
+
 ## [0.7.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.6.0...v0.7.0) (2026-08-27)
 
 
