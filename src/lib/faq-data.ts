@@ -5,27 +5,27 @@ export type FaqEntry = {
 
 export const FAQS: FaqEntry[] = [
   {
-    q: "Is Preview really free?",
-    a: "Yes. Matrix QA is free during Public Preview. No credit card, no checkout, no trial expiry. We're validating the Core Engine with early developers.",
+    q: "Is there a free Matrix QA plan?",
+    a: "Yes. Matrix QA has a Free plan with 150 Matrix Units each month, Quick Scan-oriented preflight, Quick Smoke browser testing, one logical worker, basic evidence, and 90-day retention.",
   },
   {
-    q: "Why call it Preview instead of a free trial?",
-    a: "A trial implies a finished product you're evaluating. Matrix QA Preview is the Core Engine — you're joining an evolving product, closer to early access than a polished SaaS free tier.",
+    q: "What does Starter unlock?",
+    a: "Starter is $49 per month with 980 Matrix Units, Quick Smoke, Standard Adaptive multi-viewport testing, and governed collaboration with up to five logical worker slots. Actual browser concurrency remains subject to run policy and available infrastructure.",
   },
   {
-    q: "What happens when paid plans launch?",
-    a: "The Preview card will retire when Starter launches. We'll keep a limited free tier so you can continue running scans; existing Preview workspaces will get notice and a grace period before quota rules change.",
+    q: "How does Matrix QA charge for a run?",
+    a: "Matrix QA reserves a bounded amount before execution, then meters authoritative work as it is observed. Unused reserve is released during settlement, and qualifying infrastructure failures receive correction treatment.",
   },
   {
-    q: "Are there usage limits today?",
-    a: "Private-alpha workspaces receive managed test capacity. The Test capacity page explains how to request an extension, while Matrix QA automatically queues work when shared provider capacity is temporarily full.",
+    q: "What are the current usage limits?",
+    a: "Plans define Matrix Unit allowances, worker capacity, supported run modes, and retention. The current Free and Starter boundaries are shown on the Pricing page, while actual execution remains subject to run policy and available infrastructure.",
   },
   {
-    q: "What does Matrix QA actually do today?",
-    a: "It walks your critical user journeys — login, signup, navigation, forms — and streams screenshots, console logs, network activity, and timestamps into an evidence-grade report. Only hard failures are surfaced in the primary issue stream.",
+    q: "What does Matrix QA do?",
+    a: "It walks authorized critical user journeys such as login, signup, navigation, and forms, then organizes screenshots, console signals, network activity, timestamps, reports, and findings for human investigation. Only hard failures are surfaced in the primary issue stream.",
   },
   {
-    q: "How do I request more alpha capacity?",
+    q: "How do I request more capacity?",
     a: "Open the Test capacity page in your workspace and choose the request form. Your request is tracked and routed to the Matrix QA staff team for review; you do not need to find a private email address.",
   },
   {
@@ -34,6 +34,6 @@ export const FAQS: FaqEntry[] = [
   },
   {
     q: "Is there an API, CLI, or GitHub integration?",
-    a: "Not in the current web-console release. CLI, GitHub, and broader integrations are planned as later releases while the browser worker and evidence loop are stabilized.",
+    a: "Not in the current web-console release. CLI, GitHub, and broader integrations are planned as later releases while the browser worker, evidence loop, and workspace controls continue to mature.",
   },
 ];

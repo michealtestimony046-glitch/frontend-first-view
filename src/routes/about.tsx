@@ -20,7 +20,7 @@ const aboutFaqs = [
   {
     question: "Who operates Matrix QA?",
     answer:
-      "Matrix QA is operated by Tr Labs. The product is currently presented as a Public Preview, so current capabilities and usage limits may change as the platform develops.",
+      "Matrix QA is operated by Tr Labs. The product is available with plan-specific capabilities and usage limits that are explained on the Pricing page.",
   },
   {
     question: "What does Matrix QA return after a browser journey?",
@@ -75,7 +75,7 @@ function AboutPage() {
             search={{ mode: "signup", returnTo: "/app" }}
             className="inline-flex items-center gap-1.5 rounded-full bg-[#17201b] px-4 py-2 text-sm font-semibold text-[#f2f6f1] transition-transform hover:-translate-y-px"
           >
-            Join Preview <ArrowRight className="h-4 w-4" />
+            Get started <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </header>
@@ -86,7 +86,7 @@ function AboutPage() {
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-[#1b8a57]/30 bg-[#1b8a57]/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.16em] text-[#176b45]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#1b8a57]" />
-                Product facts · Public Preview
+                Product facts · Matrix QA launch
               </span>
               <h1 className="mt-7 max-w-3xl font-display text-5xl font-semibold leading-[0.98] tracking-[-0.04em] md:text-7xl">
                 A clearer record of how your app was tested.
@@ -135,7 +135,8 @@ function AboutPage() {
                     journeys
                   </p>
                   <p>
-                    <strong className="text-white">Current status:</strong> Public Preview
+                    <strong className="text-white">Current status:</strong> Available with
+                    plan-specific access
                   </p>
                   <p>
                     <strong className="text-white">Human role:</strong> review the evidence and
@@ -265,7 +266,7 @@ function AboutPage() {
               items={[
                 "Captured artifacts vary by run and available storage",
                 "A report describes the tested journey",
-                "Current Preview limits may change",
+                "Current plan limits may change",
               ]}
             />
             <ScopeCard
@@ -313,7 +314,7 @@ function AboutPage() {
                 to="/pricing"
                 className="inline-flex items-center gap-2 rounded-full bg-[#75dd9a] px-5 py-3 text-sm font-semibold text-[#17201b]"
               >
-                See Preview status <ArrowRight className="h-4 w-4" />
+                See plans and access <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 to="/sample-report"

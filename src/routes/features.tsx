@@ -125,7 +125,7 @@ function FeaturesPage() {
               <p>
                 For product access, see{" "}
                 <Link className="text-primary underline underline-offset-4" to="/pricing">
-                  Preview pricing
+                  Launch pricing
                 </Link>{" "}
                 or{" "}
                 <Link className="text-primary underline underline-offset-4" to="/faq">

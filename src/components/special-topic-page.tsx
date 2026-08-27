@@ -209,7 +209,7 @@ function ControlRoomHero({ config }: { config: SpecialTopicPageConfig }) {
           </div>
         </div>
         <div className="mt-14 grid gap-2 overflow-hidden rounded-xl border border-[#f0d98a]/20 bg-[#191d15] md:grid-cols-4">
-          {["development", "preview", "staging", "production"].map((environment, index) => (
+          {["development", "pre-release", "staging", "production"].map((environment, index) => (
             <div
               key={environment}
               className={`relative p-5 ${index === 2 ? "bg-[#e5c95b]/10" : ""}`}
@@ -863,7 +863,9 @@ export function SpecialTopicPage({ config }: { config: SpecialTopicPageConfig })
             <Link to="/privacy">Privacy</Link>
             <Link to="/cookies">Cookies</Link>
             <Link to="/faq">FAQ</Link>
-            <a href={DISCORD_SUPPORT_URL} target="_blank" rel="noopener noreferrer">Support on Discord</a>
+            <a href={DISCORD_SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+              Support on Discord
+            </a>
           </div>
           <span>© {new Date().getFullYear()} Matrix QA · Tr Labs</span>
         </div>

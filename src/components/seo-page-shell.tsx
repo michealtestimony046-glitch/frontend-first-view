@@ -155,7 +155,7 @@ function Hero({ props, variant }: { props: SeoPageShellProps; variant: SeoPageVa
               <span className="h-2 w-2 rounded-full bg-red-400/80" />
               <span className="h-2 w-2 rounded-full bg-yellow-300/80" />
               <span className="h-2 w-2 rounded-full bg-primary/80" />
-              <span className="ml-2">matrixqa / run-preview</span>
+              <span className="ml-2">matrixqa / run-001</span>
             </div>
             <div className="space-y-4 p-5 leading-6">
               <p className="text-primary">$ matrixqa inspect --target authorized-url</p>
