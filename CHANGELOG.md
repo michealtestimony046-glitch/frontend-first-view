@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.4.0...v0.5.0) (2026-08-27)
+
+### Chores
+
+* align frontend release metadata with the Matrix QA backend 0.5.0 release
+
 ## [0.4.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.3.0...v0.4.0) (2026-08-26)
 
 
