@@ -183,11 +183,13 @@ function AuthPage() {
     } else {
       const provider = providerValue;
       setOauthLoading(true);
-      authApi.handleOAuthCallback(code, provider, state)
+            authApi.handleOAuthCallback(code, provider, state)
         .then((response) => {
           const oauthIntent = readOAuthIntent();
+          alert(`DEBUG success — isNewUser: ${response.isNewUser} | oauthIntent: ${oauthIntent}`);
           clearOAuthIntent();
           const isFirstTimeOAuthUser = response.isNewUser === true || (response.isNewUser === undefined && oauthIntent === "signup");
+
           if (isFirstTimeOAuthUser && !adminSignInOnly) {
             const email = response.user.email.trim().toLowerCase();
             const fullName = response.user.fullName?.trim() || "";
@@ -204,12 +206,14 @@ function AuthPage() {
             navigate({ to: returnTo });
           }
         })
-        .catch((cause) => {
+                .catch((cause) => {
+          alert(`DEBUG failed — ${cause instanceof Error ? cause.message : String(cause)}`);
           clearOAuthIntent();
           clearOAuthHandoff();
           clearCallbackParams();
           setErrorMessage(cause instanceof Error ? cause.message : `${oauthProviderLabel(provider)} sign-in could not be completed.`);
         })
+
         .finally(() => { if (active) setOauthLoading(false); });
     }
     return () => { active = false; };
