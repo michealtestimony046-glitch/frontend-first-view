@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.8.0...v0.8.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **admin:** bound long console lists ([f9974b5](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/f9974b533a8d3ed76580206681233c425e69f953))
+
 ## [0.8.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.7.1...v0.8.0) (2026-08-27)
 
 
