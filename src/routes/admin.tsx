@@ -24,6 +24,16 @@ type OllamaRequestRecord = {
   request: AdminOllamaRequestDiagnostic;
 };
 
+const withFallbackTimeout = <T,>(request: Promise<T>, fallback: T, timeoutMs = 5000): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const fallbackPromise = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), timeoutMs);
+  });
+  return Promise.race([request.catch(() => fallback), fallbackPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+};
+
 function getOllamaRequestRows(ai: AdminTelemetrySummary["aiUsage"]): OllamaRequestRecord[] {
   return (ai?.recent ?? []).flatMap((row) => {
     const metadata = row.metadata && typeof row.metadata === "object" ? row.metadata as Record<string, unknown> : {};
@@ -92,7 +102,7 @@ function AdminPage() {
       const [requestData, recipientData, telemetryData, matrixUnitData, aiProviderData, healthData, runtimeHealthData, managedSecretData, staffManagementData, controlTowerData, metricsData, reliabilityData, customerData, alphaParticipantData, complaintData, suspensionData, workforceAgentData] = await Promise.all([
         adminApi.listAllocationRequests("PENDING"),
         adminApi.listRecipients(),
-        adminApi.telemetry(),
+        withFallbackTimeout(adminApi.telemetry(), null),
         adminApi.matrixUnits().catch(() => null),
         adminApi.listAiProviderConfigs(),
         adminApi.workerHealth(),
