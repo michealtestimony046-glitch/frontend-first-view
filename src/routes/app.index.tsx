@@ -101,9 +101,7 @@ function AppDashboard() {
     return totals;
   }, { passed: 0, findings: 0, failed: 0, blocked: 0, running: 0, queued: 0, partiallyTested: 0 });
   const activeTrendSeries = trendSeries.filter(
-    (series) =>
-      trendTotals[series.key] > 0 &&
-      (trendFilter === "all" || series.key === trendFilter),
+    (series) => trendFilter === "all" || series.key === trendFilter,
   );
   const dashboardState: DashboardState = live.loading
     ? "loading"
