@@ -106,7 +106,12 @@ const authSearchSchema = z.object({
   mode: z.enum(["signin", "signup"]).optional().default("signup"),
   returnTo: z.enum(["/app", "/admin"]).optional().default("/app"),
   recover: z.boolean().optional().default(false),
+  code: z.string().optional(),
+  provider: z.string().optional(),
+  state: z.string().optional(),
+  oauth_error: z.string().optional(),
 });
+
 
 export const Route = createFileRoute("/auth")({
   validateSearch: authSearchSchema,
