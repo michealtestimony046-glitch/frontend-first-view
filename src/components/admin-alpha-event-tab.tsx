@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import type { AdminAlphaParticipant, AlphaRewardTier } from "@/lib/api-client";
+import { AdminPlanBadge, useAdminAlphaClock } from "@/components/admin-plan-badge";
 
 const REWARD_OPTIONS: Array<{
   value: Exclude<AlphaRewardTier, "NONE">;
@@ -92,6 +93,7 @@ export function AdminAlphaEventTab({
   onAddFeedback: (userId: string, note: string) => Promise<void>;
 }) {
   const [search, setSearch] = useState("");
+  const alphaNow = useAdminAlphaClock();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(rows[0]?.id || null);
   const [email, setEmail] = useState("");
   const [tier, setTier] = useState<Exclude<AlphaRewardTier, "NONE">>("ALPHA_PARTICIPANT");
@@ -281,12 +283,10 @@ export function AdminAlphaEventTab({
                       <div className="mt-1 truncate text-xs text-muted-foreground">{row.email}</div>
                     </div>
                     {row.activeReward ? (
-                      <span className="shrink-0 rounded-full border border-success/30 bg-success/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-success">
-                        active reward
-                      </span>
+                      <AdminPlanBadge access={{ activeAlpha: { tier: row.activeReward.tier as Exclude<AlphaRewardTier, "NONE">, expiresAt: row.activeReward.expiresAt } }} now={alphaNow} />
                     ) : (
-                      <span className="shrink-0 rounded-full border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                        normal tier
+                      <span className="shrink-0 rounded-full border border-border px-2 py-0.5 font-mono text-[10px] tracking-wider text-muted-foreground">
+                        No active alpha
                       </span>
                     )}
                   </div>

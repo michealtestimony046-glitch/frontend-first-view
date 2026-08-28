@@ -1255,6 +1255,11 @@ export interface AdminCustomerAccount {
   accountStatus: "ACTIVE" | "SUSPENDED" | "DISABLED" | string;
   organizationCount: number;
   runCount: number;
+  plan: PublicPlan;
+  planStatus: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "INCOMPLETE" | string;
+  subscriptionPeriodEnd?: string | null;
+  planBadgeColor?: string;
+  activeAlpha?: { tier: Exclude<AlphaRewardTier, "NONE">; expiresAt: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1783,7 +1788,7 @@ export interface AdminControlTowerSnapshot {
     total: number;
     new24h: number;
     new30d: number;
-    recent: Array<{ id: string; email: string; fullName?: string | null; emailVerified: boolean; isStaff: boolean; createdAt: string; updatedAt: string }>;
+    recent: Array<{ id: string; email: string; fullName?: string | null; emailVerified: boolean; isStaff: boolean; createdAt: string; updatedAt: string; plan: PublicPlan; activeAlpha: { tier: Exclude<AlphaRewardTier, "NONE">; expiresAt: string } | null }>;
     leadTracking: { tracked: boolean; reason?: string };
   };
   organizations: { total: number; new30d: number };
