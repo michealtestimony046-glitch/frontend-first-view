@@ -44,6 +44,9 @@ jobs:
       - name: Verify Matrix QA brand assets
         run: pnpm verify:brand 2>&1 | tee frontend-brand.log
 
+      - name: Test screenshot evidence presentation states
+        run: pnpm test:screenshot-evidence 2>&1 | tee screenshot-evidence-test.log
+
       - name: Report lint baseline without blocking delivery
         continue-on-error: true
         run: pnpm lint 2>&1 | tee frontend-lint.log
@@ -80,5 +83,6 @@ jobs:
             frontend-typecheck.log
             frontend-build.log
             frontend-brand.log
+            screenshot-evidence-test.log
             frontend-lint.log
             frontend-preview.log

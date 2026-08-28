@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "verify:brand": "node scripts/verify-matrixqa-brand-assets.mjs",
+    "test:screenshot-evidence": "node --experimental-strip-types scripts/test-screenshot-evidence.mjs",
     "smoke:ci": "node scripts/ci-public-smoke.mjs"
   },
   "dependencies": {
