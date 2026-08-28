@@ -51,7 +51,8 @@ jobs:
       - name: Start built SSR preview
         shell: bash
         run: |
-          pnpm exec wrangler --cwd .output dev --local --ip 127.0.0.1 --port 4173 > frontend-preview.log 2>&1 &
+          compatibility_date="$(date -u -d 'yesterday' +%F)"
+          pnpm exec wrangler --cwd .output dev --local --compatibility-date "$compatibility_date" --ip 127.0.0.1 --port 4173 > frontend-preview.log 2>&1 &
           echo $! > frontend-preview.pid
           for attempt in {1..60}; do
             if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then
