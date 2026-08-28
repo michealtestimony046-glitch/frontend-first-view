@@ -44,6 +44,7 @@ import {
 } from "@/lib/api-client";
 import { videoEvidenceEnabled } from "@/lib/feature-flags";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
+import { selectOverviewScreenshot, type ScreenshotPresentationMode } from "@/lib/screenshot-evidence";
 
 function normalizeRunMessages(value: unknown): RunMessage[] {
   if (!Array.isArray(value)) return [];
@@ -939,12 +940,122 @@ function AiOverviewPanel({ report, final = false }: { report: RunReport; final?:
   );
 }
 
+function presentationModeLabel(mode: ScreenshotPresentationMode): string {
+  if (mode === "BUG_FOCUS_ANNOTATED") return "Bug focus annotated";
+  if (mode === "STANDARD") return "Standard sanitized capture";
+  return "Visual evidence withheld";
+}
+
+function presentationModeDescription(mode: ScreenshotPresentationMode): string {
+  if (mode === "BUG_FOCUS_ANNOTATED") return "The diagnosed area stays clear while unrelated page context is softened.";
+  if (mode === "STANDARD") return "No confirmed visual focus was supplied; the normal sanitized frame is shown.";
+  return "Artifact metadata exists, but Matrix QA did not return a safe image URL.";
+}
+
+function OverviewVisualEvidence({ report }: { report: RunReport }) {
+  const [showStandard, setShowStandard] = useState(false);
+  const presentation = selectOverviewScreenshot(report.screenshots ?? []);
+  const errors = report.errors ?? [];
+  const assertions = report.assertions ?? [];
+  const finding = report.aiOverview?.findings?.[0];
+  const failedAssertion = assertions.find((assertion) => assertion.status === "failed") ?? assertions[0];
+  const firstError = errors[0];
+  const title = finding?.title || failedAssertion?.name || (firstError ? "Run signal needs review" : "Run evidence overview");
+  const summary = finding?.explanation
+    || firstError?.message
+    || (failedAssertion ? `Expected ${formatAiValue(failedAssertion.expected)}; observed ${formatAiValue(failedAssertion.actual)}.` : "The run did not return a finding summary for this evidence package.");
+  const category = finding ? "AI finding" : firstError?.subtype ? firstError.subtype.replaceAll("_", " ") : "Run evidence";
+  const displayMode = showStandard && presentation.sourceUrl ? "STANDARD" as const : presentation.mode;
+  const imageUrl = showStandard && presentation.sourceUrl ? presentation.sourceUrl : presentation.imageUrl;
+  const shot = presentation.screenshot;
+  const hasToggle = presentation.mode === "BUG_FOCUS_ANNOTATED" && Boolean(presentation.sourceUrl);
+  const shotLabel = shot?.label || "Screenshot evidence";
+  const capturedAt = shot ? new Date(shot.t ?? shot.timestamp).toLocaleString() : "not recorded";
+
+  return (
+    <section className="mt-6 overflow-hidden rounded-xl border border-primary/25 bg-surface/70 shadow-[0_18px_60px_rgba(3,8,20,0.22)]" aria-label="Visual evidence overview">
+      <header className="border-b border-border bg-primary/5 px-5 py-4 sm:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-primary">
+              <Camera className="h-3.5 w-3.5" />
+              Primary visual evidence
+            </div>
+            <h2 className="mt-2 break-words font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{report.targetUrl || "Target URL not recorded"} · {formatViewportLabel(shot?.viewport)}</p>
+          </div>
+          <span className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider ${displayMode === "BUG_FOCUS_ANNOTATED" ? "border-destructive/35 bg-destructive/10 text-destructive" : displayMode === "STANDARD" ? "border-primary/30 bg-primary/10 text-primary" : "border-warning/35 bg-warning/10 text-warning"}`}>
+            {presentationModeLabel(displayMode)}
+          </span>
+        </div>
+      </header>
+
+      <div className="grid lg:grid-cols-[minmax(16rem,0.72fr)_minmax(0,1.28fr)]">
+        <div className="border-b border-border p-5 sm:p-6 lg:border-b-0 lg:border-r">
+          <h3 className="font-display text-base font-semibold">Summary</h3>
+          <p className="mt-3 text-sm leading-6 text-foreground/85">{summary}</p>
+          <dl className="mt-6 space-y-3 text-sm">
+            <div className="flex items-start justify-between gap-4"><dt className="text-muted-foreground">Status</dt><dd className="text-right font-semibold text-foreground">{report.status.replaceAll("_", " ")}</dd></div>
+            <div className="flex items-start justify-between gap-4"><dt className="text-muted-foreground">Category</dt><dd className="text-right font-semibold capitalize text-foreground">{category}</dd></div>
+            <div className="flex items-start justify-between gap-4"><dt className="text-muted-foreground">Screenshots</dt><dd className="text-right font-semibold text-foreground">{(report.screenshots ?? []).length}</dd></div>
+            <div className="flex items-start justify-between gap-4"><dt className="text-muted-foreground">Captured</dt><dd className="text-right font-mono text-[11px] text-foreground/80">{capturedAt}</dd></div>
+          </dl>
+          <p className="mt-6 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">{presentationModeDescription(displayMode)}</p>
+        </div>
+
+        <div className="min-w-0 p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-display text-base font-semibold">Screenshot</h3>
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{shotLabel}{shot?.redactionStatus ? ` · ${shot.redactionStatus.toLowerCase().replaceAll("_", " ")}` : ""}</p>
+            </div>
+            {hasToggle && (
+              <button type="button" aria-pressed={showStandard} onClick={() => setShowStandard((value) => !value)} className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10">
+                {showStandard ? "Show bug focus" : "Show full sanitized frame"}
+              </button>
+            )}
+          </div>
+          {imageUrl ? (
+            <figure className="mt-4">
+              <div className="overflow-hidden rounded-lg border border-border bg-[#0b1220] p-2 sm:p-3">
+                <img src={imageUrl} alt={displayMode === "BUG_FOCUS_ANNOTATED" ? `${title} — bug-focused screenshot with highlighted defect` : `${title} — sanitized screenshot`} className="max-h-[620px] w-full rounded-md object-contain" />
+              </div>
+              <figcaption className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>{displayMode === "BUG_FOCUS_ANNOTATED" ? "The highlighted region is the visual focus of this finding." : "Sanitized browser capture from the run."}</span>
+                {displayMode === "BUG_FOCUS_ANNOTATED" && shot?.annotationBox && <span className="font-mono text-[10px] text-primary">focus region verified</span>}
+              </figcaption>
+            </figure>
+          ) : (
+            <div className="mt-4 rounded-lg border border-warning/30 bg-warning/5 p-4">
+              <EmptyState icon={Camera} title="Screenshot not available" body={presentationModeDescription("WITHHELD")} compact />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {errors.length > 0 && (
+        <div className="border-t border-border px-5 py-4 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-display text-base font-semibold">Related console or runtime signals</h3>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-destructive">{errors.length} recorded</span>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {errors.slice(0, 4).map((error, index) => <div key={`${error.timestamp}-${index}`} className="flex min-w-0 items-start gap-2 rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-foreground/85"><XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" /><span className="min-w-0 break-words">{error.message}</span></div>)}
+          </div>
+          {errors.length > 4 && <p className="mt-2 text-xs text-muted-foreground">Open the Console tab to view all recorded signals.</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function OverviewTab({ report }: { report: RunReport }) {
   const errors = report.errors ?? [];
   const assertions = report.assertions ?? [];
   return (
     <div>
       <QuickScanHandoffPanel handoff={report.quickScanHandoff} />
+      <OverviewVisualEvidence report={report} />
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
       <div className="surface-card overflow-hidden">
         <div className="border-b border-border px-5 py-3">
@@ -1035,6 +1146,8 @@ function ScreenshotsTab({
       />
     );
   const shot = shots[selected] ?? shots[0];
+  const hasBugFocus = shot.annotationStatus === "APPLIED" && Boolean(shot.annotatedUrl);
+  const shownUrl = showBugFocus && hasBugFocus ? shot.annotatedUrl : shot.url;
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
       <div className="surface-card overflow-hidden">
@@ -1045,19 +1158,19 @@ function ScreenshotsTab({
             {shot.viewport ? ` · ${formatViewportLabel(shot.viewport)}` : ""}
             {shot.redactionStatus ? ` · ${shot.redactionStatus.toLowerCase().replaceAll("_", " ")}` : ""}
           </p>
-          {shot.annotatedUrl && (
+          {hasBugFocus && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => setShowBugFocus((value) => !value)} className="rounded-md border border-primary/30 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10">
+              <button type="button" aria-pressed={showBugFocus} onClick={() => setShowBugFocus((value) => !value)} className="rounded-md border border-primary/30 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10">
                 {showBugFocus ? "Show normal frame" : "Show bug focus"}
               </button>
               <span className="text-[11px] text-muted-foreground">The bug-focus view is an annotated derivative; the normal redacted frame remains the source evidence.</span>
             </div>
           )}
         </div>
-        {(showBugFocus ? shot.annotatedUrl : shot.url) ? (
+        {shownUrl ? (
           <img
-            src={(showBugFocus ? shot.annotatedUrl : shot.url) || undefined}
-            alt={showBugFocus ? `${shot.label} — bug focus` : shot.label}
+            src={shownUrl || undefined}
+            alt={showBugFocus && hasBugFocus ? `${shot.label} — bug focus` : shot.label}
             className="max-h-[680px] w-full object-contain bg-surface-2"
           />
         ) : (
