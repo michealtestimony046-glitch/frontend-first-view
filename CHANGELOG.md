@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.9.0...v0.9.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **admin:** unblock workforce tab when telemetry stalls ([ae4b8e1](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/ae4b8e1ebd0c2fa317a42f4d4d7b13383b655063))
+
 ## [0.9.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.8.1...v0.9.0) (2026-08-28)
 
 
