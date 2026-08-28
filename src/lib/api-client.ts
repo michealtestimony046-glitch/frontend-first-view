@@ -978,7 +978,7 @@ export const authApi = {
   ping: async (): Promise<BackendHealthResponse> => apiRequest("/health", { cache: "no-store", timeoutMs: 10_000 }),
   signup: async (data: SignUpRequest): Promise<SignUpResponse> =>
     apiRequest("/auth/register", { method: "POST", body: JSON.stringify(data) }),
-  verifyEmail: async (data: VerifyEmailRequest): Promise<AuthResponse> => {
+    verifyEmail: async (data: VerifyEmailRequest): Promise<AuthResponse> => {
     const response = await apiRequest<AuthResponse>("/auth/verify-email", {
       method: "POST",
       body: JSON.stringify(data),
@@ -986,6 +986,8 @@ export const authApi = {
     if (response.accessToken) setAuthToken(response.accessToken);
     return response;
   },
+  resendVerification: async (data: { email: string }): Promise<{ message: string }> =>
+    apiRequest("/auth/resend-verification", { method: "POST", body: JSON.stringify(data) }),
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     const response = await apiRequest<AuthResponse>("/auth/login", {
       method: "POST",
