@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.8.1...v0.9.0) (2026-08-28)
+
+
+### Features
+
+* **runs:** make screenshot evidence the overview centerpiece ([4522d1f](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/4522d1f7988cefafe0b05011ca33d6192ca24776))
+
+
+### Bug Fixes
+
+* **dashboard:** show all run trend statuses ([dda2369](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/dda23698e9484b039a7f1b487dd2388de598e0a9))
+
 ## [0.8.1](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.8.0...v0.8.1) (2026-08-27)
 
 
