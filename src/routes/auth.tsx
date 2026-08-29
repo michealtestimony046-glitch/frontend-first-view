@@ -183,12 +183,12 @@ function AuthPage() {
     } else {
       const provider = providerValue;
       setOauthLoading(true);
-            authApi.handleOAuthCallback(code, provider, state)
+                  authApi.handleOAuthCallback(code, provider, state)
         .then((response) => {
           const oauthIntent = readOAuthIntent();
-          alert(`DEBUG success — isNewUser: ${response.isNewUser} | oauthIntent: ${oauthIntent}`);
           clearOAuthIntent();
           const isFirstTimeOAuthUser = response.isNewUser === true || (response.isNewUser === undefined && oauthIntent === "signup");
+
 
           if (isFirstTimeOAuthUser && !adminSignInOnly) {
             const email = response.user.email.trim().toLowerCase();
@@ -206,8 +206,7 @@ function AuthPage() {
             navigate({ to: returnTo });
           }
         })
-                .catch((cause) => {
-          alert(`DEBUG failed — ${cause instanceof Error ? cause.message : String(cause)}`);
+                        .catch((cause) => {
           clearOAuthIntent();
           clearOAuthHandoff();
           clearCallbackParams();
