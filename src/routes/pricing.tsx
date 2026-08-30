@@ -167,9 +167,11 @@ function planLabel(plan: EffectivePlanResponse) {
 function UpgradeAction({
   planId,
   currentPlan,
+  signedIn,
 }: {
   planId: PublicPlan;
   currentPlan: PublicPlan | null;
+  signedIn: boolean;
 }) {
   if (currentPlan === planId) {
     return (
@@ -193,6 +195,17 @@ function UpgradeAction({
     );
   }
   if (planId === "STARTER") {
+    if (!signedIn) {
+      return (
+        <Link
+          to="/auth"
+          search={{ mode: "signup", returnTo: "/pricing" }}
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow hover:-translate-y-px"
+        >
+          Create account to upgrade <ArrowRight className="h-4 w-4" />
+        </Link>
+      );
+    }
     return (
       <a
         href={STARTER_CHECKOUT_URL}
@@ -242,7 +255,7 @@ function FeatureLine({ feature, included }: { feature: Feature; included: boolea
   );
 }
 
-function PricingCard({ plan, currentPlan }: { plan: PricingPlan; currentPlan: PublicPlan | null }) {
+function PricingCard({ plan, currentPlan, signedIn }: { plan: PricingPlan; currentPlan: PublicPlan | null; signedIn: boolean }) {
   const isCurrent = currentPlan === plan.id;
   const included = plan.id === "FREE" || plan.id === "STARTER";
   return (
@@ -274,7 +287,7 @@ function PricingCard({ plan, currentPlan }: { plan: PricingPlan; currentPlan: Pu
         ))}
       </ul>
       <div className="mt-7">
-        <UpgradeAction planId={plan.id} currentPlan={currentPlan} />
+        <UpgradeAction planId={plan.id} currentPlan={currentPlan} signedIn={signedIn} />
       </div>
       {plan.id === "STARTER" ? (
         <p className="mt-3 text-xs leading-5 text-muted-foreground">
@@ -472,7 +485,7 @@ function PricingPage() {
             </div>
             <div className="mt-10 grid gap-5 lg:grid-cols-3">
               {pricingPlans.map((plan) => (
-                <PricingCard key={plan.id} plan={plan} currentPlan={currentPlan} />
+                <PricingCard key={plan.id} plan={plan} currentPlan={currentPlan} signedIn={signedIn} />
               ))}
             </div>
           </div>
