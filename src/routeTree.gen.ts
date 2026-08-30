@@ -53,6 +53,7 @@ import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppWorkforceRouteImport } from './routes/app.workforce'
 import { Route as AuthConfirmEmailRouteImport } from './routes/auth.confirm-email'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
+import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as LearnFiveWorkerQaCollaborationRouteImport } from './routes/learn/five-worker-qa-collaboration'
 import { Route as LearnMatrixUnitTopUpsRouteImport } from './routes/learn/matrix-unit-top-ups'
 import { Route as LearnMatrixUnitsRouteImport } from './routes/learn/matrix-units'
@@ -288,6 +289,11 @@ const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => AuthRoute,
 } as any)
+const CheckoutSuccessRoute = CheckoutSuccessRouteImport.update({
+  id: '/checkout/success',
+  path: '/checkout/success',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LearnFiveWorkerQaCollaborationRoute =
   LearnFiveWorkerQaCollaborationRouteImport.update({
     id: '/learn/five-worker-qa-collaboration',
@@ -395,6 +401,7 @@ export interface FileRoutesByFullPath {
   '/app/workforce': typeof AppWorkforceRoute
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/checkout/success': typeof CheckoutSuccessRoute
   '/learn/five-worker-qa-collaboration': typeof LearnFiveWorkerQaCollaborationRoute
   '/learn/matrix-unit-top-ups': typeof LearnMatrixUnitTopUpsRoute
   '/learn/matrix-units': typeof LearnMatrixUnitsRoute
@@ -451,6 +458,7 @@ export interface FileRoutesByTo {
   '/app/workforce': typeof AppWorkforceRoute
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/checkout/success': typeof CheckoutSuccessRoute
   '/learn/five-worker-qa-collaboration': typeof LearnFiveWorkerQaCollaborationRoute
   '/learn/matrix-unit-top-ups': typeof LearnMatrixUnitTopUpsRoute
   '/learn/matrix-units': typeof LearnMatrixUnitsRoute
@@ -510,6 +518,7 @@ export interface FileRoutesById {
   '/app/workforce': typeof AppWorkforceRoute
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/checkout/success': typeof CheckoutSuccessRoute
   '/learn/five-worker-qa-collaboration': typeof LearnFiveWorkerQaCollaborationRoute
   '/learn/matrix-unit-top-ups': typeof LearnMatrixUnitTopUpsRoute
   '/learn/matrix-units': typeof LearnMatrixUnitsRoute
@@ -570,6 +579,7 @@ export interface FileRouteTypes {
     | '/app/workforce'
     | '/auth/confirm-email'
     | '/auth/reset-password'
+    | '/checkout/success'
     | '/learn/five-worker-qa-collaboration'
     | '/learn/matrix-unit-top-ups'
     | '/learn/matrix-units'
@@ -626,6 +636,7 @@ export interface FileRouteTypes {
     | '/app/workforce'
     | '/auth/confirm-email'
     | '/auth/reset-password'
+    | '/checkout/success'
     | '/learn/five-worker-qa-collaboration'
     | '/learn/matrix-unit-top-ups'
     | '/learn/matrix-units'
@@ -684,6 +695,7 @@ export interface FileRouteTypes {
     | '/app/workforce'
     | '/auth/confirm-email'
     | '/auth/reset-password'
+    | '/checkout/success'
     | '/learn/five-worker-qa-collaboration'
     | '/learn/matrix-unit-top-ups'
     | '/learn/matrix-units'
@@ -729,6 +741,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   VisualRegressionTestingRoute: typeof VisualRegressionTestingRoute
   WebApplicationTestingRoute: typeof WebApplicationTestingRoute
+  CheckoutSuccessRoute: typeof CheckoutSuccessRoute
   LearnFiveWorkerQaCollaborationRoute: typeof LearnFiveWorkerQaCollaborationRoute
   LearnMatrixUnitTopUpsRoute: typeof LearnMatrixUnitTopUpsRoute
   LearnMatrixUnitsRoute: typeof LearnMatrixUnitsRoute
@@ -1049,6 +1062,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthResetPasswordRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/checkout/success': {
+      id: '/checkout/success'
+      path: '/checkout/success'
+      fullPath: '/checkout/success'
+      preLoaderRoute: typeof CheckoutSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/learn/five-worker-qa-collaboration': {
       id: '/learn/five-worker-qa-collaboration'
       path: '/learn/five-worker-qa-collaboration'
@@ -1239,6 +1259,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   VisualRegressionTestingRoute: VisualRegressionTestingRoute,
   WebApplicationTestingRoute: WebApplicationTestingRoute,
+  CheckoutSuccessRoute: CheckoutSuccessRoute,
   LearnFiveWorkerQaCollaborationRoute: LearnFiveWorkerQaCollaborationRoute,
   LearnMatrixUnitTopUpsRoute: LearnMatrixUnitTopUpsRoute,
   LearnMatrixUnitsRoute: LearnMatrixUnitsRoute,

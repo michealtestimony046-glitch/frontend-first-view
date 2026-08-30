@@ -2270,6 +2270,8 @@ export interface AllocationRequest {
   submittedAt: string;
 }
 export const billingApi = {
+  status: (): Promise<{ organizationId: string; plan: PublicPlan; status: string; periodEnd?: string | null; whopPlanId?: string | null }> =>
+    apiRequest("/billing/status", { requiresAuth: true, cache: "no-store" }),
   submitAllocationRequest: async (data: AllocationRequest): Promise<void> => {
     const webhookUrl = import.meta.env.VITE_ALLOCATION_WEBHOOK_URL;
     if (!webhookUrl) {

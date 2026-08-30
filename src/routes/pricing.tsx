@@ -26,6 +26,8 @@ import {
 } from "@/lib/api-client";
 import { seoHead } from "@/lib/seo";
 
+const STARTER_CHECKOUT_URL = import.meta.env.VITE_WHOP_STARTER_CHECKOUT_URL ?? "https://whop.com/checkout/plan_SlWPb6Ph4TpKl";
+
 const pricingFaqs = [
   {
     question: "What does Free include?",
@@ -192,12 +194,12 @@ function UpgradeAction({
   }
   if (planId === "STARTER") {
     return (
-      <Link
-        to="/app/settings/billing"
+      <a
+        href={STARTER_CHECKOUT_URL}
         className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow hover:-translate-y-px"
       >
         Upgrade to Starter <ArrowRight className="h-4 w-4" />
-      </Link>
+      </a>
     );
   }
   return (
@@ -276,8 +278,8 @@ function PricingCard({ plan, currentPlan }: { plan: PricingPlan; currentPlan: Pu
       </div>
       {plan.id === "STARTER" ? (
         <p className="mt-3 text-xs leading-5 text-muted-foreground">
-          Checkout is not enabled yet. The billing route is the honest next step rather than a
-          simulated payment.
+          You will complete payment securely on Whop, then return here while Matrix QA confirms
+          activation.
         </p>
       ) : null}
     </article>
