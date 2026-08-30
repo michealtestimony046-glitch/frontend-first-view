@@ -12,6 +12,7 @@ import {
   type Organization,
   type Workspace,
 } from "@/lib/api-client";
+import { subscribeToCustomerBalanceUpdates } from "@/lib/balance-events";
 
 const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
 const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/app/credits")({
 
 function formatUnits(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(Math.max(0, value));
+  return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.max(0, value));
 }
 
 function CreditsPage() {
@@ -94,6 +95,19 @@ function CreditsPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    let cancelled = false;
+    const refreshSummary = () => {
+      void creditsApi.getSummary(organizationId)
+        .then((nextSummary) => {
+          if (!cancelled) setSummary(nextSummary);
+        })
+        .catch(() => undefined);
+    };
+    return subscribeToCustomerBalanceUpdates(refreshSummary);
+  }, [organizationId]);
 
   const submitRequest = async (event: React.FormEvent) => {
     event.preventDefault();

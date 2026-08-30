@@ -44,6 +44,7 @@ import {
 } from "@/lib/api-client";
 import { videoEvidenceEnabled } from "@/lib/feature-flags";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
+import { notifyCustomerBalanceUpdated } from "@/lib/balance-events";
 import { selectOverviewScreenshot, type ScreenshotPresentationMode } from "@/lib/screenshot-evidence";
 
 function normalizeRunMessages(value: unknown): RunMessage[] {
@@ -263,6 +264,7 @@ function RunDetailPage() {
           events: mergeRunEvents(data.events, executionState?.events),
         };
         setReport(mergedReport);
+        notifyCustomerBalanceUpdated();
         setHandoff(currentHandoff);
         setReliability(reliabilityState);
         const activeStatuses = ["PENDING", "QUEUED", "RUNNING", "AWAITING_PERMISSION"];

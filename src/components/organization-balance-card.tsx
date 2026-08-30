@@ -7,6 +7,7 @@ import {
   type CreditsSummary,
   type EffectivePlanResponse,
 } from "@/lib/api-client";
+import { subscribeToCustomerBalanceUpdates } from "@/lib/balance-events";
 
 export const ORGANIZATION_CHANGED_EVENT = "matrix-qa-organization-changed";
 const ACTIVE_ORGANIZATION_KEY = "matrix_qa_active_organization";
@@ -30,7 +31,7 @@ const accessLabels: Record<EffectivePlanResponse["accessSource"], string> = {
 
 function formatUnits(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(Math.max(0, value));
+  return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.max(0, value));
 }
 
 function usagePercent(summary: CreditsSummary, plan: EffectivePlanResponse | null) {
@@ -56,7 +57,7 @@ export function OrganizationBalanceCard({ instanceId = "default" }: { instanceId
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
+    const load = async (silent = false) => {
       const nextOrganizationId = localStorage.getItem(ACTIVE_ORGANIZATION_KEY);
       if (cancelled) return;
       setOrganizationId(nextOrganizationId);
@@ -68,7 +69,7 @@ export function OrganizationBalanceCard({ instanceId = "default" }: { instanceId
         return;
       }
 
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [planResult, summaryResult] = await Promise.allSettled([
         plansApi.effective(nextOrganizationId),
         creditsApi.getSummary(nextOrganizationId),
@@ -88,17 +89,19 @@ export function OrganizationBalanceCard({ instanceId = "default" }: { instanceId
               ? "Live balance is temporarily unavailable."
               : null,
       );
-      setLoading(false);
+      if (!silent) setLoading(false);
     };
 
-    const refresh = () => void load();
+    const refresh = () => void load(true);
     void load();
     const timer = window.setInterval(refresh, REFRESH_INTERVAL_MS);
+    const unsubscribeBalance = subscribeToCustomerBalanceUpdates(refresh);
     window.addEventListener(ORGANIZATION_CHANGED_EVENT, refresh);
     window.addEventListener("storage", refresh);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
+      unsubscribeBalance();
       window.removeEventListener(ORGANIZATION_CHANGED_EVENT, refresh);
       window.removeEventListener("storage", refresh);
     };
