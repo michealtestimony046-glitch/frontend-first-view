@@ -26,6 +26,12 @@ import {
 } from "@/lib/api-client";
 import { seoHead } from "@/lib/seo";
 
+const STARTER_CHECKOUT_INTENT_KEY = "matrix_qa_starter_checkout_intent";
+
+const writeStarterCheckoutIntent = (): void => {
+  if (typeof window !== "undefined") window.sessionStorage.setItem(STARTER_CHECKOUT_INTENT_KEY, "true");
+};
+
 const STARTER_CHECKOUT_URL = import.meta.env.VITE_WHOP_STARTER_CHECKOUT_URL ?? "https://whop.com/checkout/plan_SlWPb6Ph4TpKl";
 
 const pricingFaqs = [
@@ -199,7 +205,8 @@ function UpgradeAction({
       return (
         <Link
           to="/auth"
-          search={{ mode: "signup", returnTo: "/pricing" }}
+          search={{ mode: "signup", returnTo: "/app" }}
+          onClick={writeStarterCheckoutIntent}
           className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow hover:-translate-y-px"
         >
           Create account to upgrade <ArrowRight className="h-4 w-4" />
