@@ -12,6 +12,7 @@ const FIRST_TEST_READY_KEY = "matrix_qa_first_test_ready";
 const ONBOARDING_PROFILE_KEY = "matrix_qa_onboarding_profile";
 const ONBOARDING_QUICK_SCAN_KEY = "matrix_qa_onboarding_quick_scan";
 const OAUTH_INTENT_KEY = "matrix_qa_oauth_intent";
+const STARTER_CHECKOUT_INTENT_KEY = "matrix_qa_starter_checkout_intent";
 const OAUTH_HANDOFF_KEY = "matrix_qa_oauth_handoff";
 const OAUTH_HANDOFF_TTL_MS = 10 * 60 * 1000;
 
@@ -102,6 +103,15 @@ const clearOAuthIntent = (): void => {
   if (typeof window !== "undefined") window.sessionStorage.removeItem(OAUTH_INTENT_KEY);
 };
 
+const readStarterCheckoutIntent = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return window.sessionStorage.getItem(STARTER_CHECKOUT_INTENT_KEY) === "true";
+};
+
+const clearStarterCheckoutIntent = (): void => {
+  if (typeof window !== "undefined") window.sessionStorage.removeItem(STARTER_CHECKOUT_INTENT_KEY);
+};
+
 const authSearchSchema = z.object({
   mode: z.enum(["signin", "signup"]).optional().default("signup"),
   returnTo: z.enum(["/app", "/admin"]).optional().default("/app"),
@@ -150,6 +160,7 @@ function AuthPage() {
   const [realUserTestError, setRealUserTestError] = useState("");
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const navigate = useNavigate();
+  const starterCheckoutIntent = readStarterCheckoutIntent();
   const returnTo = search.returnTo === "/admin" ? "/admin" : "/app";
 
     const [loginMutate, loginState] = useMutation(authApi.login);
@@ -380,6 +391,11 @@ function AuthPage() {
       setVerifiedUserId(response.user.id);
       setVerificationEmail("");
       setVerificationStep(false);
+      if (starterCheckoutIntent) {
+        clearStarterCheckoutIntent();
+        navigate({ to: "/pricing" });
+        return;
+      }
       setOnboardingStep(2);
       setSuccessMessage("Email verified. Continue with your workspace setup.");
     } catch (cause) {
