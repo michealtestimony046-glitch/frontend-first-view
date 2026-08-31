@@ -8,14 +8,11 @@ export const Route = createFileRoute("/checkout/success")({ component: CheckoutS
 type State = "checking" | "activated" | "waiting" | "error";
 
 function CheckoutSuccessPage() {
-  const [state, setState] = useState<State>(() => (getAuthToken() ? "checking" : "error"));
-  const [message, setMessage] = useState("We are confirming your Starter subscription securely.");
+  const [state, setState] = useState<State>("checking");
+  const [message, setMessage] = useState("We're waiting for Whop to confirm your subscription.");
 
   useEffect(() => {
-    if (!getAuthToken()) {
-      setMessage("Please sign in with the same Matrix QA email used during checkout.");
-      return;
-    }
+    if (!getAuthToken()) return;
 
     let cancelled = false;
     let attempts = 0;
@@ -23,22 +20,22 @@ function CheckoutSuccessPage() {
       try {
         const status = await billingApi.status();
         if (cancelled) return;
-        if (status.plan === "STARTER" && ["ACTIVE", "TRIALING", "PAST_DUE"].includes(status.status)) {
+        if (status.plan === "STARTER" && Boolean(status.whopPlanId) && ["ACTIVE", "TRIALING", "PAST_DUE"].includes(status.status)) {
           setState("activated");
-          setMessage("Your Starter workspace is active. You can open Matrix QA now.");
+          setMessage("Your Matrix QA Starter subscription is active.");
           return;
         }
         attempts += 1;
         if (attempts >= 10) {
-          setState("waiting");
-          setMessage("Payment was received, but activation is still processing. Please refresh in a few seconds.");
+          setState("error");
+          setMessage("We couldn't confirm a completed subscription. No access has been changed.");
           return;
         }
         setTimeout(check, 2000);
       } catch {
         if (!cancelled) {
-          setState("waiting");
-          setMessage("We could not read the activation status yet. Please refresh shortly; your payment will not be charged again.");
+          setState("error");
+          setMessage("We couldn't confirm a completed subscription. No access has been changed.");
         }
       }
     };
@@ -56,7 +53,7 @@ function CheckoutSuccessPage() {
       <section className="w-full max-w-lg rounded-2xl border border-border bg-surface/60 p-8 text-center shadow-xl">
         <Icon className={`mx-auto h-12 w-12 ${iconClass}`} />
         <h1 className="mt-5 font-display text-3xl font-semibold">
-          {state === "activated" ? "Starter activated" : state === "error" ? "Sign in required" : "Confirming your subscription"}
+          {state === "activated" ? "Starter activated" : state === "error" ? "Subscription not confirmed" : "Confirming your subscription"}
         </h1>
         <p className="mt-4 text-sm leading-6 text-muted-foreground">{message}</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
