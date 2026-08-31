@@ -16,6 +16,7 @@ import { subscribeToCustomerBalanceUpdates } from "@/lib/balance-events";
 
 const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
 const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
+const REFRESH_INTERVAL_MS = 5_000;
 
 export const Route = createFileRoute("/app/credits")({
   head: () => ({
@@ -26,7 +27,10 @@ export const Route = createFileRoute("/app/credits")({
 
 function formatUnits(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.max(0, value));
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  }).format(Math.max(0, value));
 }
 
 function CreditsPage() {
@@ -100,13 +104,20 @@ function CreditsPage() {
     if (!organizationId) return;
     let cancelled = false;
     const refreshSummary = () => {
-      void creditsApi.getSummary(organizationId)
+      void creditsApi
+        .getSummary(organizationId)
         .then((nextSummary) => {
           if (!cancelled) setSummary(nextSummary);
         })
         .catch(() => undefined);
     };
-    return subscribeToCustomerBalanceUpdates(refreshSummary);
+    const unsubscribeBalance = subscribeToCustomerBalanceUpdates(refreshSummary);
+    const timer = window.setInterval(refreshSummary, REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      unsubscribeBalance();
+    };
   }, [organizationId]);
 
   const submitRequest = async (event: React.FormEvent) => {

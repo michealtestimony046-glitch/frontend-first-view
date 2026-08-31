@@ -11,7 +11,7 @@ import { subscribeToCustomerBalanceUpdates } from "@/lib/balance-events";
 
 export const ORGANIZATION_CHANGED_EVENT = "matrix-qa-organization-changed";
 const ACTIVE_ORGANIZATION_KEY = "matrix_qa_active_organization";
-const REFRESH_INTERVAL_MS = 30_000;
+const REFRESH_INTERVAL_MS = 5_000;
 
 const planNames: Record<EffectivePlanResponse["plan"], string> = {
   FREE: "Free",
@@ -31,7 +31,10 @@ const accessLabels: Record<EffectivePlanResponse["accessSource"], string> = {
 
 function formatUnits(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.max(0, value));
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  }).format(Math.max(0, value));
 }
 
 function usagePercent(summary: CreditsSummary, plan: EffectivePlanResponse | null) {
