@@ -199,8 +199,8 @@ function CreditsPage() {
                 Live organization balance
               </h2>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-                Your available balance is updated from recorded run usage. Unused reservations are
-                returned automatically.
+                Your available balance is updated from recorded live run usage. The balance shown
+                here is the current customer-facing Matrix Unit amount.
               </p>
             </div>
             <div className="rounded-full border border-border bg-surface-2/50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -208,7 +208,7 @@ function CreditsPage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-primary/25 bg-primary/10 p-4">
               <div className="text-[10px] font-mono uppercase tracking-wider text-primary">
                 Available now
@@ -224,15 +224,6 @@ function CreditsPage() {
               </div>
               <div className="mt-2 font-display text-2xl font-semibold tracking-tight">
                 {formatUnits(summary.usedUnits)}{" "}
-                <span className="text-base text-muted-foreground">{summary.symbol}</span>
-              </div>
-            </div>
-            <div className="rounded-lg border border-border bg-surface-2/35 p-4">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                Reserved for active runs
-              </div>
-              <div className="mt-2 font-display text-2xl font-semibold tracking-tight">
-                {formatUnits(summary.reservedUnits)}{" "}
                 <span className="text-base text-muted-foreground">{summary.symbol}</span>
               </div>
             </div>
@@ -308,8 +299,8 @@ function CreditsPage() {
         <section className="surface-card border-primary/20 bg-primary/5 p-5">
           <h2 className="font-display text-base font-semibold">Standard customer capacity</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Your Matrix Unit balance above is the customer-facing usage limit for this organization.
-            Run costs are settled from recorded usage, and unused holds are returned automatically.
+            Your Matrix Unit balance above is the customer-facing live usage balance for this
+            organization. It refreshes from the backend ledger as recorded run usage changes.
           </p>
         </section>
       ) : null}
