@@ -14,6 +14,7 @@ import {
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { LaunchConsoleLink } from "@/components/launch-console-link";
+import { useAuth } from "@/lib/auth-context";
 import {
   AUTH_EVENT,
   creditsApi,
@@ -174,10 +175,12 @@ function UpgradeAction({
   planId,
   currentPlan,
   signedIn,
+  checkoutEmail,
 }: {
   planId: PublicPlan;
   currentPlan: PublicPlan | null;
   signedIn: boolean;
+  checkoutEmail: string | null;
 }) {
   if (currentPlan === planId) {
     return (
@@ -213,9 +216,14 @@ function UpgradeAction({
         </Link>
       );
     }
+    const checkoutUrl = new URL(STARTER_CHECKOUT_URL);
+    if (checkoutEmail) {
+      checkoutUrl.searchParams.set("email", checkoutEmail);
+      checkoutUrl.searchParams.set("email.disabled", "1");
+    }
     return (
       <a
-        href={STARTER_CHECKOUT_URL}
+        href={checkoutUrl.toString()}
         className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow hover:-translate-y-px"
       >
         Upgrade to Starter <ArrowRight className="h-4 w-4" />
@@ -262,7 +270,7 @@ function FeatureLine({ feature, included }: { feature: Feature; included: boolea
   );
 }
 
-function PricingCard({ plan, currentPlan, signedIn }: { plan: PricingPlan; currentPlan: PublicPlan | null; signedIn: boolean }) {
+function PricingCard({ plan, currentPlan, signedIn, checkoutEmail }: { plan: PricingPlan; currentPlan: PublicPlan | null; signedIn: boolean; checkoutEmail: string | null }) {
   const isCurrent = currentPlan === plan.id;
   const included = plan.id === "FREE" || plan.id === "STARTER";
   return (
@@ -294,7 +302,7 @@ function PricingCard({ plan, currentPlan, signedIn }: { plan: PricingPlan; curre
         ))}
       </ul>
       <div className="mt-7">
-        <UpgradeAction planId={plan.id} currentPlan={currentPlan} signedIn={signedIn} />
+        <UpgradeAction planId={plan.id} currentPlan={currentPlan} signedIn={signedIn} checkoutEmail={checkoutEmail} />
       </div>
       {plan.id === "STARTER" ? (
         <p className="mt-3 text-xs leading-5 text-muted-foreground">
@@ -307,6 +315,7 @@ function PricingCard({ plan, currentPlan, signedIn }: { plan: PricingPlan; curre
 }
 
 function PricingPage() {
+  const { user } = useAuth();
   const [signedIn, setSignedIn] = useState(() => Boolean(getAuthToken()));
   const [effectivePlan, setEffectivePlan] = useState<EffectivePlanResponse | null>(null);
   const [topUps, setTopUps] = useState<MatrixUnitTopUpCatalog | null>(null);
@@ -492,7 +501,7 @@ function PricingPage() {
             </div>
             <div className="mt-10 grid gap-5 lg:grid-cols-3">
               {pricingPlans.map((plan) => (
-                <PricingCard key={plan.id} plan={plan} currentPlan={currentPlan} signedIn={signedIn} />
+                <PricingCard key={plan.id} plan={plan} currentPlan={currentPlan} signedIn={signedIn} checkoutEmail={user?.email ?? null} />
               ))}
             </div>
           </div>
