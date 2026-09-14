@@ -22,8 +22,10 @@ function ReportsPage() {
     if (!selectedRun) return [];
     return live.issues.filter((issue) => issue.reportId === selectedRun.id);
   }, [live.issues, selectedRun]);
+  const quickScanFindings = (report?.quickScanHandoff?.findings ?? []).filter((finding) => finding.status === "QUICK_SCAN_CONFIRMED" || (finding.status === "CONFIRMED" && finding.reportSection !== "VISUAL_INTERACTIVE_FINDINGS"));
+  const visualFindings = Array.isArray(report?.aiOverview?.findings) ? report.aiOverview.findings : [];
   const repairMarkdown = report && selectedRun
-    ? `# Matrix QA report ${runNumber(live.runs, selectedRun.id)}\n\nStatus: ${report.status}\nTarget: ${selectedRun.targetUrl}\nStarted: ${formatLiveDate(selectedRun.startedAt ?? selectedRun.createdAt)}\nDuration: ${formatLiveDuration(report.durationSec)}\n\n## Findings\n${findings.length ? findings.map((issue) => `- [${issue.severity.toUpperCase()}] ${issue.title} (${issue.category})`).join("\n") : "No hard findings were returned by the backend."}\n\n## Backend diagnostic\n${report.errorMessage ?? "None"}\n`
+    ? `# Matrix QA report ${runNumber(live.runs, selectedRun.id)}\n\nStatus: ${report.status}\nTarget: ${selectedRun.targetUrl}\nStarted: ${formatLiveDate(selectedRun.startedAt ?? selectedRun.createdAt)}\nDuration: ${formatLiveDuration(report.durationSec)}\n\n## Quick Scan / DOM Findings\n${quickScanFindings.length ? quickScanFindings.map((finding) => `- [${finding.status}] ${finding.title}: ${finding.evidence}`).join("\n") : "No confirmed deterministic DOM findings were recorded."}\n\n## Visual & Interactive Findings\n${visualFindings.length ? visualFindings.map((finding) => `- [${String((finding as Record<string, unknown>).severity ?? "unknown").toUpperCase()}] ${String((finding as Record<string, unknown>).title ?? "Untitled finding")}`).join("\n") : "No Chromium-confirmed visual or interactive findings were recorded."}\n\n## Backend Findings\n${findings.length ? findings.map((issue) => `- [${issue.severity.toUpperCase()}] ${issue.title} (${issue.category})`).join("\n") : "No hard findings were returned by the backend."}\n\n## Backend diagnostic\n${report.errorMessage ?? "None"}\n`
     : "No terminal report is available yet.";
   const scoreTone = confidenceScore >= 90 ? "text-success" : confidenceScore >= 75 ? "text-warning" : "text-destructive";
 
@@ -66,6 +68,22 @@ function ReportsPage() {
                 <Metric label="Failed" value={report.failed ?? report.summary?.assertionsFailed ?? 0} tone="text-destructive" />
                 <Metric label="Warnings" value={Array.isArray((report as Record<string, unknown>).auditLog) ? ((report as Record<string, unknown>).auditLog as unknown[]).length : 0} tone="text-warning" />
                 <Metric label="Evidence events" value={Array.isArray(report.events) ? report.events.length : 0} />
+              </div>
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <section className="surface-card overflow-hidden">
+                  <header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Quick Scan / DOM Findings</h2><p className="text-[11px] text-muted-foreground">Deterministic checks, authoritative only for the measured DOM property</p></header>
+                  <ul className="divide-y divide-border">
+                    {quickScanFindings.map((finding) => <li key={finding.id} className="px-5 py-3"><div className="text-sm font-medium">{finding.title}</div><div className="mt-1 text-[11px] text-muted-foreground">{finding.evidence}</div><div className="mt-1 font-mono text-[10px] uppercase text-primary">{finding.provenance ?? "ONBOARDING_QUICK_SCAN"}</div></li>)}
+                    {!quickScanFindings.length && <li className="p-6 text-center text-sm text-muted-foreground">No confirmed deterministic DOM findings.</li>}
+                  </ul>
+                </section>
+                <section className="surface-card overflow-hidden">
+                  <header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Visual & Interactive Findings</h2><p className="text-[11px] text-muted-foreground">Chromium-confirmed actions, mutations, screenshots, video, and layout assertions</p></header>
+                  <ul className="divide-y divide-border">
+                    {visualFindings.map((finding, index) => <li key={`${String((finding as Record<string, unknown>).title ?? "finding")}-${index}`} className="px-5 py-3"><div className="text-sm font-medium">{String((finding as Record<string, unknown>).title ?? "Untitled finding")}</div><div className="mt-1 text-[11px] text-muted-foreground">{String((finding as Record<string, unknown>).explanation ?? "Chromium evidence-backed finding")}</div></li>)}
+                    {!visualFindings.length && <li className="p-6 text-center text-sm text-muted-foreground">No Chromium-confirmed visual or interactive findings.</li>}
+                  </ul>
+                </section>
               </div>
               <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                 <section className="surface-card overflow-hidden">

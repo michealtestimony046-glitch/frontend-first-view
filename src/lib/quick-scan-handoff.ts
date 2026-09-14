@@ -1,9 +1,10 @@
 import type { OnboardingQuickScanResult, QuickScanHandoffRequest } from "@/lib/api-client";
 
 /**
- * Convert a completed structural Quick Scan into bounded browser-agent context.
- * The browser worker remains authoritative: every imported finding starts as an
- * unverified lead and can only be reconciled from evidence captured in the run.
+ * Convert a completed structural Quick Scan into bounded run context.
+ * Deterministic findings are authoritative for the DOM property measured by
+ * Quick Scan; the browser worker remains authoritative for interactive behavior,
+ * mutations, visual layout, and real-user behavior.
  */
 export function toQuickScanHandoff(
   result: OnboardingQuickScanResult | null | undefined,

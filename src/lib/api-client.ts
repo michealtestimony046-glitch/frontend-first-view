@@ -260,7 +260,7 @@ export interface CreateProjectRequest {
   workspaceId: string;
   defaultTargetUrl?: string;
 }
-export type QuickScanVerificationStatus = "UNVERIFIED_LEAD" | "CONFIRMED" | "NOT_REPRODUCED" | "NOT_TESTED";
+export type QuickScanVerificationStatus = "QUICK_SCAN_CONFIRMED" | "UNVERIFIED_LEAD" | "CONFIRMED" | "NOT_REPRODUCED" | "NOT_TESTED";
 
 export interface QuickScanHandoffFinding {
   id: string;
@@ -269,6 +269,8 @@ export interface QuickScanHandoffFinding {
   title: string;
   evidence: string;
   status: QuickScanVerificationStatus;
+  provenance?: "ONBOARDING_QUICK_SCAN" | "DOM_QUICK_SCAN";
+  reportSection?: "QUICK_SCAN_DOM_FINDINGS" | "VISUAL_INTERACTIVE_FINDINGS";
   verificationNote?: string;
   verificationEvidenceRefs?: string[];
 }
@@ -285,7 +287,7 @@ export interface QuickScanHandoff {
   findings: QuickScanHandoffFinding[];
 }
 
-/** Request shape accepted when a new run imports Quick Scan leads. The browser worker owns verification status. */
+/** Request shape accepted when a new run imports bounded Quick Scan findings. */
 export type QuickScanHandoffRequestFinding = Omit<QuickScanHandoffFinding, "status" | "verificationNote" | "verificationEvidenceRefs">;
 export interface QuickScanHandoffRequest {
   source: "ONBOARDING_QUICK_SCAN";
