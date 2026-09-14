@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   ArrowUp,
   BookOpen,
@@ -14,6 +14,8 @@ import {
   AUTH_EVENT,
   clearLegacyClientMiaHistory,
   guidanceApi,
+  organizationsApi,
+  workspacesApi,
   type GuidanceMessage,
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
@@ -22,7 +24,7 @@ type MiaGuideProps = { compact?: boolean };
 
 const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
 const INTRO =
-  "I’m Mia, your Matrix QA guide. Ask me about Matrix QA, your selected workspace, a focused run, Quick Scan, reports, notifications, projects, or settings. I explain what the product and your current workspace data support, but I do not change account data or execute runs.";
+  "I’m Mia. I can help you understand Matrix QA, inspect your workspace history, or walk through a report. Open a run when you want me to focus on its evidence. What are you looking at?";
 const SUGGESTIONS = [
   "How do I run my first test?",
   "What happened in my latest run?",
@@ -32,6 +34,25 @@ const SUGGESTIONS = [
 function activeWorkspaceId(): string | undefined {
   if (typeof window === "undefined") return undefined;
   return localStorage.getItem(ACTIVE_WORKSPACE_KEY) || undefined;
+}
+
+async function resolveWorkspaceId(): Promise<string | undefined> {
+  const existing = activeWorkspaceId();
+  if (existing) return existing;
+  try {
+    const organizations = await organizationsApi.list();
+    const organization = organizations[0];
+    if (!organization) return undefined;
+    const workspaces = await workspacesApi.list(organization.id);
+    const workspace = workspaces[0];
+    if (workspace && typeof window !== "undefined") {
+      localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspace.id);
+      return workspace.id;
+    }
+  } catch {
+    // The backend can still resolve a single authorized workspace.
+  }
+  return undefined;
 }
 
 function conversationScopeKey(userId: string, workspaceId?: string) {
@@ -209,6 +230,7 @@ export function sanitizeMiaChatText(value: string): string {
 export function MiaGuide({ compact = false }: MiaGuideProps) {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const focusedRunId = useMemo(() => {
     const match = location.pathname.match(/^\/app\/runs\/([^/]+)/);
     return match?.[1] ? decodeURIComponent(match[1]) : undefined;
@@ -224,6 +246,8 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   const [authRefreshVersion, setAuthRefreshVersion] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [workspaceChoices, setWorkspaceChoices] = useState<Array<{ id: string; name: string }>>([]);
+  const [runLink, setRunLink] = useState<{ runId: string; path: string } | null>(null);
   const messageViewportRef = useRef<HTMLDivElement>(null);
   const latestMessageRef = useRef<HTMLDivElement>(null);
   const shouldFollowLatestRef = useRef(true);
@@ -295,12 +319,6 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
 
   useEffect(() => {
     if (!isAuthenticated || !userId || typeof window === "undefined") return;
-    if (!workspaceScope) {
-      setMessages([]);
-      setLoadedHistoryKey(null);
-      setHydrating(false);
-      return;
-    }
     let cancelled = false;
     setHydrating(true);
     setLoadedHistoryKey(null);
@@ -367,7 +385,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   const send = async (value = draft) => {
     const message = sanitizeMiaChatText(value.trim());
     if (!message || loading || !conversationReady) return;
-    const currentWorkspaceId = activeWorkspaceId();
+    const currentWorkspaceId = await resolveWorkspaceId();
     const baseMessages = currentWorkspaceId === workspaceScope ? messages : [];
     if (currentWorkspaceId !== workspaceScope) {
       setWorkspaceScope(currentWorkspaceId);
@@ -386,6 +404,8 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
         workspaceId: currentWorkspaceId,
         runId: focusedRunId,
       });
+      setWorkspaceChoices(response.availableWorkspaces ?? []);
+      setRunLink(response.navigation?.runId && response.navigation.path ? { runId: response.navigation.runId, path: response.navigation.path } : null);
       setMessages((current) =>
         [
           ...current,
@@ -480,6 +500,34 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
                   Dismiss
                 </button>
               </div>
+            )}
+            {workspaceChoices.length > 1 && (
+              <div className="grid gap-2 pt-1">
+                <p className="text-[11px] text-muted-foreground">Choose a workspace to continue:</p>
+                {workspaceChoices.map((workspace) => (
+                  <button
+                    key={workspace.id}
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspace.id);
+                      setWorkspaceScope(workspace.id);
+                      setWorkspaceChoices([]);
+                    }}
+                    className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-foreground"
+                  >
+                    {workspace.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {runLink && (
+              <button
+                type="button"
+                onClick={() => void navigate({ to: runLink.path })}
+                className="w-fit rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary hover:bg-primary/20"
+              >
+                Open run {runLink.runId.slice(0, 8)}
+              </button>
             )}
             {conversationReady && !hasConversation && (
               <div className="grid gap-2 pt-1">

@@ -1142,6 +1142,11 @@ export interface GuidanceResponse {
   degraded: boolean;
   available: boolean;
   workspaceId?: string | null;
+  workspaceName?: string | null;
+  intent?: string;
+  workspaceSelectionRequired?: boolean;
+  availableWorkspaces?: Array<{ id: string; name: string }>;
+  navigation?: { runId?: string; path?: string };
   memoryScope?: string;
   citations?: Array<{ sourceId: string; claim: string }>;
 }

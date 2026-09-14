@@ -27,8 +27,8 @@ export const Route = createFileRoute("/mia")({
 
 const canDo = [
   "Explain Matrix QA features, the run lifecycle, and the difference between a browser journey and a direct API check.",
-  "Use the selected workspace as context when answering questions about the workspace’s available data.",
-  "Help interpret a focused run when you are viewing a run detail page and a run ID is available in the current route.",
+  "Inspect the authorized workspace history, projects, notifications, and latest runs even when you are on Overview.",
+  "Use a focused run page as deeper evidence context, without requiring a run URL for ordinary workspace questions.",
   "Explain projects, test capacity, reports, notifications, settings, and the evidence captured around a run.",
   "Keep a server-backed conversation history scoped to the signed-in user and selected workspace when that history is available.",
   "Return a degraded or unavailable response instead of pretending that live guidance is available when the guidance service cannot respond.",
@@ -50,7 +50,7 @@ const questions = [
   ],
   [
     "What happened in my latest run?",
-    "When the relevant workspace context and run are available, Mia can help you interpret status, findings, evidence, and the difference between a failed journey and a captured hard signal. Open the run detail for the source evidence.",
+    "Mia can look up the latest authorized workspace run, summarize its status and evidence, and point you to the run detail for the source record.",
   ],
   [
     "Where are my notifications?",
@@ -62,7 +62,7 @@ const questions = [
   ],
   [
     "Does Mia know everything in my account?",
-    "No. Her context is intentionally bounded. The client sends the selected workspace and, on a focused run page, the current run identifier. Responses should be checked against the source record in Matrix QA.",
+    "She can inspect the authorized workspace records needed for a question. A focused run page gives her deeper evidence context, and responses should still be checked against the source record in Matrix QA.",
   ],
 ] as const;
 
