@@ -1970,8 +1970,17 @@ export const reliabilityApi = {
   export: (projectId: string, workspaceId: string) => apiRequest(`/projects/${encodeURIComponent(projectId)}/reliability-export?workspaceId=${encodeURIComponent(workspaceId)}`, { requiresAuth: true, cache: "no-store" }),
 };
 
+export interface AdminRunDiagnosis {
+  run: { id: string; status: string; projectId: string; projectName: string; workspaceId: string; organizationId: string; targetUrl: string; type: string; planVersion: string; triggeredBy?: { id: string; email: string; fullName?: string | null } | null; createdAt: string; startedAt?: string | null; finishedAt?: string | null; currentPhase?: string | null; currentRoute?: string | null; hardErrorCount: number; attemptCount: number; errorMessage?: string | null; stopReason?: string | null; totalAiCalls: number; totalInputTokens: number; totalOutputTokens: number; providersUsed: unknown; estimatedAiCostUsd: unknown };
+  credit: { reservedUnits: number; settledUnits: number; refundedUnits: number; consumedUnits: number; refundableUnits: number };
+  steps: unknown[]; evidence: unknown[]; consoleMessages: unknown[]; executionEvents: unknown[]; checkpoints: unknown[]; attempts: unknown[]; messages: unknown[]; telemetry: unknown; browserHandoff: unknown; reports: unknown[]; workforce: unknown; aiUsage: unknown[]; creditLedger: unknown[]; audit: unknown[]; sourceIds: Record<string, string>;
+}
+
 export const adminApi = {
   listCustomerAccounts: (): Promise<AdminCustomerAccount[]> => apiRequest('/admin/customers', { requiresAuth: true }),
+  diagnoseRun: (runId: string): Promise<AdminRunDiagnosis> => apiRequest(`/admin/diagnostics/runs/${encodeURIComponent(runId)}`, { requiresAuth: true, cache: 'no-store' }),
+  refundDiagnosedRun: (runId: string, reason: string) => apiRequest<{ runId: string; refundedUnits: number; idempotent: boolean; ledgerEntryId: string | null }>(`/admin/diagnostics/runs/${encodeURIComponent(runId)}/refund`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
+  messageDiagnosedRun: (runId: string, data: { recipientUserIds: string[]; title: string; message: string }) => apiRequest<{ runId: string; recipientCount: number; delivered: unknown[] }>(`/admin/diagnostics/runs/${encodeURIComponent(runId)}/message`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listAlphaParticipants: (search?: string): Promise<AdminAlphaParticipant[]> => apiRequest(`/admin/alpha-event/participants${search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`, { requiresAuth: true, cache: 'no-store' }),
   listWorkforceAgents: (): Promise<AdminWorkforceAgent[]> => apiRequest('/admin/workforce/agents', { requiresAuth: true, cache: 'no-store' }),
   workforceRun: (runId: string): Promise<AdminWorkforceSnapshot> => apiRequest(`/admin/workforce/runs/${encodeURIComponent(runId)}`, { requiresAuth: true, cache: 'no-store' }),

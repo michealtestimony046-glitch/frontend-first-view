@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowLeft, BrainCircuit, Check, CircleAlert, CircleDollarSign, Database, Download, Eye, ListChecks, Loader2, Mail, Menu, Radio, RefreshCw, Search, Send, ShieldCheck, UserPlus, Users, X } from "lucide-react";
+import { Activity, ArrowLeft, BrainCircuit, Check, CircleAlert, CircleDollarSign, Database, Download, Eye, FileSearch, ListChecks, Loader2, Mail, Menu, Radio, RefreshCw, Search, Send, ShieldCheck, UserPlus, Users, X } from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { adminApi, authApi, type BackendHealthResponse, type AdminAiProviderConfig, type AdminAllocationRequest, type AdminAlphaParticipant, type AdminClientView, type AdminControlTowerSnapshot, type AdminCustomerAccount, type AdminOllamaRequestDiagnostic, type AdminOperationsMetrics, type AdminProviderCreditSnapshot, type AdminTelemetrySummary, type AdminMatrixUnitSnapshot, type AdminWorkforceAgent, type AdminWorkforceSnapshot, type AlphaRewardTier, type ManagedSecretMetadata, type StaffManagementData, type StaffReliabilityDashboard, type StaffNotificationRecipient, type TargetComplaint, type TargetComplaintStatus, type TargetSuspension, type WorkerHealth } from "@/lib/api-client";
+import { adminApi, authApi, type BackendHealthResponse, type AdminAiProviderConfig, type AdminAllocationRequest, type AdminAlphaParticipant, type AdminClientView, type AdminControlTowerSnapshot, type AdminCustomerAccount, type AdminOllamaRequestDiagnostic, type AdminOperationsMetrics, type AdminProviderCreditSnapshot, type AdminTelemetrySummary, type AdminMatrixUnitSnapshot, type AdminWorkforceAgent, type AdminWorkforceSnapshot, type AdminRunDiagnosis, type AlphaRewardTier, type ManagedSecretMetadata, type StaffManagementData, type StaffReliabilityDashboard, type StaffNotificationRecipient, type TargetComplaint, type TargetComplaintStatus, type TargetSuspension, type WorkerHealth } from "@/lib/api-client";
 import { StaffManagementPanel } from "@/components/staff-management-panel";
 import { useAuth } from "@/lib/auth-context";
 import { AdminAiModelsTab } from "@/components/admin-ai-models-tab";
@@ -9,13 +9,14 @@ import { AdminSecretsTab } from "@/components/admin-secrets-tab";
 import { AdminAlphaEventTab } from "@/components/admin-alpha-event-tab";
 import { AdminWorkforceTab } from "@/components/admin-workforce-tab";
 import { AdminPlanBadge, useAdminAlphaClock } from "@/components/admin-plan-badge";
+import { AdminDiagnoseTab } from "@/components/admin-diagnose-tab";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin Console · Matrix QA" }, { name: "robots", content: "noindex" }] }),
   component: AdminPage,
 });
 
-type AdminTab = "control_tower" | "queue" | "notifications" | "telemetry" | "reliability" | "ai_models" | "secrets" | "staff" | "customers" | "complaints" | "client_view" | "alpha_event" | "workforce";
+type AdminTab = "control_tower" | "diagnose" | "queue" | "notifications" | "telemetry" | "reliability" | "ai_models" | "secrets" | "staff" | "customers" | "complaints" | "client_view" | "alpha_event" | "workforce";
 
 type OllamaRequestRow = NonNullable<AdminTelemetrySummary["aiUsage"]>["recent"][number];
 
@@ -83,6 +84,8 @@ function AdminPage() {
   const [workforceAgents, setWorkforceAgents] = useState<AdminWorkforceAgent[]>([]);
   const [workforceRun, setWorkforceRun] = useState<AdminWorkforceSnapshot | null>(null);
   const [workforceRunLoading, setWorkforceRunLoading] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<AdminRunDiagnosis | null>(null);
+  const [diagnosisLoading, setDiagnosisLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -155,6 +158,29 @@ function AdminPage() {
       setError(cause instanceof Error ? cause.message : "Unable to load the workforce run ledger.");
       setWorkforceRun(null);
     } finally { setWorkforceRunLoading(false); }
+  };
+
+  const loadDiagnosis = async (runId: string) => {
+    setDiagnosisLoading(true); setError(""); setMessage("");
+    try { setDiagnosis(await adminApi.diagnoseRun(runId)); setMessage(`Loaded complete diagnosis for run ${runId.slice(0, 12)}.`); }
+    catch (cause) { setDiagnosis(null); setError(cause instanceof Error ? cause.message : "Unable to load run diagnosis."); }
+    finally { setDiagnosisLoading(false); }
+  };
+
+  const refundDiagnosedRun = async (reason: string) => {
+    if (!diagnosis) return;
+    setBusyId(`refund-${diagnosis.run.id}`); setError(""); setMessage("");
+    try { const result = await adminApi.refundDiagnosedRun(diagnosis.run.id, reason); setMessage(result.idempotent ? "This run was already refunded." : `Refunded ${result.refundedUnits} Matrix Units.`); await loadDiagnosis(diagnosis.run.id); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to refund run credits."); }
+    finally { setBusyId(null); }
+  };
+
+  const messageDiagnosedRun = async (input: { recipientUserIds: string[]; title: string; message: string }) => {
+    if (!diagnosis) return;
+    setBusyId(`message-${diagnosis.run.id}`); setError(""); setMessage("");
+    try { const result = await adminApi.messageDiagnosedRun(diagnosis.run.id, input); setMessage(`Sent customer message to ${result.recipientCount} recipient${result.recipientCount === 1 ? "" : "s"}.`); await loadDiagnosis(diagnosis.run.id); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to send customer message."); }
+    finally { setBusyId(null); }
   };
 
   const decideWorkforceDelegation = async (messageId: string, approve: boolean) => {
@@ -396,7 +422,7 @@ function AdminPage() {
   return <AdminShell activeTab={tab} onTabChange={(nextTab) => { setTab(nextTab); }} canManageStaff={user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN"}><div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
     <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-primary"><ShieldCheck className="h-4 w-4" /> Matrix QA staff</div><h1 className="mt-2 font-display text-2xl font-semibold">Admin console</h1><p className="mt-1 text-sm text-muted-foreground">Private-alpha operations, allocation decisions, notifications, and cost telemetry.</p></div><button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent"><RefreshCw className="h-3.5 w-3.5" /> Refresh</button></div>
     {error && <div className="mt-5 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}{message && <div className="mt-5 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-primary">{message}</div>}
-    {loading ? <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading staff data…</div> : tab === "control_tower" ? <ControlTowerTab snapshot={controlTower} metrics={metrics} providers={aiProviders} onOpenAiModels={() => setTab("ai_models")} /> :
+    {loading ? <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading staff data…</div> : tab === "control_tower" ? <ControlTowerTab snapshot={controlTower} metrics={metrics} providers={aiProviders} onOpenAiModels={() => setTab("ai_models")} /> : tab === "diagnose" ? <AdminDiagnoseTab diagnosis={diagnosis} loading={diagnosisLoading} onLoad={loadDiagnosis} onRefund={refundDiagnosedRun} onMessage={messageDiagnosedRun} /> :
  tab === "queue" ? <QueueTab requests={requests} busyId={busyId} onReview={review} /> : tab === "workforce" ? <AdminWorkforceTab agents={workforceAgents} snapshot={workforceRun} loading={workforceRunLoading} busyId={busyId} onLoadRun={loadWorkforceRun} onApprove={(messageId) => decideWorkforceDelegation(messageId, true)} onReject={(messageId) => decideWorkforceDelegation(messageId, false)} /> : tab === "alpha_event" ? <AdminAlphaEventTab rows={alphaParticipants} canManageRewards={user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN"} busyId={busyId} onGrant={grantAlphaReward} onRevoke={revokeAlphaReward} onSaveParticipant={saveAlphaParticipant} onAddFeedback={addAlphaParticipantFeedback} /> : tab === "notifications" ? <NotificationsTab recipients={recipients} recipientEmail={recipientEmail} recipientLabel={recipientLabel} setRecipientEmail={setRecipientEmail} setRecipientLabel={setRecipientLabel} busyId={busyId} onSave={saveRecipient} onDisable={disableRecipient} broadcastTitle={broadcastTitle} broadcastMessage={broadcastMessage} broadcastAudience={broadcastAudience} setBroadcastTitle={setBroadcastTitle} setBroadcastMessage={setBroadcastMessage} setBroadcastAudience={setBroadcastAudience} onBroadcast={sendBroadcast} /> : tab === "customers" ? <CustomersTab customers={customers} busyId={busyId} onStatusChange={changeCustomerStatus} onViewAsClient={viewAsClient} /> : tab === "client_view" ? <ClientViewTab customers={customers} busyId={busyId} clientView={clientView} loading={clientViewLoading} onViewAsClient={viewAsClient} onReturn={returnToClientAccounts} /> : tab === "complaints" ? <ComplaintsTab complaints={complaints} suspensions={suspensions} busyId={busyId} onReview={reviewComplaint} onSuspend={(complaint) => { void reviewComplaint(complaint, "UNDER_REVIEW", true); }} onRevoke={revokeSuspension} /> : tab === "telemetry" ? <TelemetryTab telemetry={telemetry} health={health} runtimeHealth={runtimeHealth} exporting={exporting} onExport={exportAudit} providerCredits={providerCredits} providerCreditsLoading={providerCreditsLoading} providerCreditsRefreshing={providerCreditsRefreshing} providerCreditsError={providerCreditsError} onRefreshProviderCredits={() => void loadProviderCredits(true)} matrixUnits={matrixUnits} /> : tab === "reliability" ? <ReliabilityTab data={reliability} busyId={busyId} onReview={reviewReliabilityQuarantine} /> : tab === "ai_models" ? <AdminAiModelsTab configs={aiProviders} busyId={busyId} managedSecretNames={secrets.map((secret) => secret.name)} onSave={saveAiProvider} onHealthCheck={healthCheckAiProvider} onRemove={removeAiProvider} /> : tab === "secrets" && (user.staffRole === "OWNER" || user.staffRole === "OPERATIONS_ADMIN") ? <AdminSecretsTab secrets={secrets} role={user.staffRole} busyId={busyId} onSaved={saveManagedSecret} onDeleted={deleteManagedSecret} setMessage={setMessage} setError={setError} /> : staffData ? <StaffManagementPanel data={staffData} role={user.staffRole} onChanged={load} setMessage={setMessage} setError={setError} /> : <div className="mt-6 surface-card p-6 text-sm text-muted-foreground">Staff management is available to owners and operations administrators.</div>}
   </div></AdminShell>;
 }
@@ -406,7 +432,7 @@ function AdminShell({ activeTab, onTabChange, canManageStaff, children }: { acti
   const [mobileOpen, setMobileOpen] = useState(false);
   const groups: Array<{ label: string; items: Array<{ key: AdminTab; label: string; icon: typeof Activity }> }> = [
     { label: "Overview", items: [{ key: "control_tower", label: "Control tower", icon: Activity }] },
-    { label: "Operations", items: [{ key: "queue", label: "Queue & capacity", icon: ListChecks }, { key: "workforce", label: "Collaborative workforce", icon: Users }, { key: "telemetry", label: "Telemetry", icon: Radio }, { key: "reliability", label: "Reliability", icon: Activity }, { key: "notifications", label: "Notifications", icon: Mail }] },
+    { label: "Operations", items: [{ key: "diagnose", label: "Diagnose run", icon: FileSearch }, { key: "queue", label: "Queue & capacity", icon: ListChecks }, { key: "workforce", label: "Collaborative workforce", icon: Users }, { key: "telemetry", label: "Telemetry", icon: Radio }, { key: "reliability", label: "Reliability", icon: Activity }, { key: "notifications", label: "Notifications", icon: Mail }] },
     { label: "Security", items: [{ key: "client_view", label: "Client view", icon: Eye }, { key: "customers", label: "Client accounts", icon: Users }, { key: "complaints", label: "Target complaints", icon: CircleAlert }] },
     { label: "Research", items: [{ key: "alpha_event", label: "Alpha event", icon: UserPlus }] },
     { label: "Configuration", items: [{ key: "ai_models", label: "AI providers", icon: BrainCircuit }, ...(canManageStaff ? [{ key: "secrets" as const, label: "Secrets", icon: Database }, { key: "staff" as const, label: "Staff management", icon: Users }] : [])] },
