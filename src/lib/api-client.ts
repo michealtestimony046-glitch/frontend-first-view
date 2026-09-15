@@ -1972,8 +1972,8 @@ export const reliabilityApi = {
 
 export interface AdminRunDiagnosis {
   run: { id: string; status: string; projectId: string; projectName: string; workspaceId: string; organizationId: string; targetUrl: string; type: string; planVersion: string; triggeredBy?: { id: string; email: string; fullName?: string | null } | null; createdAt: string; startedAt?: string | null; finishedAt?: string | null; currentPhase?: string | null; currentRoute?: string | null; hardErrorCount: number; attemptCount: number; errorMessage?: string | null; stopReason?: string | null; totalAiCalls: number; totalInputTokens: number; totalOutputTokens: number; providersUsed: unknown; estimatedAiCostUsd: unknown };
-  credit: { reservedUnits: number; settledUnits: number; refundedUnits: number; consumedUnits: number; refundableUnits: number };
-  steps: unknown[]; evidence: unknown[]; consoleMessages: unknown[]; executionEvents: unknown[]; checkpoints: unknown[]; attempts: unknown[]; messages: unknown[]; telemetry: unknown; browserHandoff: unknown; reports: unknown[]; workforce: unknown; aiUsage: unknown[]; creditLedger: unknown[]; audit: unknown[]; sourceIds: Record<string, string>;
+  credit: { reservedUnits: number; settledUnits: number; refundedUnits: number; consumedUnits: number; refundableUnits: number; matrixUnits: { heldMu: number; measuredMu: number; chargedMu: number; refundedMu: number; liveChargedMu: number; status: string; measurementStatus: string } | null };
+  steps: unknown[]; evidence: unknown[]; consoleMessages: unknown[]; executionEvents: unknown[]; checkpoints: unknown[]; attempts: unknown[]; messages: unknown[]; telemetry: unknown; browserHandoff: unknown; reports: unknown[]; workforce: unknown; aiUsage: unknown[]; creditLedger: unknown[]; matrixUnitLedger: unknown[]; matrixUnitAccounting: unknown; signals: unknown[]; hardErrors: unknown[]; findingWorkflows: unknown[]; findingRetests: unknown[]; audit: unknown[]; sourceIds: Record<string, string>;
 }
 
 export const adminApi = {
