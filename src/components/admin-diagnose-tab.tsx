@@ -1,55 +1,55 @@
 import { useState } from "react";
-import { AlertTriangle, CreditCard, Database, FileSearch, Loader2, Mail, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Check, Clipboard, CreditCard, Database, Download, FileSearch, Loader2, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import type { AdminRunDiagnosis } from "@/lib/api-client";
 
 function JsonBlock({ value }: { value: unknown }) {
+  if (Array.isArray(value) && value.length === 0) return <p className="rounded-xl border border-border bg-background/70 p-3 text-xs text-muted-foreground">No records returned for this run.</p>;
   return <pre className="max-h-96 overflow-auto rounded-xl border border-border bg-background/70 p-3 text-xs leading-5 text-muted-foreground">{JSON.stringify(value, null, 2)}</pre>;
 }
 
-export function AdminDiagnoseTab({
-  diagnosis,
-  loading,
-  onLoad,
-  onRefund,
-  onMessage,
-}: {
-  diagnosis: AdminRunDiagnosis | null;
-  loading: boolean;
-  onLoad: (runId: string) => void;
-  onRefund: (reason: string) => void;
-  onMessage: (input: { recipientUserIds: string[]; title: string; message: string }) => void;
-}) {
+function downloadFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a"); link.href = href; link.download = filename; link.click();
+  URL.revokeObjectURL(href);
+}
+
+function diagnosisMarkdown(diagnosis: AdminRunDiagnosis) {
+  const sections: Array<[string, unknown]> = [["Run", diagnosis.run], ["Credits", diagnosis.credit], ["Steps", diagnosis.steps], ["Evidence", diagnosis.evidence], ["Console messages", diagnosis.consoleMessages], ["Execution events", diagnosis.executionEvents], ["Checkpoints", diagnosis.checkpoints], ["Attempts", diagnosis.attempts], ["Messages", diagnosis.messages], ["Reports", diagnosis.reports], ["AI usage", diagnosis.aiUsage], ["Credit ledger", diagnosis.creditLedger], ["Matrix Unit ledger", diagnosis.matrixUnitLedger], ["Signals", diagnosis.signals], ["Hard errors", diagnosis.hardErrors], ["Finding workflows", diagnosis.findingWorkflows], ["Finding retests", diagnosis.findingRetests], ["Telemetry and worker state", { telemetry: diagnosis.telemetry, browserHandoff: diagnosis.browserHandoff, workforce: diagnosis.workforce }], ["Audit", diagnosis.audit]];
+  return `# Matrix QA run diagnosis\n\nRun ID: ${diagnosis.run.id}\n\n${sections.map(([title, value]) => `## ${title}\n\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``).join("\n\n")}`;
+}
+
+export function AdminDiagnoseTab({ diagnosis, loading, onLoad, onRefund, onMessage }: { diagnosis: AdminRunDiagnosis | null; loading: boolean; onLoad: (runId: string) => void; onRefund: (reason: string) => Promise<{ idempotent?: boolean; refundedMu?: number; refundedUnits?: number }>; onMessage: (input: { recipientUserIds: string[]; title: string; message: string }) => Promise<{ recipientCount: number }> }) {
   const [runId, setRunId] = useState("");
   const [refundReason, setRefundReason] = useState("Run failed due to platform execution issues");
   const [title, setTitle] = useState("An update about your Matrix QA run");
   const [message, setMessage] = useState("");
+  const [action, setAction] = useState<"refund" | "message" | null>(null);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const copyJson = async () => {
+    if (!diagnosis) return;
+    try { await navigator.clipboard.writeText(JSON.stringify(diagnosis, null, 2)); setCopied(true); window.setTimeout(() => setCopied(false), 1800); } catch { setConfirmation("Clipboard permission was unavailable."); }
+  };
+  const sendMessage = async () => {
+    if (!diagnosis?.run.triggeredBy?.id || !message.trim() || action) return;
+    setAction("message"); setConfirmation(null); setActionError(null);
+    try { const result = await onMessage({ recipientUserIds: [diagnosis.run.triggeredBy.id], title, message }); setMessage(""); setTitle("An update about your Matrix QA run"); setConfirmation(`Sent to ${result.recipientCount} recipient${result.recipientCount === 1 ? "" : "s"}.`); } catch (cause) { setActionError(cause instanceof Error ? cause.message : "Unable to send customer message."); } finally { setAction(null); }
+  };
+  const refund = async () => {
+    if (!diagnosis || !refundReason.trim() || action) return;
+    setAction("refund"); setConfirmation(null); setActionError(null);
+    try { const result = await onRefund(refundReason); setConfirmation(result.idempotent ? "Already refunded; no duplicate refund was created." : `Refunded ${result.refundedMu ?? result.refundedUnits ?? 0} units.`); } catch (cause) { setActionError(cause instanceof Error ? cause.message : "Unable to refund this run."); } finally { setAction(null); }
+  };
 
   return <div className="space-y-6">
-    <section className="surface-card p-5 md:p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end">
-        <label className="flex-1 text-sm text-muted-foreground">Run ID<input value={runId} onChange={(event) => setRunId(event.target.value)} placeholder="Paste a run ID" className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:border-primary" /></label>
-        <button disabled={!runId.trim() || loading} onClick={() => onLoad(runId.trim())} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"><FileSearch className="h-4 w-4" />{loading ? "Loading…" : "Diagnose run"}</button>
-      </div>
-      <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="h-4 w-4 text-primary" />Admin-only full operational diagnosis. Secrets and credentials remain protected.</p>
-    </section>
-
+    <section className="surface-card p-5 md:p-6"><div className="flex flex-col gap-4 md:flex-row md:items-end"><label className="flex-1 text-sm text-muted-foreground">Run ID<input value={runId} onChange={(event) => setRunId(event.target.value)} placeholder="Paste a run ID" className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:border-primary" /></label><button disabled={!runId.trim() || loading} onClick={() => onLoad(runId.trim())} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}{loading ? "Loading…" : "Diagnose run"}</button></div><p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="h-4 w-4 text-primary" />Admin-only full operational diagnosis. Secrets and credentials remain protected.</p></section>
     {!diagnosis ? <div className="surface-card p-10 text-center text-sm text-muted-foreground">Enter a run ID to inspect execution, logs, evidence, provider activity, credits, and customer impact.</div> : <>
-      <section className="surface-card p-5 md:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div><p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">Run diagnosis</p><h2 className="mt-2 text-2xl font-semibold">{diagnosis.run.projectName}</h2><p className="mt-1 font-mono text-xs text-muted-foreground">{diagnosis.run.id}</p></div>
-          <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{diagnosis.run.status}</span>
-        </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[["Created", diagnosis.run.createdAt], ["Started", diagnosis.run.startedAt || "—"], ["Finished", diagnosis.run.finishedAt || "—"], ["Hard errors", String(diagnosis.run.hardErrorCount)]].map(([label, value]) => <div key={label} className="rounded-xl border border-border bg-background/50 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-sm font-medium">{value}</p></div>)}</div>
-        {diagnosis.run.errorMessage && <div className="mt-4 flex gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{diagnosis.run.errorMessage}</div>}
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="surface-card p-5"><div className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /><h3 className="font-semibold">Credits and Matrix Units</h3></div><div className="mt-4 grid grid-cols-2 gap-3 text-sm">{Object.entries(diagnosis.credit).filter(([key]) => key !== "matrixUnits").map(([key, value]) => <div key={key} className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">{key}</p><p className="mt-1 font-semibold">{String(value)}</p></div>)}{diagnosis.credit.matrixUnits && Object.entries(diagnosis.credit.matrixUnits).map(([key, value]) => <div key={key} className="rounded-lg border border-primary/20 bg-primary/5 p-3"><p className="text-xs text-muted-foreground">Matrix {key}</p><p className="mt-1 font-semibold">{String(value)}</p></div>)}</div><input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} className="mt-4 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" /><button disabled={(!diagnosis.credit.refundableUnits && !(diagnosis.credit.matrixUnits?.chargedMu ?? 0)) || !refundReason.trim()} onClick={() => onRefund(refundReason)} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-primary/40 px-3 py-2 text-sm font-semibold text-primary disabled:opacity-40"><RefreshCw className="h-4 w-4" />Refund {diagnosis.credit.refundableUnits || diagnosis.credit.matrixUnits?.chargedMu || 0} total units</button></div>
-        <div className="surface-card p-5"><div className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /><h3 className="font-semibold">Contact customer</h3></div><input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-4 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" /><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Write an apology or explanation…" rows={5} className="mt-3 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" /><button disabled={!message.trim() || !diagnosis.run.triggeredBy?.id} onClick={() => onMessage({ recipientUserIds: [diagnosis.run.triggeredBy!.id], title, message })} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40"><Mail className="h-4 w-4" />Send apology and notification</button></div>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-2">{[["Execution timeline", diagnosis.executionEvents], ["Steps", diagnosis.steps], ["Console logs", diagnosis.consoleMessages], ["Evidence", diagnosis.evidence], ["AI/provider usage", diagnosis.aiUsage], ["Credit ledger", diagnosis.creditLedger], ["Matrix Unit ledger", diagnosis.matrixUnitLedger], ["Hard errors and bugs", diagnosis.hardErrors], ["Signals", diagnosis.signals], ["Finding workflows", diagnosis.findingWorkflows], ["Finding retests", diagnosis.findingRetests], ["Action history", diagnosis.audit]].map(([label, value]) => <div key={String(label)} className="surface-card p-5"><h3 className="mb-3 font-semibold">{String(label)}</h3><JsonBlock value={value} /></div>)}</section>
-      <div className="surface-card p-5"><h3 className="mb-3 flex items-center gap-2 font-semibold"><Database className="h-4 w-4 text-primary" />Telemetry and worker state</h3><JsonBlock value={{ telemetry: diagnosis.telemetry, browserHandoff: diagnosis.browserHandoff, workforce: diagnosis.workforce, reports: diagnosis.reports }} /></div>
+      <section className="surface-card p-5 md:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">Run diagnosis</p><h2 className="mt-2 text-2xl font-semibold">{diagnosis.run.projectName}</h2><p className="mt-1 font-mono text-xs text-muted-foreground">{diagnosis.run.id}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={copyJson} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-2 text-xs font-semibold">{copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Clipboard className="h-3.5 w-3.5" />}{copied ? "Copied" : "Copy JSON"}</button><button type="button" onClick={() => downloadFile(`matrixqa-run-${diagnosis.run.id}.json`, JSON.stringify(diagnosis, null, 2), "application/json")} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-2 text-xs font-semibold"><Download className="h-3.5 w-3.5" />JSON</button><button type="button" onClick={() => downloadFile(`matrixqa-run-${diagnosis.run.id}.md`, diagnosisMarkdown(diagnosis), "text/markdown;charset=utf-8")} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-2 text-xs font-semibold"><Download className="h-3.5 w-3.5" />Markdown</button></div></div><span className="mt-4 inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{diagnosis.run.status}</span><div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[["Created", diagnosis.run.createdAt], ["Started", diagnosis.run.startedAt || "—"], ["Finished", diagnosis.run.finishedAt || "—"], ["Hard errors", String(diagnosis.run.hardErrorCount)]].map(([label, value]) => <div key={label} className="rounded-xl border border-border bg-background/50 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-sm font-medium">{value}</p></div>)}</div>{diagnosis.run.errorMessage && <div className="mt-4 flex gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{diagnosis.run.errorMessage}</div>}{confirmation && <p className="mt-4 rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-success">{confirmation}</p>}{actionError && <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{actionError}</p>}</section>
+      <section className="grid gap-6 lg:grid-cols-2"><div className="surface-card p-5"><div className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /><h3 className="font-semibold">Credits and Matrix Units</h3></div><div className="mt-4 grid grid-cols-2 gap-3 text-sm">{Object.entries(diagnosis.credit).filter(([key]) => key !== "matrixUnits").map(([key, value]) => <div key={key} className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">{key}</p><p className="mt-1 font-semibold">{String(value)}</p></div>)}{diagnosis.credit.matrixUnits && Object.entries(diagnosis.credit.matrixUnits).map(([key, value]) => <div key={key} className="rounded-lg border border-primary/20 bg-primary/5 p-3"><p className="text-xs text-muted-foreground">Matrix {key}</p><p className="mt-1 font-semibold">{String(value)}</p></div>)}</div><input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} className="mt-4 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" /><button disabled={(!diagnosis.credit.refundableUnits && !(diagnosis.credit.matrixUnits?.chargedMu ?? 0)) || Boolean(action) || !refundReason.trim()} onClick={refund} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-primary/40 px-3 py-2 text-sm font-semibold text-primary disabled:opacity-40">{action === "refund" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{action === "refund" ? "Refunding…" : "Refund units"}</button></div><div className="surface-card p-5"><div className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /><h3 className="font-semibold">Contact customer</h3></div><input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-4 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" /><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Write an apology or explanation…" rows={5} className="mt-3 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" /><button disabled={!message.trim() || !diagnosis.run.triggeredBy?.id || Boolean(action)} onClick={sendMessage} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40">{action === "message" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{action === "message" ? "Sending…" : "Send apology and notification"}</button></div></section>
+      <section className="grid gap-6 xl:grid-cols-2">{[["Execution timeline", diagnosis.executionEvents], ["Steps", diagnosis.steps], ["Console logs", diagnosis.consoleMessages], ["Evidence", diagnosis.evidence], ["AI/provider usage", diagnosis.aiUsage], ["Credit ledger", diagnosis.creditLedger], ["Matrix Unit ledger", diagnosis.matrixUnitLedger], ["Hard errors and bugs", diagnosis.hardErrors], ["Signals", diagnosis.signals], ["Finding workflows", diagnosis.findingWorkflows], ["Finding retests", diagnosis.findingRetests], ["Action history", diagnosis.audit]].map(([label, value]) => <div key={String(label)} className="surface-card p-5"><h3 className="mb-3 font-semibold">{String(label)}</h3><JsonBlock value={value} /></div>)}</section><div className="surface-card p-5"><h3 className="mb-3 flex items-center gap-2 font-semibold"><Database className="h-4 w-4 text-primary" />Telemetry and worker state</h3><JsonBlock value={{ telemetry: diagnosis.telemetry, browserHandoff: diagnosis.browserHandoff, workforce: diagnosis.workforce, reports: diagnosis.reports }} /></div>
     </>}
   </div>;
 }

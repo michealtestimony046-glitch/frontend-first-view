@@ -217,6 +217,7 @@ function RunDetailPage() {
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [runIdCopied, setRunIdCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const markdown = useMemo(
@@ -329,6 +330,13 @@ function RunDetailPage() {
     window.setTimeout(() => setCopied(false), 1600);
   };
 
+  const copyRunId = async () => {
+    try { await navigator.clipboard.writeText(runId); } catch {
+      const textarea = document.createElement("textarea"); textarea.value = runId; textarea.setAttribute("readonly", "true"); textarea.style.position = "fixed"; textarea.style.opacity = "0"; document.body.appendChild(textarea); textarea.select(); document.execCommand("copy"); textarea.remove();
+    }
+    setRunIdCopied(true); window.setTimeout(() => setRunIdCopied(false), 1600);
+  };
+
   const downloadMarkdown = () => {
     const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
     const href = URL.createObjectURL(blob);
@@ -374,6 +382,7 @@ function RunDetailPage() {
             <div className="flex items-center gap-3">
               <h1 className="font-display text-3xl font-semibold tracking-tight">
                 Run <span className="text-primary">{report.id ?? report.runId ?? runId}</span>
+                <button type="button" title="Copy run ID" aria-label="Copy run ID" onClick={() => void copyRunId()} className="inline-flex items-center rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground">{runIdCopied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}</button>
               </h1>
               <DetailStatusPill status={report.status} />
             </div>

@@ -1225,6 +1225,8 @@ export interface TargetComplaint {
   projectId?: string | null;
   targetUrl: string;
   reason: string;
+  source?: string;
+  metadata?: Record<string, unknown> | null;
   status: TargetComplaintStatus;
   staffNote?: string | null;
   reviewedAt?: string | null;
@@ -1252,7 +1254,7 @@ export interface TargetSuspension {
 }
 
 export const targetComplaintsApi = {
-  create: (data: { targetUrl: string; projectId?: string; reason: string }): Promise<TargetComplaint> => apiRequest('/target-complaints', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
+  create: (data: { targetUrl: string; projectId?: string; reason: string; source?: string; metadata?: Record<string, unknown> }): Promise<TargetComplaint> => apiRequest('/target-complaints', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   list: (): Promise<TargetComplaint[]> => apiRequest('/target-complaints', { requiresAuth: true }),
 };
 
@@ -1979,7 +1981,7 @@ export interface AdminRunDiagnosis {
 export const adminApi = {
   listCustomerAccounts: (): Promise<AdminCustomerAccount[]> => apiRequest('/admin/customers', { requiresAuth: true }),
   diagnoseRun: (runId: string): Promise<AdminRunDiagnosis> => apiRequest(`/admin/diagnostics/runs/${encodeURIComponent(runId)}`, { requiresAuth: true, cache: 'no-store' }),
-  refundDiagnosedRun: (runId: string, reason: string) => apiRequest<{ runId: string; refundedUnits: number; idempotent: boolean; ledgerEntryId: string | null }>(`/admin/diagnostics/runs/${encodeURIComponent(runId)}/refund`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
+  refundDiagnosedRun: (runId: string, reason: string) => apiRequest<{ runId: string; refundedUnits: number; refundedMu: number; idempotent: boolean; ledgerEntryId: string | null }>(`/admin/diagnostics/runs/${encodeURIComponent(runId)}/refund`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
   messageDiagnosedRun: (runId: string, data: { recipientUserIds: string[]; title: string; message: string }) => apiRequest<{ runId: string; recipientCount: number; delivered: unknown[] }>(`/admin/diagnostics/runs/${encodeURIComponent(runId)}/message`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
   listAlphaParticipants: (search?: string): Promise<AdminAlphaParticipant[]> => apiRequest(`/admin/alpha-event/participants${search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`, { requiresAuth: true, cache: 'no-store' }),
   listWorkforceAgents: (): Promise<AdminWorkforceAgent[]> => apiRequest('/admin/workforce/agents', { requiresAuth: true, cache: 'no-store' }),

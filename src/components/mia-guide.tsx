@@ -4,6 +4,8 @@ import {
   ArrowUp,
   BookOpen,
   Check,
+  Clipboard,
+  Flag,
   Loader2,
   MessageCircle,
   ShieldCheck,
@@ -15,6 +17,7 @@ import {
   clearLegacyClientMiaHistory,
   guidanceApi,
   organizationsApi,
+  targetComplaintsApi,
   workspacesApi,
   type GuidanceMessage,
 } from "@/lib/api-client";
@@ -248,6 +251,10 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
   const [error, setError] = useState<string | null>(null);
   const [workspaceChoices, setWorkspaceChoices] = useState<Array<{ id: string; name: string }>>([]);
   const [runLink, setRunLink] = useState<{ runId: string; path: string } | null>(null);
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
+  const [reportedMessageIndexes, setReportedMessageIndexes] = useState<Set<number>>(new Set());
+  const [reportingMessageIndex, setReportingMessageIndex] = useState<number | null>(null);
+  const [messageActionError, setMessageActionError] = useState<string | null>(null);
   const messageViewportRef = useRef<HTMLDivElement>(null);
   const latestMessageRef = useRef<HTMLDivElement>(null);
   const shouldFollowLatestRef = useRef(true);
@@ -382,6 +389,22 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
     localStorage.setItem(seenKey(userId), "1");
   };
 
+  const copyMiaResponse = async (content: string, index: number) => {
+    try { await navigator.clipboard.writeText(content); } catch { setMessageActionError("Clipboard permission was unavailable."); return; }
+    setCopiedMessageIndex(index);
+    window.setTimeout(() => setCopiedMessageIndex((current) => current === index ? null : current), 1600);
+  };
+
+  const reportMiaResponse = async (content: string, index: number) => {
+    if (reportedMessageIndexes.has(index) || reportingMessageIndex !== null) return;
+    setReportingMessageIndex(index); setMessageActionError(null);
+    try {
+      await targetComplaintsApi.create({ targetUrl: typeof window !== "undefined" ? `${window.location.origin}${location.pathname}` : "https://matrixqa.trlabs.tech/app", reason: `Mia response report:\n\n${content}`.slice(0, 2_000), source: "MIA_RESPONSE", metadata: { runId: focusedRunId ?? null, workspaceId: workspaceScope ?? null, route: location.pathname } });
+      setReportedMessageIndexes((current) => new Set(current).add(index));
+    } catch (cause) { setMessageActionError(cause instanceof Error ? cause.message : "Unable to report Mia response."); }
+    finally { setReportingMessageIndex(null); }
+  };
+
   const send = async (value = draft) => {
     const message = sanitizeMiaChatText(value.trim());
     if (!message || loading || !conversationReady) return;
@@ -485,6 +508,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
                     {item.role === "user" ? "You" : "Mia"}
                   </div>
                   <MiaMessageContent content={item.content} />
+                  {item.role === "assistant" && <div className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2 text-[10px] text-muted-foreground"><button type="button" title="Copy Mia response" aria-label="Copy Mia response" onClick={() => void copyMiaResponse(item.content, index)} className="inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-primary/10 hover:text-foreground">{copiedMessageIndex === index ? <Check className="h-3 w-3 text-success" /> : <Clipboard className="h-3 w-3" />}{copiedMessageIndex === index ? "Copied" : "Copy"}</button><button type="button" disabled={reportedMessageIndexes.has(index) || reportingMessageIndex !== null} onClick={() => void reportMiaResponse(item.content, index)} className="inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-primary/10 hover:text-foreground disabled:opacity-50">{reportingMessageIndex === index ? <Loader2 className="h-3 w-3 animate-spin" /> : <Flag className="h-3 w-3" />}{reportedMessageIndexes.has(index) ? "Reported" : "Report Mia response"}</button></div>}
                 </div>
               ))}
             {loading && (
@@ -501,6 +525,7 @@ export function MiaGuide({ compact = false }: MiaGuideProps) {
                 </button>
               </div>
             )}
+            {messageActionError && <p className="text-[11px] text-destructive">{messageActionError}</p>}
             {workspaceChoices.length > 1 && (
               <div className="grid gap-2 pt-1">
                 <p className="text-[11px] text-muted-foreground">Choose a workspace to continue:</p>

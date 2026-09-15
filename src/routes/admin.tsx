@@ -170,16 +170,16 @@ function AdminPage() {
   const refundDiagnosedRun = async (reason: string) => {
     if (!diagnosis) return;
     setBusyId(`refund-${diagnosis.run.id}`); setError(""); setMessage("");
-    try { const result = await adminApi.refundDiagnosedRun(diagnosis.run.id, reason); setMessage(result.idempotent ? "This run was already refunded." : `Refunded ${result.refundedUnits} Matrix Units.`); await loadDiagnosis(diagnosis.run.id); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to refund run credits."); }
+    try { const result = await adminApi.refundDiagnosedRun(diagnosis.run.id, reason); setMessage(result.idempotent ? "This run was already refunded." : `Refunded ${result.refundedMu ?? result.refundedUnits} Matrix Units.`); await loadDiagnosis(diagnosis.run.id); return result; }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to refund run credits."); throw cause; }
     finally { setBusyId(null); }
   };
 
   const messageDiagnosedRun = async (input: { recipientUserIds: string[]; title: string; message: string }) => {
     if (!diagnosis) return;
     setBusyId(`message-${diagnosis.run.id}`); setError(""); setMessage("");
-    try { const result = await adminApi.messageDiagnosedRun(diagnosis.run.id, input); setMessage(`Sent customer message to ${result.recipientCount} recipient${result.recipientCount === 1 ? "" : "s"}.`); await loadDiagnosis(diagnosis.run.id); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to send customer message."); }
+    try { const result = await adminApi.messageDiagnosedRun(diagnosis.run.id, input); setMessage(`Sent customer message to ${result.recipientCount} recipient${result.recipientCount === 1 ? "" : "s"}.`); await loadDiagnosis(diagnosis.run.id); return result; }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to send customer message."); throw cause; }
     finally { setBusyId(null); }
   };
 
