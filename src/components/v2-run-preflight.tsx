@@ -14,6 +14,7 @@ import {
   type V2PlannerMode,
   type V2TestPlan,
 } from "@/lib/api-client";
+import { NETWORK_PROFILE_DISPLAY, NETWORK_PROFILE_TYPES, type NetworkProfileType } from "@/lib/network-profiles";
 
 type Phase = "idle" | "scanning" | "planning" | "ready" | "starting";
 
@@ -60,6 +61,7 @@ export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, 
   const [planName, setPlanName] = useState("Fresh adaptive smoke plan");
   const [enableVision, setEnableVision] = useState(false);
   const [enableRecovery, setEnableRecovery] = useState(false);
+  const [networkProfiles, setNetworkProfiles] = useState<NetworkProfileType[]>(["FAST"]);
   const [targetAuthorizationConfirmed, setTargetAuthorizationConfirmed] = useState(Boolean(initialTargetAuthorizationConfirmed));
   const [phase, setPhase] = useState<Phase>("idle");
   const autoStarted = useRef(false);
@@ -83,7 +85,7 @@ export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, 
   );
   const aiPlan = plan?.projectMap?.aiPlan;
   const selectedViewports = plan?.projectMap?.viewportMatrix ?? plan?.projectMap?.billingBreakdown?.viewportMatrix ?? [];
-  const readyToStart = Boolean(plan && plan.status !== "FAILED" && plan.scenarios.length > 0 && blockedPolicies.length === 0 && targetAuthorizationConfirmed);
+  const readyToStart = Boolean(plan && plan.status !== "FAILED" && plan.scenarios.length > 0 && blockedPolicies.length === 0 && targetAuthorizationConfirmed && networkProfiles.length > 0);
   const waitingForProvider = capacityStatus?.status === "WAITING" && Boolean(queuedResponse);
   const scanProgress = scan?.summary?.progress;
   const scanProgressLabel = discoveryProgressLabel(scanProgress?.phase);
@@ -150,7 +152,7 @@ export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, 
     setPhase("starting");
     try {
       const approved = candidate.status === "APPROVED" ? candidate : await v2Api.approvePlan(candidate.id);
-      const response = await v2Api.runPlan(approved.id, { targetUrl: runTargetUrl || undefined, accessMode, enableVision, enableRecovery, targetAuthorizationConfirmed });
+      const response = await v2Api.runPlan(approved.id, { targetUrl: runTargetUrl || undefined, accessMode, enableVision, enableRecovery, networkProfiles, targetAuthorizationConfirmed });
       const providerCapacity = response.metadata?.providerCapacity;
       if (providerCapacity?.status === "WAITING") {
         setCapacityStatus(providerCapacity);
@@ -216,6 +218,17 @@ export function V2RunPreflight({ project, initialTargetUrl, initialMissionGoal, 
               <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-foreground">Plan rationale</strong></div>
               <p className="mt-1 leading-5 text-muted-foreground">{plan.plannerRationale ?? aiPlan?.planningRationale ?? "The plan selected these scenarios from the fresh discovery evidence."}</p>
               {aiPlan?.uncoveredAreas?.length ? <p className="mt-2 leading-5 text-warning">Needs review later: {aiPlan.uncoveredAreas.join(" · ")}</p> : null}
+            </div>
+            <div className="rounded-md border border-border bg-background/30 p-3 text-xs" aria-labelledby="network-profile-heading">
+              <div className="flex flex-wrap items-center justify-between gap-2"><strong id="network-profile-heading" className="text-foreground">Network conditions</strong><span className="text-[11px] text-muted-foreground">Chromium CDP profiles</span></div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {NETWORK_PROFILE_TYPES.map((profile) => {
+                  const display = NETWORK_PROFILE_DISPLAY[profile];
+                  const checked = networkProfiles.includes(profile);
+                  return <label key={profile} title={display.tooltip} className="flex cursor-pointer items-start gap-2 rounded-md border border-border px-3 py-2 hover:border-primary/40"><input type="checkbox" checked={checked} disabled={busy} onChange={() => setNetworkProfiles((current) => checked ? current.filter((item) => item !== profile) : [...current, profile])} className="mt-0.5 accent-primary" aria-label={display.accessibilityText} /><span><span className="block font-medium">{display.label}</span><span className="block text-[11px] text-muted-foreground">{display.tooltip}</span></span></label>;
+                })}
+              </div>
+              {networkProfiles.length === 0 && <p className="mt-2 text-[11px] text-warning">Select at least one network condition.</p>}
             </div>
             <div className="border-t border-primary/20 pt-3 text-xs text-muted-foreground">The browser worker will run this fresh plan within your organization’s available capacity. Unused capacity is handled automatically after settlement.</div>
             {blockedPolicies.length > 0 && <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /><span>{blockedPolicies.length} policy decision{blockedPolicies.length === 1 ? "" : "s"} require review before this plan can run. Open the advanced Discovery review to resolve them.</span></div>}

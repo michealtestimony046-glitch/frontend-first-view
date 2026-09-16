@@ -16,6 +16,8 @@ export interface IssueContext {
   browser?: string;
   route?: string;
   viewport?: string;
+  networkProfile?: "FAST" | "SLOW_3G" | "OFFLINE";
+  networkProfileLabel?: string;
 }
 
 export interface ReportIssue {
@@ -172,6 +174,10 @@ function issueFrom(
       browser: text(item.browser, "") || undefined,
       route: text(item.route, "") || undefined,
       viewport: text(item.viewport, "") || undefined,
+      networkProfile: item.networkProfile === "FAST" || item.networkProfile === "SLOW_3G" || item.networkProfile === "OFFLINE"
+        ? item.networkProfile
+        : undefined,
+      networkProfileLabel: text(item.networkProfileLabel, "") || undefined,
     },
     timestamp: typeof item.timestamp === "number" ? item.timestamp : undefined,
     screenshot,
