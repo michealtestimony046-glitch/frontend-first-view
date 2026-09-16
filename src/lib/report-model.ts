@@ -1,7 +1,6 @@
 import type { RunError, RunEvent, RunReport, RunScreenshot } from "./api-client";
 import type { LiveRun } from "./live-data";
 import type { LiveIssue } from "./live-data";
-import { isNetworkProfileType, type NetworkProfileType } from "./network-profiles";
 
 export type IssueSeverity = "critical" | "high" | "warning" | "info";
 export type EvidenceKind =
@@ -17,7 +16,6 @@ export interface IssueContext {
   browser?: string;
   route?: string;
   viewport?: string;
-  networkProfile?: NetworkProfileType;
 }
 
 export interface ReportIssue {
@@ -174,11 +172,6 @@ function issueFrom(
       browser: text(item.browser, "") || undefined,
       route: text(item.route, "") || undefined,
       viewport: text(item.viewport, "") || undefined,
-      networkProfile: isNetworkProfileType(item.networkProfile)
-        ? item.networkProfile
-        : isNetworkProfileType(item.network)
-          ? item.network
-          : undefined,
     },
     timestamp: typeof item.timestamp === "number" ? item.timestamp : undefined,
     screenshot,
