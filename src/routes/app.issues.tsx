@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Bug, CheckCircle2, Download, ExternalLink, Loader2, Search, X } from "lucide-react";
 import { useLivePortfolio, type LiveIssue } from "@/lib/live-data";
 import { v2Api, type V2FindingWorkflow, type V2FindingWorkflowStatus } from "@/lib/api-client";
+import { IssueDetailView } from "@/components/issue-detail-view";
+import { normalizeLiveIssue } from "@/lib/report-model";
 
 export const Route = createFileRoute("/app/issues")({
   head: () => ({ meta: [{ title: "Issues · Matrix QA" }, { name: "robots", content: "noindex" }] }),
@@ -337,76 +339,25 @@ function IssueDrawer({
     }
   };
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-sm">
-      <div className="absolute inset-0" onClick={onClose} />
-      <div className="relative flex w-full max-w-xl flex-col border-l border-border bg-surface">
-        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-          <div className="min-w-0">
-            <div
-              className={`inline-flex rounded-full border px-1.5 py-0.5 font-mono text-[10px] uppercase ${sevTone[issue.severity]}`}
-            >
-              {issue.severity}
-            </div>
-            <h2 className="mt-2 font-display text-base font-semibold">{issue.title}</h2>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex-1 space-y-5 overflow-y-auto p-5">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <Meta label="Occurrences" value={`${issue.occurrences}`} />
-            <Meta label="Runs affected" value={`${issue.affectedRuns.length}`} />
-            <Meta label="First seen" value={issue.firstSeen} />
-            <Meta label="Last seen" value={issue.lastSeen} />
-          </div>
-          <button
-            type="button"
-            onClick={() => void track()}
-            disabled={busy || tracked}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            {busy ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Bug className="h-3.5 w-3.5" />
-            )}{" "}
-            {tracked ? "Tracked" : "Track finding"}
-          </button>
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Repair package · Markdown
-              </div>
-              <button
-                onClick={() => navigator.clipboard?.writeText(repro)}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2/60 px-2 py-1 text-xs hover:bg-accent"
-              >
-                <Download className="h-3 w-3" /> Copy
-              </button>
-            </div>
-            <pre className="max-h-80 overflow-auto rounded-md border border-border bg-background/60 p-3 font-mono text-[11px] leading-relaxed text-foreground">
-              {repro}
-            </pre>
-          </div>
-          <div>
-            <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-              Affected run
-            </div>
-            <a
-              href={`/app/runs/${issue.reportId}?projectId=${issue.projectId}`}
-              className="inline-flex items-center gap-1 text-xs text-primary"
-            >
-              Open run <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
+    <IssueDetailView
+      issue={normalizeLiveIssue(issue)}
+      onClose={onClose}
+      actions={
+        <button
+          type="button"
+          onClick={() => void track()}
+          disabled={busy || tracked}
+          className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Bug className="h-3.5 w-3.5" />
+          )}
+          {tracked ? "Tracked" : "Track"}
+        </button>
+      }
+    />
   );
 }
 function Meta({ label, value }: { label: string; value: string }) {

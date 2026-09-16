@@ -46,6 +46,8 @@ import { videoEvidenceEnabled } from "@/lib/feature-flags";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 import { notifyCustomerBalanceUpdated } from "@/lib/balance-events";
 import { selectOverviewScreenshot, type ScreenshotPresentationMode } from "@/lib/screenshot-evidence";
+import { IssueDetailView } from "@/components/issue-detail-view";
+import { normalizeStandaloneReport, type ReportIssue } from "@/lib/report-model";
 
 function normalizeRunMessages(value: unknown): RunMessage[] {
   if (!Array.isArray(value)) return [];
@@ -215,6 +217,7 @@ function RunDetailPage() {
   const [handoff, setHandoff] = useState<BrowserHandoff | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [selected, setSelected] = useState(0);
+  const [selectedIssue, setSelectedIssue] = useState<ReportIssue | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [runIdCopied, setRunIdCopied] = useState(false);
@@ -311,6 +314,7 @@ function RunDetailPage() {
         ? report.rawVideo ?? null
         : null
     : null;
+  const normalizedIssues = normalizeStandaloneReport(report, runId, projectId ?? undefined).issues;
 
   const copyMarkdown = async () => {
     try {
@@ -493,6 +497,11 @@ function RunDetailPage() {
           />
         </div>
 
+        <section className="surface-card mt-6 overflow-hidden" aria-label="Prioritized defect ledger">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4"><div><div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Defect ledger</div><h2 className="mt-1 font-display text-base font-semibold">Prioritized issues</h2><p className="mt-1 text-xs text-muted-foreground">Open any issue to inspect its evidence detail.</p></div><span className="font-mono text-xs text-muted-foreground">{normalizedIssues.length} issue{normalizedIssues.length === 1 ? "" : "s"}</span></header>
+          <div className="divide-y divide-border">{normalizedIssues.map((issue) => <button type="button" key={issue.id} onClick={() => setSelectedIssue(issue)} className="grid w-full gap-3 px-5 py-3 text-left hover:bg-accent/30 md:grid-cols-[100px_minmax(0,1fr)_150px_120px_24px]"><span className={`inline-flex h-fit w-fit rounded border px-2 py-0.5 font-mono text-[10px] uppercase ${issue.severity === "critical" ? "border-destructive/30 bg-destructive/10 text-destructive" : issue.severity === "high" ? "border-warning/30 bg-warning/10 text-warning" : "border-info/30 bg-info/10 text-info"}`}>{issue.severity}</span><span className="min-w-0"><span className="block truncate text-sm font-medium">{issue.title}</span><span className="mt-1 block truncate text-[11px] text-muted-foreground">{issue.summary}</span></span><span className="text-xs text-muted-foreground">{issue.category}</span><span className="text-xs text-muted-foreground">{issue.kind} · {issue.occurrences}×</span><span className="text-muted-foreground">›</span></button>)}{!normalizedIssues.length && <div className="p-6 text-center text-sm text-muted-foreground">No distinct issues were returned.</div>}</div>
+        </section>
+
         {reliability && <RunReliabilityPanel reliability={reliability} />}
         {videoUrl ? <EvidenceVideo report={report} url={videoUrl} /> : <EvidenceStatus report={report} />}
         {projectId && <BrowserHandoffPanel projectId={projectId} runId={runId} handoff={handoff} onChange={setHandoff} />}
@@ -536,6 +545,7 @@ function RunDetailPage() {
           {tab === "scenarios" && <AssertionsTab report={report} />}
         </div>
       </div>
+      {selectedIssue && <IssueDetailView issue={selectedIssue} onClose={() => setSelectedIssue(null)} />}
       </div>
     </RunDetailErrorBoundary>
   );

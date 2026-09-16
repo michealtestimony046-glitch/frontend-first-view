@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import { Copy, Download, FileWarning } from "lucide-react";
 import { formatLiveDate, formatLiveDuration, reportForRun, runNumber, useLivePortfolio } from "@/lib/live-data";
 import { videoEvidenceEnabled } from "@/lib/feature-flags";
+import { IssueDetailView } from "@/components/issue-detail-view";
+import { normalizeReport, type ReportIssue } from "@/lib/report-model";
 
 export const Route = createFileRoute("/app/reports")({
   head: () => ({ meta: [{ title: "Reports · Matrix QA" }, { name: "robots", content: "noindex" }] }),
@@ -13,6 +15,7 @@ function ReportsPage() {
   const live = useLivePortfolio();
   const terminalRuns = live.runs.filter((run) => ["COMPLETED", "PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED", "FAILED"].includes(run.status));
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [selectedIssue, setSelectedIssue] = useState<ReportIssue | null>(null);
   const [target, setTarget] = useState<"Cursor" | "Claude Code" | "GitHub" | "Raw">("Raw");
   const selectedRun = terminalRuns.find((run) => run.id === selectedRunId) ?? terminalRuns[0] ?? null;
   const report = reportForRun(live.reports, selectedRun?.id);
@@ -22,6 +25,7 @@ function ReportsPage() {
     if (!selectedRun) return [];
     return live.issues.filter((issue) => issue.reportId === selectedRun.id);
   }, [live.issues, selectedRun]);
+  const normalized = useMemo(() => selectedRun && report ? normalizeReport(selectedRun, report) : null, [selectedRun, report]);
   const quickScanFindings = (report?.quickScanHandoff?.findings ?? []).filter((finding) => finding.status === "QUICK_SCAN_CONFIRMED" || (finding.status === "CONFIRMED" && finding.reportSection !== "VISUAL_INTERACTIVE_FINDINGS"));
   const visualFindings = Array.isArray(report?.aiOverview?.findings) ? report.aiOverview.findings : [];
   const repairMarkdown = report && selectedRun
@@ -86,11 +90,11 @@ function ReportsPage() {
                 </section>
               </div>
               <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-                <section className="surface-card overflow-hidden">
-                  <header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Backend findings</h2><p className="text-[11px] text-muted-foreground">Real hard-error findings grouped from this run</p></header>
+                <section className="surface-card overflow-hidden lg:col-span-2">
+                  <header className="border-b border-border px-5 py-3"><h2 className="font-display text-sm font-semibold">Prioritized defect ledger</h2><p className="text-[11px] text-muted-foreground">Select any issue to open the shared evidence detail view.</p></header>
                   <ul className="divide-y divide-border">
-                    {findings.map((issue) => <li key={issue.id} className="px-5 py-4"><div className="flex items-center gap-2"><SeverityBadge severity={issue.severity} /><span className="font-mono text-[10px] text-muted-foreground">{issue.category}</span></div><div className="mt-1.5 text-sm font-medium">{issue.title}</div><div className="mt-1 text-[11px] text-muted-foreground">{issue.scope} · {issue.occurrences} occurrence(s)</div></li>)}
-                    {!findings.length && <li className="p-8 text-center text-sm text-muted-foreground">No hard findings returned for this report.</li>}
+                    {(normalized?.issues ?? []).map((issue) => <li key={issue.id}><button type="button" onClick={() => setSelectedIssue(issue)} className="grid w-full gap-3 px-5 py-4 text-left hover:bg-accent/30 md:grid-cols-[100px_minmax(0,1fr)_150px_120px_24px]"><SeverityBadge severity={issue.severity === "warning" ? "medium" : issue.severity === "info" ? "low" : issue.severity} /><div className="min-w-0"><div className="truncate text-sm font-medium">{issue.title}</div><div className="mt-1 truncate text-[11px] text-muted-foreground">{issue.summary}</div></div><span className="text-xs text-muted-foreground">{issue.category}</span><span className="text-xs text-muted-foreground">{issue.kind} · {issue.occurrences}×</span><span className="text-muted-foreground">›</span></button></li>)}
+                    {!normalized?.issues.length && <li className="p-8 text-center text-sm text-muted-foreground">No distinct issues returned for this report.</li>}
                   </ul>
                 </section>
                 <section className="surface-card sticky top-4 flex h-fit flex-col overflow-hidden">
@@ -111,6 +115,7 @@ function ReportsPage() {
         </>
       )}
       <p className="mt-6 text-[11px] text-muted-foreground">This page reads live run/report data; export automation remains a later product capability.</p>
+      {selectedIssue && <IssueDetailView issue={selectedIssue} onClose={() => setSelectedIssue(null)} />}
     </div>
   );
 }
