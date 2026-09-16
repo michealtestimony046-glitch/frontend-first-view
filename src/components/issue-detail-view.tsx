@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import type { ReportIssue, EvidenceTab } from "@/lib/report-model";
+import { networkProfileDisplay } from "@/lib/network-profiles";
 
 const severityTone: Record<ReportIssue["severity"], string> = {
   critical: "border-destructive/35 bg-destructive/12 text-destructive",
@@ -106,6 +107,12 @@ export function IssueDetailView({
               <span>Run {issue.context.runId}</span>
               <span>· {issue.context.device || "Desktop"}</span>
               <span>· {issue.context.role || "Admin"}</span>
+              {issue.context.networkProfile && (
+                <span title={networkProfileDisplay(issue.context.networkProfile).tooltip}>
+                  · {networkProfileDisplay(issue.context.networkProfile).label} (
+                  {networkProfileDisplay(issue.context.networkProfile).tooltip})
+                </span>
+              )}
               <span>
                 · {issue.occurrences} occurrence{issue.occurrences === 1 ? "" : "s"}
               </span>

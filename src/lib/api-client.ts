@@ -3,6 +3,8 @@
  * Handles all HTTP requests to backend endpoints with proper error handling and token management.
  */
 
+import type { NetworkProfileType } from "./network-profiles";
+
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "https://matrix-qa-backend.onrender.com"
 ).replace(/\/$/, "");
@@ -303,6 +305,7 @@ export interface QuickScanHandoffRequest {
 
 export interface TriggerRunRequest {
   targetUrl?: string;
+  networkProfile?: NetworkProfileType;
   idempotencyKey?: string;
   email?: string;
   password?: string;
@@ -725,7 +728,7 @@ export type V2MatrixProfile = {
   role: "ANONYMOUS" | "TEST_ACCOUNT" | "BROWSER_HANDOFF";
   device: "DESKTOP" | "MOBILE";
   browser: "CHROMIUM";
-  network: "DEFAULT";
+  network: NetworkProfileType;
   dataState: "PUBLIC_OR_EMPTY" | "FIXTURE";
   edgeCase: "NONE" | "RESPONSIVE_LAYOUT";
   priorityScore: number;
