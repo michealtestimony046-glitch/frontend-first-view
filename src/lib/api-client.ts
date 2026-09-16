@@ -603,6 +603,25 @@ export interface V2Environment {
   createdAt?: string;
   updatedAt?: string;
 }
+export type ProjectRoleType = "GUEST" | "AUTHENTICATED";
+export type ProjectRoleSessionStatus = "UNVERIFIED" | "ACTIVE" | "EXPIRED" | "INVALID_CREDENTIALS";
+export interface ProjectRole {
+  id: string;
+  projectId: string;
+  environmentId: string;
+  name: string;
+  roleType: ProjectRoleType;
+  loginUrl: string;
+  verificationUrl: string;
+  usernameSelector?: string | null;
+  passwordSelector?: string | null;
+  submitSelector?: string | null;
+  sessionStatus: ProjectRoleSessionStatus;
+  lastVerifiedAt?: string | null;
+  bootstrapScreenshotData?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
 export interface V2TestDataFixture {
   id: string;
   organizationId: string;
@@ -2129,6 +2148,10 @@ export interface CustomerWorkerPoolHealth {
 }
 
 export const v2Api = {
+  listRoles: (projectId: string, environmentId: string): Promise<ProjectRole[]> => apiRequest(`/roles/project/${encodeURIComponent(projectId)}/environment/${encodeURIComponent(environmentId)}`, { requiresAuth: true }),
+  createRole: (data: { projectId: string; environmentId: string; name: string; roleType: ProjectRoleType; loginUrl: string; verificationUrl: string; username?: string; password?: string; usernameSelector?: string; passwordSelector?: string; submitSelector?: string }): Promise<ProjectRole> => apiRequest('/roles', { method: 'POST', body: JSON.stringify(data), requiresAuth: true, timeoutMs: 60_000 }),
+  updateRole: (roleId: string, data: Partial<{ name: string; loginUrl: string; verificationUrl: string; username: string; password: string; usernameSelector: string; passwordSelector: string; submitSelector: string }>): Promise<ProjectRole> => apiRequest(`/roles/${encodeURIComponent(roleId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true, timeoutMs: 60_000 }),
+  deleteRole: (roleId: string): Promise<ProjectRole> => apiRequest(`/roles/${encodeURIComponent(roleId)}`, { method: 'DELETE', requiresAuth: true }),
   getWorkerPoolHealth: (projectId: string): Promise<CustomerWorkerPoolHealth> => apiRequest(`/projects/${encodeURIComponent(projectId)}/workforce-health`, { requiresAuth: true, cache: "no-store" }),
   listEnvironments: (projectId: string): Promise<V2Environment[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
   createEnvironment: (data: { organizationId: string; workspaceId: string; projectId: string; name: string; kind?: V2EnvironmentKind; baseUrl: string; description?: string; healthChecks?: unknown[]; expectedConfig?: unknown; allowedHostnames?: unknown }): Promise<V2Environment> => apiRequest('/environments', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),

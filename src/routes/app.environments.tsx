@@ -29,6 +29,7 @@ import {
   type V2TestDataFixture,
   type Workspace,
 } from "@/lib/api-client";
+import { RoleManagementPanel } from "@/components/role-management-panel";
 
 const ACTIVE_ORG_KEY = "matrix_qa_active_organization";
 const ACTIVE_WORKSPACE_KEY = "matrix_qa_active_workspace";
@@ -54,6 +55,7 @@ function EnvironmentsPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<V2Environment[]>([]);
+  const [activeEnvironmentId, setActiveEnvironmentId] = useState<string | null>(null);
   const [fixtures, setFixtures] = useState<V2TestDataFixture[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
@@ -148,6 +150,7 @@ function EnvironmentsPage() {
         v2Api.listTestDataFixtures(projectId),
       ]);
       setEnvironments(environmentItems);
+      setActiveEnvironmentId((current) => current && environmentItems.some((item) => item.id === current) ? current : environmentItems[0]?.id ?? null);
       setFixtures(fixtureItems);
     } catch (cause) {
       setError(toMessage(cause, "Unable to load environment and test-data records."));
@@ -377,6 +380,7 @@ function EnvironmentsPage() {
               </div>
             </section>
           </div>
+          {environments.length > 0 && projectId && <div className="mt-5"><label className="mb-2 block text-xs font-medium text-muted-foreground" htmlFor="active-role-environment">Active environment for role management</label><select id="active-role-environment" value={activeEnvironmentId ?? ""} onChange={(event) => setActiveEnvironmentId(event.target.value)} className="rounded-md border border-border bg-surface-2/30 px-3 py-2 text-sm"><option value="" disabled>Select environment</option>{environments.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.kind}</option>)}</select><RoleManagementPanel projectId={projectId} environment={environments.find((item) => item.id === activeEnvironmentId) ?? environments[0]} /></div>}
           <div className="mt-5 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 text-xs leading-5 text-muted-foreground">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <p>
