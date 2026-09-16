@@ -1060,12 +1060,36 @@ function OverviewVisualEvidence({ report }: { report: RunReport }) {
   );
 }
 
+function GlobalQuickScanPanel({ report }: { report: RunReport }) {
+  const scan = report.quickScan;
+  if (!scan) return null;
+  const failed = scan.status === "FAILED";
+  return (
+    <section className="mt-6 surface-card overflow-hidden border border-primary/25" aria-label="Quick Scan overview">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-primary/5 px-5 py-4">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-primary">Step 0 · deterministic Quick Scan</div>
+          <h2 className="mt-2 font-display text-lg font-semibold">Structural checks captured in this run</h2>
+          <p className="mt-1 text-sm leading-5 text-muted-foreground">Measured in the same Playwright page before functional execution. These findings are advisory and never change the functional run status.</p>
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider ${failed ? "border-warning/35 bg-warning/10 text-warning" : "border-success/30 bg-success/10 text-success"}`}>{failed ? "unavailable" : `${scan.findingCount} finding${scan.findingCount === 1 ? "" : "s"}`}</span>
+      </div>
+      <div className="px-5 py-4">
+        <p className="text-sm leading-6 text-foreground/85">{scan.summary}</p>
+        {scan.errorMessage && <p className="mt-2 text-xs text-warning">{scan.errorMessage}</p>}
+        {scan.findings.length > 0 && <div className="mt-4 divide-y divide-border rounded-md border border-border"><div className="grid grid-cols-[auto_1fr] gap-3 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"><span>Category</span><span>Measured finding</span></div>{scan.findings.slice(0, 20).map((finding) => <div key={`${finding.code}-${finding.evidence}`} className="grid grid-cols-[auto_1fr] gap-3 px-3 py-3 text-xs"><span className="font-mono uppercase text-primary">{finding.category}</span><span><strong className="font-medium text-foreground">{finding.title}</strong><span className="mt-1 block leading-5 text-muted-foreground">{finding.evidence}</span></span></div>)}</div>}
+      </div>
+    </section>
+  );
+}
+
 function OverviewTab({ report }: { report: RunReport }) {
   const errors = report.errors ?? [];
   const assertions = report.assertions ?? [];
   return (
     <div>
       <QuickScanHandoffPanel handoff={report.quickScanHandoff} />
+      <GlobalQuickScanPanel report={report} />
       <OverviewVisualEvidence report={report} />
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
       <div className="surface-card overflow-hidden">

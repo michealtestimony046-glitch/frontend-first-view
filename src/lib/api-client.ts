@@ -944,6 +944,18 @@ export interface RunReport {
   summary?: RunSummary;
   liveAiSummary?: AiLiveSummary | null;
   aiOverview?: AiRunOverview | null;
+  quickScan?: {
+    status: "COMPLETED" | "FAILED";
+    targetUrl: string;
+    finalUrl: string;
+    checkedAt: string;
+    httpStatus: number | null;
+    findings: Array<{ category: string; code: string; title: string; evidence: string }>;
+    findingCount: number;
+    summary: string;
+    source: "GLOBAL_RUN_STEP_0";
+    errorMessage?: string;
+  } | null;
   quickScanHandoff?: QuickScanHandoff | null;
   controlPlane?: {
     disposition?: "TRUSTED" | "WARNING" | "UNVERIFIED";
