@@ -26,11 +26,10 @@ import {
   type V2TestPlan,
 } from "@/lib/api-client";
 import {
-  NETWORK_PROFILE_DISPLAY,
-  NETWORK_PROFILE_TYPES,
-  type NetworkProfileType,
-} from "@/lib/network-profiles";
-import { RunConfigurationPanel } from "@/components/run-configuration-panel";
+  RunConfigurationPanel,
+  type MatrixSelection,
+  type TriggerRunPayload,
+} from "@/components/run-configuration-panel";
 
 type Phase = "idle" | "scanning" | "planning" | "ready" | "starting";
 
@@ -98,7 +97,6 @@ export function V2RunPreflight({
   const [planName, setPlanName] = useState("Fresh adaptive smoke plan");
   const [enableVision, setEnableVision] = useState(false);
   const [enableRecovery, setEnableRecovery] = useState(false);
-  const [networkProfiles, setNetworkProfiles] = useState<NetworkProfileType[]>(["FAST"]);
   const [targetAuthorizationConfirmed, setTargetAuthorizationConfirmed] = useState(
     Boolean(initialTargetAuthorizationConfirmed),
   );
@@ -146,8 +144,7 @@ export function V2RunPreflight({
     plan.status !== "FAILED" &&
     plan.scenarios.length > 0 &&
     blockedPolicies.length === 0 &&
-    targetAuthorizationConfirmed &&
-    networkProfiles.length > 0,
+    targetAuthorizationConfirmed,
   );
   const waitingForProvider = capacityStatus?.status === "WAITING" && Boolean(queuedResponse);
   const scanProgress = scan?.summary?.progress;
@@ -200,7 +197,14 @@ export function V2RunPreflight({
         (decision) => decision.status !== "ALLOWED" && decision.status !== "APPROVED",
       );
       if (autoStart && createdPlan.scenarios.length > 0 && !blocked) {
-        await start(createdPlan);
+        await start(
+          {
+            projectId: project.id,
+            environmentId,
+            ...defaultMatrixSelection(createdPlan),
+          },
+          createdPlan,
+        );
       } else {
         setPhase("ready");
       }
@@ -210,7 +214,18 @@ export function V2RunPreflight({
     }
   };
 
-  const start = async (planOverride?: V2TestPlan) => {
+  const defaultMatrixSelection = (candidate: V2TestPlan): MatrixSelection => ({
+    scenarioIds: candidate.scenarios.slice(0, 2).map((scenario) => scenario.id),
+    viewportIds: (
+      candidate.projectMap?.viewportMatrix ??
+      candidate.projectMap?.billingBreakdown?.viewportMatrix ??
+      []
+    ).map((viewport) => viewport.id),
+    networkProfiles: ["FAST"],
+    roleIds: ["guest"],
+  });
+
+  const start = async (payload: TriggerRunPayload, planOverride?: V2TestPlan) => {
     const candidate = planOverride ?? plan;
     const blocked =
       candidate?.policyDecisions.some(
@@ -221,7 +236,11 @@ export function V2RunPreflight({
       candidate.status === "FAILED" ||
       candidate.scenarios.length === 0 ||
       blocked ||
-      !targetAuthorizationConfirmed
+      !targetAuthorizationConfirmed ||
+      payload.scenarioIds.length === 0 ||
+      payload.viewportIds.length === 0 ||
+      payload.networkProfiles.length === 0 ||
+      payload.roleIds.length === 0
     )
       return;
     const selectedEnvironment = environments.find(
@@ -238,7 +257,10 @@ export function V2RunPreflight({
         accessMode,
         enableVision,
         enableRecovery,
-        networkProfiles,
+        scenarioIds: payload.scenarioIds,
+        viewportIds: payload.viewportIds,
+        networkProfiles: payload.networkProfiles,
+        roleIds: payload.roleIds,
         targetAuthorizationConfirmed,
       });
       const providerCapacity = response.metadata?.providerCapacity;
@@ -627,57 +649,10 @@ export function V2RunPreflight({
                 scenarios={plan.scenarios}
                 viewports={selectedViewports}
                 planLimit={2}
+                busy={busy || waitingForProvider || !readyToStart}
+                error={error}
+                onStart={(payload) => void start(payload)}
               />
-              <div
-                className="rounded-md border border-border bg-background/30 p-3 text-xs"
-                aria-labelledby="network-profile-heading"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <strong id="network-profile-heading" className="text-foreground">
-                    Network conditions
-                  </strong>
-                  <span className="text-[11px] text-muted-foreground">Chromium CDP profiles</span>
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  {NETWORK_PROFILE_TYPES.map((profile) => {
-                    const display = NETWORK_PROFILE_DISPLAY[profile];
-                    const checked = networkProfiles.includes(profile);
-                    return (
-                      <label
-                        key={profile}
-                        title={display.tooltip}
-                        className="flex cursor-pointer items-start gap-2 rounded-md border border-border px-3 py-2 hover:border-primary/40"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={busy}
-                          onChange={() =>
-                            setNetworkProfiles((current) =>
-                              checked
-                                ? current.filter((item) => item !== profile)
-                                : [...current, profile],
-                            )
-                          }
-                          className="mt-0.5 accent-primary"
-                          aria-label={display.accessibilityText}
-                        />
-                        <span>
-                          <span className="block font-medium">{display.label}</span>
-                          <span className="block text-[11px] text-muted-foreground">
-                            {display.tooltip}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {networkProfiles.length === 0 && (
-                  <p className="mt-2 text-[11px] text-warning">
-                    Select at least one network condition.
-                  </p>
-                )}
-              </div>
               <div className="border-t border-primary/20 pt-3 text-xs text-muted-foreground">
                 The browser worker will run this fresh plan within your organization’s available
                 capacity. Unused capacity is handled automatically after settlement.
@@ -708,44 +683,25 @@ export function V2RunPreflight({
             >
               Cancel
             </button>
-            {phase === "idle" || phase === "ready" ? (
+            {phase === "idle" ? (
               <button
-                type={phase === "idle" ? "submit" : "button"}
-                onClick={
-                  phase === "ready"
-                    ? () => {
-                        if (waitingForProvider && queuedResponse) onStarted(queuedResponse);
-                        else void start();
-                      }
-                    : undefined
-                }
+                type="submit"
+                onClick={undefined}
                 disabled={
-                  phase === "idle"
-                    ? busy || (!targetUrl.trim() && !environmentId) || !targetAuthorizationConfirmed
-                    : busy || (!waitingForProvider && !readyToStart)
+                  busy || (!targetUrl.trim() && !environmentId) || !targetAuthorizationConfirmed
                 }
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40"
               >
-                {phase === "idle" ? (
-                  <>
-                    <Radar className="h-4 w-4" /> Prepare browser test
-                  </>
-                ) : waitingForProvider ? (
-                  <>
-                    <Play className="h-4 w-4" /> Open queued run
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4" /> Start browser test
-                  </>
-                )}
+                <>
+                  <Radar className="h-4 w-4" /> Prepare browser test
+                </>
               </button>
-            ) : (
+            ) : phase !== "ready" ? (
               <span className="inline-flex items-center gap-2 rounded-md bg-primary/15 px-4 py-2 text-sm text-primary">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 {phase === "starting" ? "Reserving and starting…" : "Preparing…"}
               </span>
-            )}
+            ) : null}
           </footer>
         </form>
       </div>

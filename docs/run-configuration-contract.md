@@ -1,6 +1,6 @@
 # Run Configuration Contract
 
-This feature is intentionally local-only in the UI. The `Start Run` button records the selected matrix in component state and does not call the execution API yet.
+The ready-plan UI has one source of truth for matrix selections. The `Start Run` button sends the live selection to the existing authorized plan execution endpoint; discovery and plan approval remain separate phases.
 
 ## TypeScript API contract
 
@@ -15,7 +15,11 @@ export interface TriggerRunPayload {
 }
 ```
 
-The same interface is exported by `src/components/run-configuration-panel.tsx` and the panel shows a JSON preview of the local payload.
+The same interface is exported by `src/components/run-configuration-panel.tsx`. The panel owns a single `MatrixSelection` object, exposes the immutable `projectId` and `environmentId` in this payload, and shows a live JSON preview beneath the disclosure. Every array must contain at least one item before execution is enabled; scenario selections remain capped by the plan limit with the explanation `Upgrade to add more.`.
+
+The payload maps to `POST /plans/:planId/run` through `v2Api.runPlan`. The parent preserves the target URL, access mode, vision and recovery capabilities, and authorization confirmation while passing all four matrix arrays without reconstructing or defaulting them. The backend retains plan, project, environment, membership, policy, and capacity checks.
+
+An immediate response with a concrete run ID is routed by the existing `onStarted` flow to the Matrix Execution Ledger using that returned run ID. A provider response with status `WAITING` remains on the preflight view with the existing queue message and does not report a completed start or create a duplicate submission.
 
 ## Prisma foundation
 

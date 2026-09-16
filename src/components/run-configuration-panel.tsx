@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
-import { Check, LockKeyhole, Play } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Loader2, LockKeyhole, Play } from "lucide-react";
 import type { V2Scenario, V2Viewport } from "@/lib/api-client";
-import type { NetworkProfileType } from "@/lib/network-profiles";
 
 export interface TriggerRunPayload {
   projectId: string;
@@ -12,12 +11,18 @@ export interface TriggerRunPayload {
   roleIds: string[];
 }
 
+export type MatrixSelection = Omit<TriggerRunPayload, "projectId" | "environmentId">;
+
 type Props = {
   projectId: string;
   environmentId: string;
   scenarios: V2Scenario[];
   viewports?: V2Viewport[];
   planLimit?: number;
+  busy?: boolean;
+  error?: string | null;
+  onSelectionChange?: (selection: MatrixSelection) => void;
+  onStart: (payload: TriggerRunPayload) => void;
 };
 
 type Choice<T extends string> = { id: T; label: string; detail?: string };
@@ -27,7 +32,7 @@ const fallbackViewports: Choice<string>[] = [
   { id: "tablet", label: "Tablet", detail: "768 × 1024" },
   { id: "mobile", label: "Mobile", detail: "375 × 812" },
 ];
-const networks: Choice<NetworkProfileType>[] = [
+const networks: Choice<"FAST" | "SLOW_3G" | "OFFLINE">[] = [
   { id: "FAST", label: "Fast", detail: "Wi-Fi / 4G" },
   { id: "SLOW_3G", label: "Slow 3G" },
   { id: "OFFLINE", label: "Offline" },
@@ -43,16 +48,19 @@ export function RunConfigurationPanel({
   scenarios,
   viewports,
   planLimit = 2,
+  busy = false,
+  error,
+  onSelectionChange,
+  onStart,
 }: Props) {
-  const [scenarioIds, setScenarioIds] = useState<string[]>(() =>
-    scenarios.slice(0, Math.min(planLimit, scenarios.length)).map((scenario) => scenario.id),
-  );
-  const [viewportIds, setViewportIds] = useState<string[]>(() =>
-    viewports?.length ? viewports.map((viewport) => viewport.id) : ["desktop"],
-  );
-  const [networkProfiles, setNetworkProfiles] = useState<NetworkProfileType[]>(["FAST"]);
-  const [roleIds, setRoleIds] = useState<string[]>(["guest"]);
-  const [startedLocally, setStartedLocally] = useState(false);
+  const [selection, setSelection] = useState<MatrixSelection>(() => ({
+    scenarioIds: scenarios
+      .slice(0, Math.min(planLimit, scenarios.length))
+      .map((scenario) => scenario.id),
+    viewportIds: viewports?.length ? viewports.map((viewport) => viewport.id) : ["desktop"],
+    networkProfiles: ["FAST"],
+    roleIds: ["guest"],
+  }));
   const viewportChoices: Choice<string>[] = viewports?.length
     ? viewports.map((viewport) => ({
         id: viewport.id,
@@ -60,31 +68,43 @@ export function RunConfigurationPanel({
         detail: `${viewport.width} × ${viewport.height}`,
       }))
     : fallbackViewports;
+  const payload = useMemo<TriggerRunPayload>(
+    () => ({ projectId, environmentId, ...selection }),
+    [environmentId, projectId, selection],
+  );
   const totalExecutions = useMemo(
-    () => scenarioIds.length * viewportIds.length * networkProfiles.length * roleIds.length,
-    [networkProfiles.length, roleIds.length, scenarioIds.length, viewportIds.length],
+    () =>
+      selection.scenarioIds.length *
+      selection.viewportIds.length *
+      selection.networkProfiles.length *
+      selection.roleIds.length,
+    [selection],
   );
   const canStart =
-    scenarioIds.length > 0 &&
-    viewportIds.length > 0 &&
-    networkProfiles.length > 0 &&
-    roleIds.length > 0;
-  const toggle = <T extends string>(
-    value: T,
-    selected: T[],
-    setSelected: (next: T[]) => void,
+    payload.scenarioIds.length > 0 &&
+    payload.viewportIds.length > 0 &&
+    payload.networkProfiles.length > 0 &&
+    payload.roleIds.length > 0 &&
+    !busy;
+
+  useEffect(() => {
+    onSelectionChange?.(selection);
+  }, [onSelectionChange, selection]);
+
+  const toggle = <K extends keyof MatrixSelection>(
+    key: K,
+    value: MatrixSelection[K][number],
     limit?: number,
   ) => {
-    if (selected.includes(value)) setSelected(selected.filter((item) => item !== value));
-    else if (!limit || selected.length < limit) setSelected([...selected, value]);
-  };
-  const payload: TriggerRunPayload = {
-    projectId,
-    environmentId,
-    scenarioIds,
-    viewportIds,
-    networkProfiles,
-    roleIds,
+    setSelection((current) => {
+      const selected = current[key] as string[];
+      const next = selected.includes(String(value))
+        ? selected.filter((item) => item !== String(value))
+        : !limit || selected.length < limit
+          ? [...selected, String(value)]
+          : selected;
+      return { ...current, [key]: next } as MatrixSelection;
+    });
   };
 
   return (
@@ -101,7 +121,7 @@ export function RunConfigurationPanel({
             Choose your coverage matrix
           </h3>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Configure the combinations locally before execution is connected.
+            One matrix selection controls the approved plan execution.
           </p>
         </div>
         <span className="rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground">
@@ -112,8 +132,8 @@ export function RunConfigurationPanel({
         <ConfigGroup title="1. Select scenarios" hint={`Plan limit: ${planLimit}`}>
           <div className="space-y-2">
             {scenarios.map((scenario) => {
-              const checked = scenarioIds.includes(scenario.id);
-              const locked = !checked && scenarioIds.length >= planLimit;
+              const checked = selection.scenarioIds.includes(scenario.id);
+              const locked = !checked && selection.scenarioIds.length >= planLimit;
               return (
                 <label
                   key={scenario.id}
@@ -123,8 +143,8 @@ export function RunConfigurationPanel({
                   <input
                     type="checkbox"
                     checked={checked}
-                    disabled={locked}
-                    onChange={() => toggle(scenario.id, scenarioIds, setScenarioIds, planLimit)}
+                    disabled={locked || busy}
+                    onChange={() => toggle("scenarioIds", scenario.id, planLimit)}
                     className="mt-0.5 accent-primary"
                   />
                   <span className="min-w-0 flex-1">
@@ -135,7 +155,7 @@ export function RunConfigurationPanel({
                   </span>
                   {locked && (
                     <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <LockKeyhole className="h-3 w-3" /> Upgrade to add more
+                      <LockKeyhole className="h-3 w-3" /> Upgrade to add more.
                     </span>
                   )}
                 </label>
@@ -148,22 +168,25 @@ export function RunConfigurationPanel({
             <ChoiceGroup
               title="Devices / Viewports"
               choices={viewportChoices}
-              selected={viewportIds}
-              onToggle={(id) => toggle(id, viewportIds, setViewportIds)}
+              selected={selection.viewportIds}
+              disabled={busy}
+              onToggle={(id) => toggle("viewportIds", id)}
             />
             <ChoiceGroup
               title="Network conditions"
               choices={networks}
-              selected={networkProfiles}
+              selected={selection.networkProfiles}
+              disabled={busy}
               onToggle={(id) =>
-                toggle(id as NetworkProfileType, networkProfiles, setNetworkProfiles)
+                toggle("networkProfiles", id as MatrixSelection["networkProfiles"][number])
               }
             />
             <ChoiceGroup
               title="User roles"
               choices={roles}
-              selected={roleIds}
-              onToggle={(id) => toggle(id, roleIds, setRoleIds)}
+              selected={selection.roleIds}
+              disabled={busy}
+              onToggle={(id) => toggle("roleIds", id)}
             />
           </div>
         </ConfigGroup>
@@ -172,26 +195,23 @@ export function RunConfigurationPanel({
             <div>
               <p className="text-xs font-medium text-muted-foreground">Matrix Calculation</p>
               <p className="mt-1 font-mono text-sm text-foreground">
-                {scenarioIds.length} Scenarios × {viewportIds.length} Devices ×{" "}
-                {networkProfiles.length} Networks × {roleIds.length} Roles ={" "}
+                {selection.scenarioIds.length} Scenarios × {selection.viewportIds.length} Devices ×{" "}
+                {selection.networkProfiles.length} Networks × {selection.roleIds.length} Roles ={" "}
                 <strong className="text-primary">{totalExecutions} Total Test Executions</strong>
               </p>
             </div>
             <button
               type="button"
               disabled={!canStart}
-              onClick={() => setStartedLocally(true)}
+              onClick={() => onStart(payload)}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Play className="h-4 w-4" /> Start Run
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}{" "}
+              {busy ? "Starting…" : "Start Run"}
             </button>
           </div>
-          {startedLocally && (
-            <p className="mt-2 text-xs text-primary">
-              Configuration saved locally. Execution wiring will be connected in the next step.
-            </p>
-          )}
-          {!canStart && (
+          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+          {!canStart && !busy && (
             <p className="mt-2 text-xs text-warning">
               Select at least one scenario, device, network, and role to continue.
             </p>
@@ -209,6 +229,7 @@ export function RunConfigurationPanel({
     </section>
   );
 }
+
 function ConfigGroup({
   title,
   hint,
@@ -228,15 +249,18 @@ function ConfigGroup({
     </div>
   );
 }
+
 function ChoiceGroup({
   title,
   choices,
   selected,
+  disabled,
   onToggle,
 }: {
   title: string;
   choices: Choice<string>[];
   selected: string[];
+  disabled: boolean;
   onToggle: (id: string) => void;
 }) {
   return (
@@ -248,6 +272,7 @@ function ChoiceGroup({
             <input
               type="checkbox"
               checked={selected.includes(choice.id)}
+              disabled={disabled}
               onChange={() => onToggle(choice.id)}
               className="mt-0.5 accent-primary"
             />
