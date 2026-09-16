@@ -56,7 +56,11 @@ const QUICK_SCAN_TIMEOUT_MS = 120_000;
 const PLAN_PREPARATION_TIMEOUT_MS = 120_000;
 
 export class ApiRequestError extends Error {
-  constructor(message: string, public readonly status: number, public readonly endpoint: string) {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly endpoint: string,
+  ) {
     super(message);
     this.name = "ApiRequestError";
   }
@@ -78,7 +82,11 @@ const getErrorMessage = (data: unknown, status: number): string => {
 /** Convert backend validation details into safe, actionable UI copy without leaking implementation internals. */
 export const formatRunStartError = (cause: unknown, fallback: string): string => {
   const message = cause instanceof Error ? cause.message : String(cause ?? "");
-  if (/quickScanHandoff(?:\.findings(?:\.\d+)?(?:\.property)?|[^\n]{0,160})[^\n]*property status should not exist/i.test(message)) {
+  if (
+    /quickScanHandoff(?:\.findings(?:\.\d+)?(?:\.property)?|[^\n]{0,160})[^\n]*property status should not exist/i.test(
+      message,
+    )
+  ) {
     return "This Quick Scan handoff is out of date. Refresh the page and run Quick Scan again; the browser test was not started.";
   }
   return message.trim() || fallback;
@@ -89,11 +97,18 @@ export const apiRequest = async <T>(endpoint: string, options: RequestOptions = 
     throw new Error("Matrix QA API endpoint is not configured. Set VITE_API_BASE_URL.");
   }
 
-  const { requiresAuth = false, timeoutMs = DEFAULT_API_TIMEOUT_MS, signal: callerSignal, ...fetchOptions } = options;
+  const {
+    requiresAuth = false,
+    timeoutMs = DEFAULT_API_TIMEOUT_MS,
+    signal: callerSignal,
+    ...fetchOptions
+  } = options;
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = new Headers(fetchOptions.headers);
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-  const timeout = controller ? setTimeout(() => controller.abort(), Math.max(1_000, timeoutMs)) : undefined;
+  const timeout = controller
+    ? setTimeout(() => controller.abort(), Math.max(1_000, timeoutMs))
+    : undefined;
   const forwardAbort = () => controller?.abort();
   if (controller && callerSignal) {
     if (callerSignal.aborted) controller.abort();
@@ -109,9 +124,21 @@ export const apiRequest = async <T>(endpoint: string, options: RequestOptions = 
   }
 
   try {
-    const response = await fetch(url, { ...fetchOptions, headers, ...(controller ? { signal: controller.signal } : callerSignal ? { signal: callerSignal } : {}) });
+    const response = await fetch(url, {
+      ...fetchOptions,
+      headers,
+      ...(controller
+        ? { signal: controller.signal }
+        : callerSignal
+          ? { signal: callerSignal }
+          : {}),
+    });
     if (!response.ok) {
-      throw new ApiRequestError(getErrorMessage(await response.json().catch(() => ({})), response.status), response.status, endpoint);
+      throw new ApiRequestError(
+        getErrorMessage(await response.json().catch(() => ({})), response.status),
+        response.status,
+        endpoint,
+      );
     }
     if (response.status === 204) return {} as T;
     return await response.json();
@@ -147,7 +174,13 @@ export interface VerifyEmailRequest {
   code: string;
 }
 export interface AuthResponse {
-  user: { id: string; email: string; fullName?: string | null; isStaff?: boolean; staffRole?: StaffRole | null };
+  user: {
+    id: string;
+    email: string;
+    fullName?: string | null;
+    isStaff?: boolean;
+    staffRole?: StaffRole | null;
+  };
   accessToken: string;
   isNewUser?: boolean;
 }
@@ -260,7 +293,8 @@ export interface CreateProjectRequest {
   workspaceId: string;
   defaultTargetUrl?: string;
 }
-export type QuickScanVerificationStatus = "QUICK_SCAN_CONFIRMED" | "UNVERIFIED_LEAD" | "CONFIRMED" | "NOT_REPRODUCED" | "NOT_TESTED";
+export type QuickScanVerificationStatus =
+  "QUICK_SCAN_CONFIRMED" | "UNVERIFIED_LEAD" | "CONFIRMED" | "NOT_REPRODUCED" | "NOT_TESTED";
 
 export interface QuickScanHandoffFinding {
   id: string;
@@ -288,7 +322,10 @@ export interface QuickScanHandoff {
 }
 
 /** Request shape accepted when a new run imports bounded Quick Scan findings. */
-export type QuickScanHandoffRequestFinding = Omit<QuickScanHandoffFinding, "status" | "verificationNote" | "verificationEvidenceRefs">;
+export type QuickScanHandoffRequestFinding = Omit<
+  QuickScanHandoffFinding,
+  "status" | "verificationNote" | "verificationEvidenceRefs"
+>;
 export interface QuickScanHandoffRequest {
   source: "ONBOARDING_QUICK_SCAN";
   targetUrl: string;
@@ -335,7 +372,10 @@ export interface TriggerRunResponse {
   incomplete?: boolean;
   reportReady?: boolean;
   errorMessage?: string | null;
-  metadata?: { providerCapacity?: ProviderCapacityDecision; runCapabilities?: { enableVision?: boolean; enableRecovery?: boolean } } | null;
+  metadata?: {
+    providerCapacity?: ProviderCapacityDecision;
+    runCapabilities?: { enableVision?: boolean; enableRecovery?: boolean };
+  } | null;
 }
 
 export interface RunEvent {
@@ -354,10 +394,15 @@ export interface RunEvent {
 }
 
 export interface RunExecutionState {
-  run?: Pick<RunReport, "id" | "runId" | "projectId" | "status" | "startedAt" | "finishedAt" | "errorMessage"> & {
-    lastHeartbeatAt?: string | null;
-    attemptCount?: number;
-  } | null;
+  run?:
+    | (Pick<
+        RunReport,
+        "id" | "runId" | "projectId" | "status" | "startedAt" | "finishedAt" | "errorMessage"
+      > & {
+        lastHeartbeatAt?: string | null;
+        attemptCount?: number;
+      })
+    | null;
   events: Array<{
     sequence?: number;
     eventType?: string;
@@ -386,9 +431,9 @@ export interface QaLiveState {
     finishedAt?: string | null;
     currentPhase?: string | null;
     currentRoute?: string | null;
-      currentViewport?: Record<string, unknown> | null;
-      viewportMatrix?: V2Viewport[];
-      resumable?: boolean;
+    currentViewport?: Record<string, unknown> | null;
+    viewportMatrix?: V2Viewport[];
+    resumable?: boolean;
     legalHold?: boolean;
     stopReason?: string | null;
     errorMessage?: string | null;
@@ -547,17 +592,45 @@ export interface V2Viewport {
 }
 
 export const normalizeV2PlannerMode = (value: string | null | undefined): V2PlannerMode => {
-  switch (String(value ?? "").trim().toUpperCase().replace(/[ -]+/g, "_")) {
-    case "STANDARD_ADAPTIVE": return "STANDARD_ADAPTIVE";
-    case "DEEP_MATRIX": return "DEEP_MATRIX";
-    case "QUICK_SMOKE": return "QUICK_SMOKE";
-    default: return "QUICK_SMOKE";
+  switch (
+    String(value ?? "")
+      .trim()
+      .toUpperCase()
+      .replace(/[ -]+/g, "_")
+  ) {
+    case "STANDARD_ADAPTIVE":
+      return "STANDARD_ADAPTIVE";
+    case "DEEP_MATRIX":
+      return "DEEP_MATRIX";
+    case "QUICK_SMOKE":
+      return "QUICK_SMOKE";
+    default:
+      return "QUICK_SMOKE";
   }
 };
-export type V2PlanStatus = "DRAFT" | "READY" | "AWAITING_APPROVAL" | "APPROVED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
+export type V2PlanStatus =
+  | "DRAFT"
+  | "READY"
+  | "AWAITING_APPROVAL"
+  | "APPROVED"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
 export type V2PolicyTier = "SAFE" | "CAUTION" | "DANGEROUS" | "UNKNOWN";
-export type V2PolicyStatus = "PENDING" | "ALLOWED" | "BLOCKED" | "APPROVED" | "REJECTED" | "NEEDS_HUMAN_REVIEW";
-export type V2CaseStatus = "PLANNED" | "QUEUED" | "RUNNING" | "PASSED" | "FAILED" | "WARNING" | "SKIPPED" | "BLOCKED" | "FLAKY" | "NEEDS_REVIEW";
+export type V2PolicyStatus =
+  "PENDING" | "ALLOWED" | "BLOCKED" | "APPROVED" | "REJECTED" | "NEEDS_HUMAN_REVIEW";
+export type V2CaseStatus =
+  | "PLANNED"
+  | "QUEUED"
+  | "RUNNING"
+  | "PASSED"
+  | "FAILED"
+  | "WARNING"
+  | "SKIPPED"
+  | "BLOCKED"
+  | "FLAKY"
+  | "NEEDS_REVIEW";
 
 export type V2EnvironmentHealthStatus = "UNKNOWN" | "HEALTHY" | "DEGRADED" | "UNAVAILABLE";
 export type V2FixtureStrategy = "MANUAL" | "HTTP_HOOK" | "DATABASE_SNAPSHOT";
@@ -642,7 +715,8 @@ export interface V2TestDataFixture {
   createdAt?: string;
   updatedAt?: string;
 }
-export type V2FindingWorkflowStatus = "OPEN" | "IN_PROGRESS" | "FIXED_PENDING_RETEST" | "VERIFIED_FIXED" | "REOPENED" | "WONT_FIX";
+export type V2FindingWorkflowStatus =
+  "OPEN" | "IN_PROGRESS" | "FIXED_PENDING_RETEST" | "VERIFIED_FIXED" | "REOPENED" | "WONT_FIX";
 export interface V2FindingRetest {
   id: string;
   workflowId: string;
@@ -695,7 +769,12 @@ export interface V2AiEnrichment {
   provider?: string;
   model?: string;
   latencyMs?: number;
-  usage?: { inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd?: number };
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    estimatedCostUsd?: number;
+  };
   reason?: string;
 }
 
@@ -708,7 +787,12 @@ export interface V2WebPrecheck {
   httpStatus?: number | null;
   httpStatusOk: boolean;
   redirectCount: number;
-  robots: { checked: boolean; status?: number | null; sitemapUrls: string[]; disallowRules: number };
+  robots: {
+    checked: boolean;
+    status?: number | null;
+    sitemapUrls: string[];
+    disallowRules: number;
+  };
   sitemap: { checked: boolean; status?: number | null; url?: string | null; routeCount: number };
   publicRouteCount: number;
   publicRoutes: string[];
@@ -760,8 +844,23 @@ export type V2MatrixSummary = {
   version: 1;
   mode: V2PlannerMode;
   profiles: V2MatrixProfile[];
-  counts: { total: number; roles: number; devices: number; browsers: number; networks: number; dataStates: number; edgeCases: number };
-  dimensions: { role: V2MatrixProfile["role"][]; device: V2MatrixProfile["device"][]; browser: V2MatrixProfile["browser"][]; network: V2MatrixProfile["network"][]; dataState: V2MatrixProfile["dataState"][]; edgeCase: V2MatrixProfile["edgeCase"][] };
+  counts: {
+    total: number;
+    roles: number;
+    devices: number;
+    browsers: number;
+    networks: number;
+    dataStates: number;
+    edgeCases: number;
+  };
+  dimensions: {
+    role: V2MatrixProfile["role"][];
+    device: V2MatrixProfile["device"][];
+    browser: V2MatrixProfile["browser"][];
+    network: V2MatrixProfile["network"][];
+    dataState: V2MatrixProfile["dataState"][];
+    edgeCase: V2MatrixProfile["edgeCase"][];
+  };
   pruned: Array<{ dimension: string; value: string; reason: string }>;
   generatedFrom: "OBSERVED_PLAN_AND_EXECUTION_CAPABILITIES";
   baseScenarioCount?: number;
@@ -776,31 +875,54 @@ export interface V2ApplicationScan {
   targetUrl: string;
   startedAt?: string | null;
   finishedAt?: string | null;
-  summary?: (Record<string, unknown> & {
-    aiEnrichment?: V2AiEnrichment;
-    precheck?: V2WebPrecheck;
-    progress?: {
-      phase?: 'PRECHECK' | 'BROWSER_START' | 'MAPPING' | 'AI_ENRICHMENT' | 'FINALIZING' | 'COMPLETED' | 'FAILED' | string;
-      pagesScanned?: number;
-      maxPages?: number;
-      queuedUrls?: number;
-      lastRoute?: string;
-      updatedAt?: string;
-    };
-  }) | null;
+  summary?:
+    | (Record<string, unknown> & {
+        aiEnrichment?: V2AiEnrichment;
+        precheck?: V2WebPrecheck;
+        progress?: {
+          phase?:
+            | "PRECHECK"
+            | "BROWSER_START"
+            | "MAPPING"
+            | "AI_ENRICHMENT"
+            | "FINALIZING"
+            | "COMPLETED"
+            | "FAILED"
+            | string;
+          pagesScanned?: number;
+          maxPages?: number;
+          queuedUrls?: number;
+          lastRoute?: string;
+          updatedAt?: string;
+        };
+      })
+    | null;
   projectMap?: {
     targetOrigin?: string;
     precheck?: V2WebPrecheck;
     mission?: V2MissionSpec;
     coverageFrontier?: V2CoverageFrontier;
-     journeyGraph?: V2JourneyGraph;
-     matrixSummary?: V2MatrixSummary;
-     features?: string[];
-    scannedPages?: Array<{ url: string; route: string; title: string; features?: string[]; authSignals?: Record<string, boolean> }>;
-    actions?: Array<{ key: string; text: string; tag: string; tier: V2PolicyTier; reason: string; locatorCandidates?: Array<Record<string, string>> }>;
+    journeyGraph?: V2JourneyGraph;
+    matrixSummary?: V2MatrixSummary;
+    features?: string[];
+    scannedPages?: Array<{
+      url: string;
+      route: string;
+      title: string;
+      features?: string[];
+      authSignals?: Record<string, boolean>;
+    }>;
+    actions?: Array<{
+      key: string;
+      text: string;
+      tag: string;
+      tier: V2PolicyTier;
+      reason: string;
+      locatorCandidates?: Array<Record<string, string>>;
+    }>;
     riskSummary?: { safe: number; caution: number; dangerous: number };
-         httpErrors?: Array<{ status: number; url: string }>;
-     aiEnrichment?: V2AiEnrichment;
+    httpErrors?: Array<{ status: number; url: string }>;
+    aiEnrichment?: V2AiEnrichment;
   } | null;
 
   errorMessage?: string | null;
@@ -828,7 +950,15 @@ export interface V2Scenario {
   locators?: unknown;
   journeyGraph?: unknown;
   result?: unknown;
-  viewportResults?: Array<{ testCaseId: string; status: V2CaseStatus; device?: string | null; browser?: string | null; network?: string | null; result?: unknown; viewport?: V2Viewport | null }>;
+  viewportResults?: Array<{
+    testCaseId: string;
+    status: V2CaseStatus;
+    device?: string | null;
+    browser?: string | null;
+    network?: string | null;
+    result?: unknown;
+    viewport?: V2Viewport | null;
+  }>;
 }
 export interface V2AiPlanSummary {
   source?: string;
@@ -857,7 +987,13 @@ export interface V2TestPlan {
   plannerConfigVersion?: number | null;
   plannerRationale?: string | null;
   plannerEvidence?: unknown;
-  plannerValidation?: { status?: string; scenarioCount?: number; candidateCount?: number; viewportCount?: number; deterministicPolicyAuthority?: boolean } | null;
+  plannerValidation?: {
+    status?: string;
+    scenarioCount?: number;
+    candidateCount?: number;
+    viewportCount?: number;
+    deterministicPolicyAuthority?: boolean;
+  } | null;
   projectMap?: {
     mission?: V2MissionSpec;
     journeyGraph?: V2JourneyGraph;
@@ -865,17 +1001,46 @@ export interface V2TestPlan {
     coverageFrontier?: V2CoverageFrontier;
     aiPlan?: V2AiPlanSummary;
     viewportMatrix?: V2Viewport[];
-    billingBreakdown?: { baseScenarioUnits: number; viewportCount?: number; viewportMatrix?: V2Viewport[]; aiDiscoveryUnits: number; aiPlanningUnits?: number; aiTotalUnits?: number; estimatedUnits: number; reservationUnits?: number; accounting?: string }
+    billingBreakdown?: {
+      baseScenarioUnits: number;
+      viewportCount?: number;
+      viewportMatrix?: V2Viewport[];
+      aiDiscoveryUnits: number;
+      aiPlanningUnits?: number;
+      aiTotalUnits?: number;
+      estimatedUnits: number;
+      reservationUnits?: number;
+      accounting?: string;
+    };
   } | null;
   createdAt?: string;
   updatedAt?: string;
   scenarios: V2Scenario[];
   policyDecisions: V2PolicyDecision[];
-  testCases?: Array<{ id: string; scenarioId: string; status: V2CaseStatus; role?: string | null; device?: string | null; browser?: string | null; network?: string | null; dataState?: string | null; result?: unknown; viewport?: V2Viewport | null }>;
+  testCases?: Array<{
+    id: string;
+    scenarioId: string;
+    status: V2CaseStatus;
+    role?: string | null;
+    device?: string | null;
+    browser?: string | null;
+    network?: string | null;
+    dataState?: string | null;
+    result?: unknown;
+    viewport?: V2Viewport | null;
+  }>;
 }
 
 export interface RunOutcome {
-  status: "COMPLETED" | "PASSED_WITH_FINDINGS" | "PARTIALLY_TESTED" | "BLOCKED" | "REVIEW_REQUIRED" | "AWAITING_PERMISSION" | "FAILED" | string;
+  status:
+    | "COMPLETED"
+    | "PASSED_WITH_FINDINGS"
+    | "PARTIALLY_TESTED"
+    | "BLOCKED"
+    | "REVIEW_REQUIRED"
+    | "AWAITING_PERMISSION"
+    | "FAILED"
+    | string;
   reasonCode?: string | null;
   message?: string | null;
   coverage?: { planned: number; completed: number; blocked: number; needsReview: number };
@@ -897,12 +1062,12 @@ export interface BrowserHandoff {
 
 export interface AiSummaryEvidenceRef {
   id: string;
-  type: 'SCREENSHOT' | 'OBSERVATION' | 'EVENT' | 'NETWORK' | 'DOM';
+  type: "SCREENSHOT" | "OBSERVATION" | "EVENT" | "NETWORK" | "DOM";
   label: string;
 }
 
 export interface AiLiveSummary {
-  source: 'AI';
+  source: "AI";
   generatedAt: string;
   headline: string;
   message: string;
@@ -916,20 +1081,37 @@ export interface AiLiveSummary {
 }
 
 export interface AiRunOverview {
-  source: 'AI';
+  source: "AI";
   generatedAt: string;
   headline: string;
   summary?: string;
   whatWasTested: unknown[];
   whatTheAgentDid: unknown[];
-  findings: Array<{ severity: string; title: string; explanation: string; evidence: AiSummaryEvidenceRef[] }>;
+  findings: Array<{
+    severity: string;
+    title: string;
+    explanation: string;
+    evidence: AiSummaryEvidenceRef[];
+  }>;
   coverage: unknown;
   blockers: string[];
   recommendedNextSteps: string[];
-  scenarioVerdicts: Array<{ scenarioId: string; verdict: 'PASSED' | 'FAILED' | 'INCONCLUSIVE'; reason: string; evidence: AiSummaryEvidenceRef[] }>;
+  scenarioVerdicts: Array<{
+    scenarioId: string;
+    verdict: "PASSED" | "FAILED" | "INCONCLUSIVE";
+    reason: string;
+    evidence: AiSummaryEvidenceRef[];
+  }>;
 }
 
-export type RunQueueState = "REQUESTED" | "QUEUED" | "WAITING_FOR_PROVIDER" | "WAITING_FOR_ORGANIZATION" | "ADMITTED" | "RUNNING" | "EXPIRED";
+export type RunQueueState =
+  | "REQUESTED"
+  | "QUEUED"
+  | "WAITING_FOR_PROVIDER"
+  | "WAITING_FOR_ORGANIZATION"
+  | "ADMITTED"
+  | "RUNNING"
+  | "EXPIRED";
 
 export interface RunQueueMetadata {
   state: RunQueueState;
@@ -982,9 +1164,24 @@ export interface RunReport {
   quickScanHandoff?: QuickScanHandoff | null;
   controlPlane?: {
     disposition?: "TRUSTED" | "WARNING" | "UNVERIFIED";
-    environment?: { id?: string; name?: string; kind?: string; healthStatus?: string; passedChecks?: number; totalChecks?: number; requestedTargetMatches?: boolean };
+    environment?: {
+      id?: string;
+      name?: string;
+      kind?: string;
+      healthStatus?: string;
+      passedChecks?: number;
+      totalChecks?: number;
+      requestedTargetMatches?: boolean;
+    };
     dependencies?: { status?: string; total?: number; healthy?: number };
-    fixture?: { id?: string; name?: string; strategy?: string; status?: string; validationStatus?: string; executable?: boolean };
+    fixture?: {
+      id?: string;
+      name?: string;
+      strategy?: string;
+      status?: string;
+      validationStatus?: string;
+      executable?: boolean;
+    };
   } | null;
   aiSummaryBillableMatrixUnits?: number;
   events?: RunEvent[];
@@ -1012,10 +1209,11 @@ export interface RunReport {
 }
 
 export const authApi = {
-  ping: async (): Promise<BackendHealthResponse> => apiRequest("/health", { cache: "no-store", timeoutMs: 10_000 }),
+  ping: async (): Promise<BackendHealthResponse> =>
+    apiRequest("/health", { cache: "no-store", timeoutMs: 10_000 }),
   signup: async (data: SignUpRequest): Promise<SignUpResponse> =>
     apiRequest("/auth/register", { method: "POST", body: JSON.stringify(data) }),
-    verifyEmail: async (data: VerifyEmailRequest): Promise<AuthResponse> => {
+  verifyEmail: async (data: VerifyEmailRequest): Promise<AuthResponse> => {
     const response = await apiRequest<AuthResponse>("/auth/verify-email", {
       method: "POST",
       body: JSON.stringify(data),
@@ -1036,20 +1234,40 @@ export const authApi = {
   getCurrentUser: (): Promise<CurrentUserResponse> =>
     apiRequest("/auth/me", { requiresAuth: true }),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
-    apiRequest<{ message: string }>("/auth/change-password", { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
+    apiRequest<{ message: string }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
   logoutAll: async () => {
-    const response = await apiRequest<{ message: string }>("/auth/logout-all", { method: "POST", requiresAuth: true });
+    const response = await apiRequest<{ message: string }>("/auth/logout-all", {
+      method: "POST",
+      requiresAuth: true,
+    });
     clearAuthToken();
     return response;
   },
   requestPasswordReset: (email: string) =>
-    apiRequest<{ message: string }>("/auth/request-password-reset", { method: "POST", body: JSON.stringify({ email }) }),
+    apiRequest<{ message: string }>("/auth/request-password-reset", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
   resetPassword: (data: { token: string; newPassword: string }) =>
-    apiRequest<{ message: string }>("/auth/reset-password", { method: "POST", body: JSON.stringify(data) }),
+    apiRequest<{ message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   requestEmailChange: (data: { newEmail: string; currentPassword: string }) =>
-    apiRequest<{ message: string }>("/auth/request-email-change", { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
+    apiRequest<{ message: string }>("/auth/request-email-change", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
   confirmEmailChange: (token: string) =>
-    apiRequest<{ message: string }>("/auth/confirm-email-change", { method: "POST", body: JSON.stringify({ token }) }),
+    apiRequest<{ message: string }>("/auth/confirm-email-change", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
   oauthProviders: (): Promise<{ google: boolean; github: boolean }> =>
     apiRequest("/auth/providers"),
   loginWithGithub: (): void => {
@@ -1058,11 +1276,13 @@ export const authApi = {
   loginWithGoogle: (): void => {
     window.location.href = `${API_BASE_URL}/auth/google`;
   },
-  handleOAuthCallback: async (code: string, provider: string, state: string): Promise<AuthResponse> => {
+  handleOAuthCallback: async (
+    code: string,
+    provider: string,
+    state: string,
+  ): Promise<AuthResponse> => {
     const params = new URLSearchParams({ code, provider, state });
-    const response = await apiRequest<AuthResponse>(
-      `/auth/oauth/callback?${params.toString()}`,
-    );
+    const response = await apiRequest<AuthResponse>(`/auth/oauth/callback?${params.toString()}`);
     if (response.accessToken) setAuthToken(response.accessToken);
     return response;
   },
@@ -1086,10 +1306,21 @@ export const organizationsApi = {
   get: (id: string): Promise<Organization> =>
     apiRequest(`/organizations/${encodeURIComponent(id)}`, { requiresAuth: true }),
   rename: (id: string, name: string): Promise<Organization> =>
-    apiRequest(`/organizations/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ name }), requiresAuth: true }),
+    apiRequest(`/organizations/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+      requiresAuth: true,
+    }),
   removeMember: (id: string, memberId: string) =>
-    apiRequest<{ message: string }>(`/organizations/${encodeURIComponent(id)}/members/${encodeURIComponent(memberId)}`, { method: "DELETE", requiresAuth: true }),
-  remove: (id: string) => apiRequest<Organization>(`/organizations/${encodeURIComponent(id)}`, { method: "DELETE", requiresAuth: true }),
+    apiRequest<{ message: string }>(
+      `/organizations/${encodeURIComponent(id)}/members/${encodeURIComponent(memberId)}`,
+      { method: "DELETE", requiresAuth: true },
+    ),
+  remove: (id: string) =>
+    apiRequest<Organization>(`/organizations/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      requiresAuth: true,
+    }),
 };
 
 export const workspacesApi = {
@@ -1102,10 +1333,43 @@ export const workspacesApi = {
   get: (id: string): Promise<Workspace> =>
     apiRequest(`/workspaces/${encodeURIComponent(id)}`, { requiresAuth: true }),
   rename: (id: string, name: string): Promise<Workspace> =>
-    apiRequest(`/workspaces/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ name }), requiresAuth: true }),
-  remove: (id: string) => apiRequest<Workspace>(`/workspaces/${encodeURIComponent(id)}`, { method: "DELETE", requiresAuth: true, timeoutMs: 120_000 }),
-  deleteData: (id: string): Promise<{ workspaceId: string; deletedRuns: number; r2ObjectsDeleted: number; databaseRecordsDeleted: number; preservedCreditLedgerEntries: number; workspaceMemoryEntriesDeleted: number; globalContributionsDeleted: number; workspaceDeleted: boolean }> =>
-    apiRequest<{ workspaceId: string; deletedRuns: number; r2ObjectsDeleted: number; databaseRecordsDeleted: number; preservedCreditLedgerEntries: number; workspaceMemoryEntriesDeleted: number; globalContributionsDeleted: number; workspaceDeleted: boolean }>(`/workspaces/${encodeURIComponent(id)}/data`, { method: "DELETE", requiresAuth: true, timeoutMs: 120_000 }),
+    apiRequest(`/workspaces/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+      requiresAuth: true,
+    }),
+  remove: (id: string) =>
+    apiRequest<Workspace>(`/workspaces/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      requiresAuth: true,
+      timeoutMs: 120_000,
+    }),
+  deleteData: (
+    id: string,
+  ): Promise<{
+    workspaceId: string;
+    deletedRuns: number;
+    r2ObjectsDeleted: number;
+    databaseRecordsDeleted: number;
+    preservedCreditLedgerEntries: number;
+    workspaceMemoryEntriesDeleted: number;
+    globalContributionsDeleted: number;
+    workspaceDeleted: boolean;
+  }> =>
+    apiRequest<{
+      workspaceId: string;
+      deletedRuns: number;
+      r2ObjectsDeleted: number;
+      databaseRecordsDeleted: number;
+      preservedCreditLedgerEntries: number;
+      workspaceMemoryEntriesDeleted: number;
+      globalContributionsDeleted: number;
+      workspaceDeleted: boolean;
+    }>(`/workspaces/${encodeURIComponent(id)}/data`, {
+      method: "DELETE",
+      requiresAuth: true,
+      timeoutMs: 120_000,
+    }),
 };
 
 export interface CreditsSummary {
@@ -1150,11 +1414,29 @@ export interface AllocationExtensionRequest {
 }
 
 export const creditsApi = {
-  topUpOptions: (): Promise<MatrixUnitTopUpCatalog> => apiRequest("/credits/top-up-options", { requiresAuth: true, cache: "no-store" }),
-  getSummary: (organizationId: string): Promise<CreditsSummary> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/summary`, { requiresAuth: true }),
-  getLedger: (organizationId: string): Promise<CreditsLedgerEntry[]> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/ledger`, { requiresAuth: true }),
-  getRequests: (organizationId: string): Promise<AllocationExtensionRequest[]> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/requests`, { requiresAuth: true }),
-  requestExtension: (organizationId: string, workspaceId: string, data: { requestedUnits: number; reason: string }): Promise<AllocationExtensionRequest> => apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/workspaces/${encodeURIComponent(workspaceId)}/requests`, { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
+  topUpOptions: (): Promise<MatrixUnitTopUpCatalog> =>
+    apiRequest("/credits/top-up-options", { requiresAuth: true, cache: "no-store" }),
+  getSummary: (organizationId: string): Promise<CreditsSummary> =>
+    apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/summary`, {
+      requiresAuth: true,
+    }),
+  getLedger: (organizationId: string): Promise<CreditsLedgerEntry[]> =>
+    apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/ledger`, {
+      requiresAuth: true,
+    }),
+  getRequests: (organizationId: string): Promise<AllocationExtensionRequest[]> =>
+    apiRequest(`/credits/organizations/${encodeURIComponent(organizationId)}/requests`, {
+      requiresAuth: true,
+    }),
+  requestExtension: (
+    organizationId: string,
+    workspaceId: string,
+    data: { requestedUnits: number; reason: string },
+  ): Promise<AllocationExtensionRequest> =>
+    apiRequest(
+      `/credits/organizations/${encodeURIComponent(organizationId)}/workspaces/${encodeURIComponent(workspaceId)}/requests`,
+      { method: "POST", body: JSON.stringify(data), requiresAuth: true },
+    ),
 };
 
 export interface NotificationItem {
@@ -1168,7 +1450,7 @@ export interface NotificationItem {
 }
 
 export interface GuidanceMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -1199,20 +1481,29 @@ const normalizeGuidanceMessage = (item: GuidanceMessage): GuidanceMessage => ({
 });
 
 export const guidanceApi = {
-  history: (workspaceId?: string): Promise<GuidanceHistoryResponse> => apiRequest(`/guidance/history${workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ''}`, {
-    requiresAuth: true,
-    cache: 'no-store',
-  }),
-  chat: (message: string, history: GuidanceMessage[] = [], context: { workspaceId?: string; runId?: string } = {}): Promise<GuidanceResponse> => apiRequest('/guidance/chat', {
-    method: 'POST',
-    body: JSON.stringify({
-      message: message.trim().slice(0, 2_000),
-      history: history.slice(-8).map(normalizeGuidanceMessage),
-      ...(context.workspaceId ? { workspaceId: context.workspaceId } : {}),
-      ...(context.runId ? { runId: context.runId } : {}),
+  history: (workspaceId?: string): Promise<GuidanceHistoryResponse> =>
+    apiRequest(
+      `/guidance/history${workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""}`,
+      {
+        requiresAuth: true,
+        cache: "no-store",
+      },
+    ),
+  chat: (
+    message: string,
+    history: GuidanceMessage[] = [],
+    context: { workspaceId?: string; runId?: string } = {},
+  ): Promise<GuidanceResponse> =>
+    apiRequest("/guidance/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message: message.trim().slice(0, 2_000),
+        history: history.slice(-8).map(normalizeGuidanceMessage),
+        ...(context.workspaceId ? { workspaceId: context.workspaceId } : {}),
+        ...(context.runId ? { runId: context.runId } : {}),
+      }),
+      requiresAuth: true,
     }),
-    requiresAuth: true,
-  }),
 };
 
 export interface WorkspaceMemoryConsent {
@@ -1223,12 +1514,16 @@ export interface WorkspaceMemoryConsent {
 }
 
 export const workspaceConsentApi = {
-  get: (workspaceId: string): Promise<WorkspaceMemoryConsent> => apiRequest(`/guidance/memory/consent/${encodeURIComponent(workspaceId)}`, { requiresAuth: true }),
-  update: (workspaceId: string, globalAggregateOptIn: boolean): Promise<WorkspaceMemoryConsent> => apiRequest('/guidance/memory/consent', {
-    method: 'PATCH',
-    body: JSON.stringify({ workspaceId, globalAggregateOptIn }),
-    requiresAuth: true,
-  }),
+  get: (workspaceId: string): Promise<WorkspaceMemoryConsent> =>
+    apiRequest(`/guidance/memory/consent/${encodeURIComponent(workspaceId)}`, {
+      requiresAuth: true,
+    }),
+  update: (workspaceId: string, globalAggregateOptIn: boolean): Promise<WorkspaceMemoryConsent> =>
+    apiRequest("/guidance/memory/consent", {
+      method: "PATCH",
+      body: JSON.stringify({ workspaceId, globalAggregateOptIn }),
+      requiresAuth: true,
+    }),
 };
 
 export interface PushSubscriptionPayload {
@@ -1243,13 +1538,33 @@ export interface PushCapabilities {
 }
 
 export const notificationsApi = {
-  list: (): Promise<NotificationItem[]> => apiRequest('/notifications', { requiresAuth: true }),
-  unreadCount: (): Promise<{ unreadCount: number }> => apiRequest('/notifications/unread-count', { requiresAuth: true }),
-  markRead: (id: string) => apiRequest<{ updated: boolean }>(`/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH', requiresAuth: true }),
-  markAllRead: () => apiRequest<{ updatedCount: number }>('/notifications/read', { method: 'DELETE', requiresAuth: true }),
-  pushCapabilities: (): Promise<PushCapabilities> => apiRequest('/notifications/push-capabilities', { requiresAuth: true }),
-  upsertPushSubscription: (data: PushSubscriptionPayload) => apiRequest<{ subscribed: boolean; enabled: boolean }>('/notifications/push-subscriptions', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  deletePushSubscription: (endpoint: string) => apiRequest<{ removed: boolean }>('/notifications/push-subscriptions', { method: 'DELETE', body: JSON.stringify({ endpoint }), requiresAuth: true }),
+  list: (): Promise<NotificationItem[]> => apiRequest("/notifications", { requiresAuth: true }),
+  unreadCount: (): Promise<{ unreadCount: number }> =>
+    apiRequest("/notifications/unread-count", { requiresAuth: true }),
+  markRead: (id: string) =>
+    apiRequest<{ updated: boolean }>(`/notifications/${encodeURIComponent(id)}/read`, {
+      method: "PATCH",
+      requiresAuth: true,
+    }),
+  markAllRead: () =>
+    apiRequest<{ updatedCount: number }>("/notifications/read", {
+      method: "DELETE",
+      requiresAuth: true,
+    }),
+  pushCapabilities: (): Promise<PushCapabilities> =>
+    apiRequest("/notifications/push-capabilities", { requiresAuth: true }),
+  upsertPushSubscription: (data: PushSubscriptionPayload) =>
+    apiRequest<{ subscribed: boolean; enabled: boolean }>("/notifications/push-subscriptions", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  deletePushSubscription: (endpoint: string) =>
+    apiRequest<{ removed: boolean }>("/notifications/push-subscriptions", {
+      method: "DELETE",
+      body: JSON.stringify({ endpoint }),
+      requiresAuth: true,
+    }),
 };
 
 export type TargetComplaintStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "DISMISSED";
@@ -1289,8 +1604,19 @@ export interface TargetSuspension {
 }
 
 export const targetComplaintsApi = {
-  create: (data: { targetUrl: string; projectId?: string; reason: string; source?: string; metadata?: Record<string, unknown> }): Promise<TargetComplaint> => apiRequest('/target-complaints', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  list: (): Promise<TargetComplaint[]> => apiRequest('/target-complaints', { requiresAuth: true }),
+  create: (data: {
+    targetUrl: string;
+    projectId?: string;
+    reason: string;
+    source?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<TargetComplaint> =>
+    apiRequest("/target-complaints", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  list: (): Promise<TargetComplaint[]> => apiRequest("/target-complaints", { requiresAuth: true }),
 };
 
 export interface AdminCustomerAccount {
@@ -1346,7 +1672,12 @@ export interface AdminAlphaParticipant {
     interviewKeyPoints?: string | null;
     participationQuality?: number | null;
     winnerStatus: boolean;
-    feedback: Array<{ id: string; note: string; createdAt: string; author?: { id: string; fullName?: string | null; email: string } | null }>;
+    feedback: Array<{
+      id: string;
+      note: string;
+      createdAt: string;
+      author?: { id: string; fullName?: string | null; email: string } | null;
+    }>;
   } | null;
 }
 
@@ -1442,16 +1773,40 @@ export interface AdminWorkforceSnapshot {
 }
 
 export interface AdminClientView {
-  client: Pick<AdminCustomerAccount, "id" | "email" | "fullName" | "emailVerified" | "accountStatus" | "createdAt"> & { isStaff: boolean };
+  client: Pick<
+    AdminCustomerAccount,
+    "id" | "email" | "fullName" | "emailVerified" | "accountStatus" | "createdAt"
+  > & { isStaff: boolean };
   organizations: Array<{
     id: string;
     name: string;
     ownerId: string;
     createdAt: string;
     members: Array<{ role: string }>;
-    workspaces: Array<{ id: string; name: string; createdAt: string; projects: Array<{ id: string; name: string; defaultTargetUrl?: string | null; createdAt: string }> }>;
+    workspaces: Array<{
+      id: string;
+      name: string;
+      createdAt: string;
+      projects: Array<{
+        id: string;
+        name: string;
+        defaultTargetUrl?: string | null;
+        createdAt: string;
+      }>;
+    }>;
   }>;
-  recentRuns: Array<{ id: string; targetUrl: string; status: string; type: string; createdAt: string; startedAt?: string | null; finishedAt?: string | null; errorMessage?: string | null; project?: { id: string; name: string } | null; workspace?: { id: string; name: string } | null }>;
+  recentRuns: Array<{
+    id: string;
+    targetUrl: string;
+    status: string;
+    type: string;
+    createdAt: string;
+    startedAt?: string | null;
+    finishedAt?: string | null;
+    errorMessage?: string | null;
+    project?: { id: string; name: string } | null;
+    workspace?: { id: string; name: string } | null;
+  }>;
   readOnly: true;
   viewedAt: string;
 }
@@ -1506,7 +1861,18 @@ export interface AdminAiUsageSummary {
     totals: { calls: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number };
     measuredRuns: number;
     unmeasuredRuns: number;
-    recent: Array<{ id: string; status: string; type: string; createdAt: string; totalAiCalls: number; totalInputTokens: number; totalOutputTokens: number; providersUsed: string[]; estimatedAiCostUsd: number; aiCostCapturedAt?: string | null }>;
+    recent: Array<{
+      id: string;
+      status: string;
+      type: string;
+      createdAt: string;
+      totalAiCalls: number;
+      totalInputTokens: number;
+      totalOutputTokens: number;
+      providersUsed: string[];
+      estimatedAiCostUsd: number;
+      aiCostCapturedAt?: string | null;
+    }>;
   };
   totals: {
     events: number;
@@ -1521,17 +1887,95 @@ export interface AdminAiUsageSummary {
     fallbackAttempts?: number;
     accountingSources?: Record<string, number>;
   };
-  providers: Array<{ provider: string; model: string; events: number; degradedEvents: number; fallbackAttempts?: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
-  useCases: Array<{ useCase: string; events: number; degradedEvents: number; fallbackAttempts?: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
-  providerChain?: Array<{ useCase: string; chainPosition: number; provider: string; model: string; attempts: number; successes: number; degradedAttempts: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
-  providerDiagnostics?: Array<{ usageEventId: string; runId?: string | null; provider: string; model: string; useCase: string; chainPosition: number; kind: 'INVALID_JSON' | 'SCHEMA_VALIDATION' | 'EMPTY_CONTENT'; schemaName: string; validationError: string; responseExcerpt: string; capturedAt: string; createdAt: string; degraded: boolean }>;
-  organizations: Array<{ organizationId: string; organizationName: string; events: number; degradedEvents: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number }>;
-  recent: Array<{ id: string; organizationId: string; workspaceId?: string | null; projectId?: string | null; scanId?: string | null; runId?: string | null; provider: string; model: string; useCase?: string; inputTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd: number; billableMatrixUnits: number; latencyMs: number; degraded: boolean; metadata?: { providerRequests?: AdminOllamaRequestDiagnostic[] } | Record<string, unknown>; createdAt: string }>;
+  providers: Array<{
+    provider: string;
+    model: string;
+    events: number;
+    degradedEvents: number;
+    fallbackAttempts?: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+    billableMatrixUnits: number;
+  }>;
+  useCases: Array<{
+    useCase: string;
+    events: number;
+    degradedEvents: number;
+    fallbackAttempts?: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+    billableMatrixUnits: number;
+  }>;
+  providerChain?: Array<{
+    useCase: string;
+    chainPosition: number;
+    provider: string;
+    model: string;
+    attempts: number;
+    successes: number;
+    degradedAttempts: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+    billableMatrixUnits: number;
+  }>;
+  providerDiagnostics?: Array<{
+    usageEventId: string;
+    runId?: string | null;
+    provider: string;
+    model: string;
+    useCase: string;
+    chainPosition: number;
+    kind: "INVALID_JSON" | "SCHEMA_VALIDATION" | "EMPTY_CONTENT";
+    schemaName: string;
+    validationError: string;
+    responseExcerpt: string;
+    capturedAt: string;
+    createdAt: string;
+    degraded: boolean;
+  }>;
+  organizations: Array<{
+    organizationId: string;
+    organizationName: string;
+    events: number;
+    degradedEvents: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+    billableMatrixUnits: number;
+  }>;
+  recent: Array<{
+    id: string;
+    organizationId: string;
+    workspaceId?: string | null;
+    projectId?: string | null;
+    scanId?: string | null;
+    runId?: string | null;
+    provider: string;
+    model: string;
+    useCase?: string;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+    billableMatrixUnits: number;
+    latencyMs: number;
+    degraded: boolean;
+    metadata?: { providerRequests?: AdminOllamaRequestDiagnostic[] } | Record<string, unknown>;
+    createdAt: string;
+  }>;
 }
 
 export interface AdminAiProviderConfig {
   id: string;
-  provider: "groq" | "openai" | "gemini" | "openrouter" | "anthropic" | "zai" | "ollama_cloud" | "cloudflare_workers_ai" | "openai_compatible";
+  provider:
+    | "groq"
+    | "openai"
+    | "gemini"
+    | "openrouter"
+    | "anthropic"
+    | "zai"
+    | "ollama_cloud"
+    | "cloudflare_workers_ai"
+    | "openai_compatible";
   model: string;
   useCase: "DISCOVERY" | "PLANNING" | "BROWSER_AGENT" | "VISION" | "RECOVERY";
   enabled: boolean;
@@ -1584,7 +2028,10 @@ export interface AdminAiModelCatalogItem {
   inputModalities?: string[];
   outputModalities?: string[];
   supportedParameters?: string[];
-  compatibility: { status: "COMPATIBLE" | "WARNING" | "UNKNOWN" | "INCOMPATIBLE"; reasons: string[] };
+  compatibility: {
+    status: "COMPATIBLE" | "WARNING" | "UNKNOWN" | "INCOMPATIBLE";
+    reasons: string[];
+  };
 }
 
 export interface AdminAiModelCatalogResponse {
@@ -1640,14 +2087,16 @@ export interface AdminAuditExport {
     runsWithAiCost?: number;
     runsWithoutAiCost?: number;
   };
-  runs: Array<Record<string, unknown> & {
-    totalAiCalls?: number;
-    totalInputTokens?: number;
-    totalOutputTokens?: number;
-    providersUsed?: string[];
-    estimatedAiCostUsd?: number;
-    aiCostCapturedAt?: string | null;
-  }>;
+  runs: Array<
+    Record<string, unknown> & {
+      totalAiCalls?: number;
+      totalInputTokens?: number;
+      totalOutputTokens?: number;
+      providersUsed?: string[];
+      estimatedAiCostUsd?: number;
+      aiCostCapturedAt?: string | null;
+    }
+  >;
   telemetry: Array<Record<string, unknown>>;
   aiUsage: { events: Array<Record<string, unknown>> };
 }
@@ -1690,9 +2139,27 @@ export interface AdminProviderCreditSnapshot {
 export interface AdminTelemetrySummary {
   version: { public: string; build: string };
   providerCapacity?: {
-    configuration: { provider: string; dailyBudget: number; organizationSlots: number; alphaOrganizations: number; protectedReserve: number; windowStart: string; windowEnd: string };
-    window: { id: string; reservedUnits: number; consumedUnits: number; releasedUnits: number; createdAt: string; updatedAt: string } | null;
-    reservationsByStatus: Record<string, { reservations: number; estimatedUnits: number; actualUnits: number }>;
+    configuration: {
+      provider: string;
+      dailyBudget: number;
+      organizationSlots: number;
+      alphaOrganizations: number;
+      protectedReserve: number;
+      windowStart: string;
+      windowEnd: string;
+    };
+    window: {
+      id: string;
+      reservedUnits: number;
+      consumedUnits: number;
+      releasedUnits: number;
+      createdAt: string;
+      updatedAt: string;
+    } | null;
+    reservationsByStatus: Record<
+      string,
+      { reservations: number; estimatedUnits: number; actualUnits: number }
+    >;
   };
   totals: number;
   sums: Record<string, number | null>;
@@ -1711,7 +2178,11 @@ export interface AdminTelemetrySummary {
   };
 }
 
-export interface AdminMetricComparison { current: number; previous: number; delta: number }
+export interface AdminMetricComparison {
+  current: number;
+  previous: number;
+  delta: number;
+}
 export interface AdminOperationsMetricSnapshot {
   totalRuns: number;
   statusCounts: Record<string, number>;
@@ -1726,12 +2197,31 @@ export interface AdminOperationsMetricSnapshot {
   averageTimeToFirstReportSec: number;
   queueDepth: number;
   providerExhaustionFrequency: number;
-  ai: { calls: number; tokens: number; estimatedCostUsd: number; costPerRunUsd: number; fallbackRate: number };
-  directRunLedger?: { measuredRuns: number; unmeasuredRuns: number; calls: number; tokens: number; estimatedCostUsd: number; costPerRunUsd: number };
+  ai: {
+    calls: number;
+    tokens: number;
+    estimatedCostUsd: number;
+    costPerRunUsd: number;
+    fallbackRate: number;
+  };
+  directRunLedger?: {
+    measuredRuns: number;
+    unmeasuredRuns: number;
+    calls: number;
+    tokens: number;
+    estimatedCostUsd: number;
+    costPerRunUsd: number;
+  };
 }
 export interface AdminOperationsMetrics {
   generatedAt: string;
-  window: { days: number; currentFrom: string; currentTo: string; previousFrom: string; previousTo: string };
+  window: {
+    days: number;
+    currentFrom: string;
+    currentTo: string;
+    previousFrom: string;
+    previousTo: string;
+  };
   current: AdminOperationsMetricSnapshot;
   previous: AdminOperationsMetricSnapshot;
   comparisons: {
@@ -1834,20 +2324,84 @@ export interface AdminControlTowerSnapshot {
     total: number;
     new24h: number;
     new30d: number;
-    recent: Array<{ id: string; email: string; fullName?: string | null; emailVerified: boolean; isStaff: boolean; createdAt: string; updatedAt: string; plan: PublicPlan; activeAlpha: { tier: Exclude<AlphaRewardTier, "NONE">; expiresAt: string } | null }>;
+    recent: Array<{
+      id: string;
+      email: string;
+      fullName?: string | null;
+      emailVerified: boolean;
+      isStaff: boolean;
+      createdAt: string;
+      updatedAt: string;
+      plan: PublicPlan;
+      activeAlpha: { tier: Exclude<AlphaRewardTier, "NONE">; expiresAt: string } | null;
+    }>;
     leadTracking: { tracked: boolean; reason?: string };
   };
   organizations: { total: number; new30d: number };
   runs: {
     statusCounts: Record<string, number>;
-          recent: Array<{ id: string; projectId: string; workspaceId: string; triggeredById?: string | null; targetUrl: string; status: string; type: string; mode?: string | null; createdAt: string; startedAt?: string | null; finishedAt?: string | null; errorMessage?: string | null; metadata?: Record<string, unknown> | null }>;
-
+    recent: Array<{
+      id: string;
+      projectId: string;
+      workspaceId: string;
+      triggeredById?: string | null;
+      targetUrl: string;
+      status: string;
+      type: string;
+      mode?: string | null;
+      createdAt: string;
+      startedAt?: string | null;
+      finishedAt?: string | null;
+      errorMessage?: string | null;
+      metadata?: Record<string, unknown> | null;
+    }>;
   };
-  queue: { pending: number; running: number; blocked: number; failed: number; completed: number; capacityByStatus: Record<string, { reservations: number; estimatedUnits: number; actualUnits: number }> };
-  aiProviders: Array<{ id: string; provider: string; model: string; useCase: string; enabled: boolean; priority: number; lastHealthStatus?: string | null; lastHealthError?: string | null; lastHealthCheckedAt?: string | null; configVersion: number; updatedAt: string }>;
+  queue: {
+    pending: number;
+    running: number;
+    blocked: number;
+    failed: number;
+    completed: number;
+    capacityByStatus: Record<
+      string,
+      { reservations: number; estimatedUnits: number; actualUnits: number }
+    >;
+  };
+  aiProviders: Array<{
+    id: string;
+    provider: string;
+    model: string;
+    useCase: string;
+    enabled: boolean;
+    priority: number;
+    lastHealthStatus?: string | null;
+    lastHealthError?: string | null;
+    lastHealthCheckedAt?: string | null;
+    configVersion: number;
+    updatedAt: string;
+  }>;
   allocations: { requestsByStatus: Record<string, number> };
-  security: { unreadNotifications: number; recentStaffAuditEvents: Array<{ id: string; eventType: string; actorId?: string | null; targetUserId?: string | null; metadata?: Record<string, unknown> | null; createdAt: string }>; loginTelemetry: { tracked: boolean; reason?: string }; countryTelemetry: { tracked: boolean; reason?: string } };
-  controls: { staffAccountDisable: boolean; staffSessionRevocation: boolean; customerAccountSuspension: boolean; customerSessionRevocation: boolean; providerConfiguration: boolean; allocationReview: boolean };
+  security: {
+    unreadNotifications: number;
+    recentStaffAuditEvents: Array<{
+      id: string;
+      eventType: string;
+      actorId?: string | null;
+      targetUserId?: string | null;
+      metadata?: Record<string, unknown> | null;
+      createdAt: string;
+    }>;
+    loginTelemetry: { tracked: boolean; reason?: string };
+    countryTelemetry: { tracked: boolean; reason?: string };
+  };
+  controls: {
+    staffAccountDisable: boolean;
+    staffSessionRevocation: boolean;
+    customerAccountSuspension: boolean;
+    customerSessionRevocation: boolean;
+    providerConfiguration: boolean;
+    allocationReview: boolean;
+  };
 }
 
 export interface WorkerHealth {
@@ -1855,7 +2409,13 @@ export interface WorkerHealth {
   activeRuns: number;
   staleRuns: number;
   statusCounts: Array<{ status: string; _count: { _all: number } }>;
-  latestRun?: { id: string; status: string; createdAt: string; finishedAt?: string | null; lastHeartbeatAt?: string | null } | null;
+  latestRun?: {
+    id: string;
+    status: string;
+    createdAt: string;
+    finishedAt?: string | null;
+    lastHeartbeatAt?: string | null;
+  } | null;
   checkedAt: string;
 }
 
@@ -1960,7 +2520,15 @@ export interface ReliabilityAttempt {
   durationMs?: number | null;
   createdAt: string;
   logicalTest?: { id: string; key: string; name: string; criticality?: string };
-  signals?: Array<{ id: string; type: string; normalizedSignature: string; rawMessageSafe?: string | null; route?: string | null; confidence?: number | null; createdAt: string }>;
+  signals?: Array<{
+    id: string;
+    type: string;
+    normalizedSignature: string;
+    rawMessageSafe?: string | null;
+    route?: string | null;
+    confidence?: number | null;
+    createdAt: string;
+  }>;
 }
 
 export interface ReliabilityDashboard {
@@ -1978,113 +2546,552 @@ export interface ReliabilityDashboard {
     environmentFailureCount: number;
     inconclusiveCount: number;
   };
-  logicalTests: Array<Record<string, unknown> & { id: string; name: string; latestSnapshot?: ReliabilitySnapshot | null }>;
+  logicalTests: Array<
+    Record<string, unknown> & {
+      id: string;
+      name: string;
+      latestSnapshot?: ReliabilitySnapshot | null;
+    }
+  >;
   attempts: ReliabilityAttempt[];
-  failureSignatures: Array<Record<string, unknown> & { id: string; normalizedTitle: string; category: string; occurrenceCount: number; passCount: number; failCount: number }>;
-  quarantines: Array<Record<string, unknown> & { id: string; logicalTestId: string; status: string; reason: string; expiresAt: string }>;
-  releaseGateDecisions: Array<Record<string, unknown> & { id: string; status: string; decisionReason: string; decidedAt: string }>;
+  failureSignatures: Array<
+    Record<string, unknown> & {
+      id: string;
+      normalizedTitle: string;
+      category: string;
+      occurrenceCount: number;
+      passCount: number;
+      failCount: number;
+    }
+  >;
+  quarantines: Array<
+    Record<string, unknown> & {
+      id: string;
+      logicalTestId: string;
+      status: string;
+      reason: string;
+      expiresAt: string;
+    }
+  >;
+  releaseGateDecisions: Array<
+    Record<string, unknown> & {
+      id: string;
+      status: string;
+      decisionReason: string;
+      decidedAt: string;
+    }
+  >;
 }
 
 export interface StaffReliabilityDashboard {
   generatedAt: string;
   window: { days: number; since: string };
-  summary: { attemptCount: number; passCount: number; failCount: number; passRate: number | null; quarantinedCount: number; gateStatusCounts: Record<string, number> };
+  summary: {
+    attemptCount: number;
+    passCount: number;
+    failCount: number;
+    passRate: number | null;
+    quarantinedCount: number;
+    gateStatusCounts: Record<string, number>;
+  };
   attempts: ReliabilityAttempt[];
   failureSignatures: Array<Record<string, unknown>>;
-  quarantines: Array<Record<string, unknown> & { id: string; status: string; reason: string; expiresAt: string }>;
-  releaseGateDecisions: Array<Record<string, unknown> & { id: string; status: string; decisionReason: string; decidedAt: string }>;
+  quarantines: Array<
+    Record<string, unknown> & { id: string; status: string; reason: string; expiresAt: string }
+  >;
+  releaseGateDecisions: Array<
+    Record<string, unknown> & {
+      id: string;
+      status: string;
+      decisionReason: string;
+      decidedAt: string;
+    }
+  >;
 }
 
 export const reliabilityApi = {
-  dashboard: (projectId: string, workspaceId: string, days = 30): Promise<ReliabilityDashboard> => apiRequest(`/projects/${encodeURIComponent(projectId)}/reliability?workspaceId=${encodeURIComponent(workspaceId)}&days=${encodeURIComponent(String(days))}`, { requiresAuth: true, cache: "no-store" }),
-  rerun: (projectId: string, runId: string, reason?: string): Promise<{ id: string; projectId: string; status: string; rerunOfRunId: string; reliability?: Record<string, unknown> }> => apiRequest(`/projects/${encodeURIComponent(projectId)}/reliability/runs/${encodeURIComponent(runId)}/rerun`, { method: "POST", body: JSON.stringify({ reason: reason?.trim() || undefined, idempotencyKey: `reliability-rerun-${runId}-${Date.now()}` }), requiresAuth: true, timeoutMs: 30_000 }),
-  run: (runId: string): Promise<{ runId: string; attempts: ReliabilityAttempt[]; failureSignatures: Array<Record<string, unknown>>; quarantines: Array<Record<string, unknown>>; releaseGateDecisions: Array<Record<string, unknown>> }> => apiRequest(`/runs/${encodeURIComponent(runId)}/reliability`, { requiresAuth: true, cache: "no-store" }),
-  logicalTestHistory: (logicalTestId: string, workspaceId: string, limit = 50) => apiRequest(`/logical-tests/${encodeURIComponent(logicalTestId)}/history?workspaceId=${encodeURIComponent(workspaceId)}&limit=${encodeURIComponent(String(limit))}`, { requiresAuth: true, cache: "no-store" }),
-  logicalTestSignals: (logicalTestId: string, workspaceId: string, limit = 100) => apiRequest(`/logical-tests/${encodeURIComponent(logicalTestId)}/signals?workspaceId=${encodeURIComponent(workspaceId)}&limit=${encodeURIComponent(String(limit))}`, { requiresAuth: true, cache: "no-store" }),
-  environmentCorrelation: (projectId: string, workspaceId: string) => apiRequest(`/projects/${encodeURIComponent(projectId)}/environment-correlation?workspaceId=${encodeURIComponent(workspaceId)}`, { requiresAuth: true, cache: "no-store" }),
-  evaluateReleaseGate: (runId: string) => apiRequest(`/runs/${encodeURIComponent(runId)}/release-gate/evaluate`, { method: "POST", body: JSON.stringify({}), requiresAuth: true }),
-  latestReleaseGate: (runId: string) => apiRequest(`/runs/${encodeURIComponent(runId)}/release-gate`, { requiresAuth: true, cache: "no-store" }),
-  export: (projectId: string, workspaceId: string) => apiRequest(`/projects/${encodeURIComponent(projectId)}/reliability-export?workspaceId=${encodeURIComponent(workspaceId)}`, { requiresAuth: true, cache: "no-store" }),
+  dashboard: (projectId: string, workspaceId: string, days = 30): Promise<ReliabilityDashboard> =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/reliability?workspaceId=${encodeURIComponent(workspaceId)}&days=${encodeURIComponent(String(days))}`,
+      { requiresAuth: true, cache: "no-store" },
+    ),
+  rerun: (
+    projectId: string,
+    runId: string,
+    reason?: string,
+  ): Promise<{
+    id: string;
+    projectId: string;
+    status: string;
+    rerunOfRunId: string;
+    reliability?: Record<string, unknown>;
+  }> =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/reliability/runs/${encodeURIComponent(runId)}/rerun`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          reason: reason?.trim() || undefined,
+          idempotencyKey: `reliability-rerun-${runId}-${Date.now()}`,
+        }),
+        requiresAuth: true,
+        timeoutMs: 30_000,
+      },
+    ),
+  run: (
+    runId: string,
+  ): Promise<{
+    runId: string;
+    attempts: ReliabilityAttempt[];
+    failureSignatures: Array<Record<string, unknown>>;
+    quarantines: Array<Record<string, unknown>>;
+    releaseGateDecisions: Array<Record<string, unknown>>;
+  }> =>
+    apiRequest(`/runs/${encodeURIComponent(runId)}/reliability`, {
+      requiresAuth: true,
+      cache: "no-store",
+    }),
+  logicalTestHistory: (logicalTestId: string, workspaceId: string, limit = 50) =>
+    apiRequest(
+      `/logical-tests/${encodeURIComponent(logicalTestId)}/history?workspaceId=${encodeURIComponent(workspaceId)}&limit=${encodeURIComponent(String(limit))}`,
+      { requiresAuth: true, cache: "no-store" },
+    ),
+  logicalTestSignals: (logicalTestId: string, workspaceId: string, limit = 100) =>
+    apiRequest(
+      `/logical-tests/${encodeURIComponent(logicalTestId)}/signals?workspaceId=${encodeURIComponent(workspaceId)}&limit=${encodeURIComponent(String(limit))}`,
+      { requiresAuth: true, cache: "no-store" },
+    ),
+  environmentCorrelation: (projectId: string, workspaceId: string) =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/environment-correlation?workspaceId=${encodeURIComponent(workspaceId)}`,
+      { requiresAuth: true, cache: "no-store" },
+    ),
+  evaluateReleaseGate: (runId: string) =>
+    apiRequest(`/runs/${encodeURIComponent(runId)}/release-gate/evaluate`, {
+      method: "POST",
+      body: JSON.stringify({}),
+      requiresAuth: true,
+    }),
+  latestReleaseGate: (runId: string) =>
+    apiRequest(`/runs/${encodeURIComponent(runId)}/release-gate`, {
+      requiresAuth: true,
+      cache: "no-store",
+    }),
+  export: (projectId: string, workspaceId: string) =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/reliability-export?workspaceId=${encodeURIComponent(workspaceId)}`,
+      { requiresAuth: true, cache: "no-store" },
+    ),
 };
 
 export interface AdminRunDiagnosis {
-  run: { id: string; status: string; projectId: string; projectName: string; workspaceId: string; organizationId: string; targetUrl: string; type: string; planVersion: string; triggeredBy?: { id: string; email: string; fullName?: string | null } | null; createdAt: string; startedAt?: string | null; finishedAt?: string | null; currentPhase?: string | null; currentRoute?: string | null; hardErrorCount: number; attemptCount: number; errorMessage?: string | null; stopReason?: string | null; totalAiCalls: number; totalInputTokens: number; totalOutputTokens: number; providersUsed: unknown; estimatedAiCostUsd: unknown };
-  credit: { reservedUnits: number; settledUnits: number; refundedUnits: number; consumedUnits: number; refundableUnits: number; matrixUnits: { heldMu: number; measuredMu: number; chargedMu: number; refundedMu: number; liveChargedMu: number; status: string; measurementStatus: string } | null };
-  steps: unknown[]; evidence: unknown[]; consoleMessages: unknown[]; executionEvents: unknown[]; checkpoints: unknown[]; attempts: unknown[]; messages: unknown[]; telemetry: unknown; browserHandoff: unknown; reports: unknown[]; workforce: unknown; aiUsage: unknown[]; creditLedger: unknown[]; matrixUnitLedger: unknown[]; matrixUnitAccounting: unknown; signals: unknown[]; hardErrors: unknown[]; findingWorkflows: unknown[]; findingRetests: unknown[]; audit: unknown[]; sourceIds: Record<string, string>;
+  run: {
+    id: string;
+    status: string;
+    projectId: string;
+    projectName: string;
+    workspaceId: string;
+    organizationId: string;
+    targetUrl: string;
+    type: string;
+    planVersion: string;
+    triggeredBy?: { id: string; email: string; fullName?: string | null } | null;
+    createdAt: string;
+    startedAt?: string | null;
+    finishedAt?: string | null;
+    currentPhase?: string | null;
+    currentRoute?: string | null;
+    hardErrorCount: number;
+    attemptCount: number;
+    errorMessage?: string | null;
+    stopReason?: string | null;
+    totalAiCalls: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    providersUsed: unknown;
+    estimatedAiCostUsd: unknown;
+  };
+  credit: {
+    reservedUnits: number;
+    settledUnits: number;
+    refundedUnits: number;
+    consumedUnits: number;
+    refundableUnits: number;
+    matrixUnits: {
+      heldMu: number;
+      measuredMu: number;
+      chargedMu: number;
+      refundedMu: number;
+      liveChargedMu: number;
+      status: string;
+      measurementStatus: string;
+    } | null;
+  };
+  steps: unknown[];
+  evidence: unknown[];
+  consoleMessages: unknown[];
+  executionEvents: unknown[];
+  checkpoints: unknown[];
+  attempts: unknown[];
+  messages: unknown[];
+  telemetry: unknown;
+  browserHandoff: unknown;
+  reports: unknown[];
+  workforce: unknown;
+  aiUsage: unknown[];
+  creditLedger: unknown[];
+  matrixUnitLedger: unknown[];
+  matrixUnitAccounting: unknown;
+  signals: unknown[];
+  hardErrors: unknown[];
+  findingWorkflows: unknown[];
+  findingRetests: unknown[];
+  audit: unknown[];
+  sourceIds: Record<string, string>;
 }
 
 export const adminApi = {
-  listCustomerAccounts: (): Promise<AdminCustomerAccount[]> => apiRequest('/admin/customers', { requiresAuth: true }),
-  diagnoseRun: (runId: string): Promise<AdminRunDiagnosis> => apiRequest(`/admin/diagnostics/runs/${encodeURIComponent(runId)}`, { requiresAuth: true, cache: 'no-store' }),
-  refundDiagnosedRun: (runId: string, reason: string) => apiRequest<{ runId: string; refundedUnits: number; refundedMu: number; idempotent: boolean; ledgerEntryId: string | null }>(`/admin/diagnostics/runs/${encodeURIComponent(runId)}/refund`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
-  messageDiagnosedRun: (runId: string, data: { recipientUserIds: string[]; title: string; message: string }) => apiRequest<{ runId: string; recipientCount: number; delivered: unknown[] }>(`/admin/diagnostics/runs/${encodeURIComponent(runId)}/message`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  listAlphaParticipants: (search?: string): Promise<AdminAlphaParticipant[]> => apiRequest(`/admin/alpha-event/participants${search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`, { requiresAuth: true, cache: 'no-store' }),
-  listWorkforceAgents: (): Promise<AdminWorkforceAgent[]> => apiRequest('/admin/workforce/agents', { requiresAuth: true, cache: 'no-store' }),
-  workforceRun: (runId: string): Promise<AdminWorkforceSnapshot> => apiRequest(`/admin/workforce/runs/${encodeURIComponent(runId)}`, { requiresAuth: true, cache: 'no-store' }),
-  approveWorkforceDelegation: (messageId: string, reason?: string): Promise<unknown> => apiRequest(`/admin/workforce/delegations/${encodeURIComponent(messageId)}/approve`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
-  rejectWorkforceDelegation: (messageId: string, reason?: string): Promise<unknown> => apiRequest(`/admin/workforce/delegations/${encodeURIComponent(messageId)}/reject`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
-  grantAlphaReward: (data: { email: string; tier: Exclude<AlphaRewardTier, 'NONE'>; startAt?: string; reason?: string }): Promise<{ grant: AdminAlphaRewardGrant; user: { id: string; email: string; fullName?: string | null }; replacedGrantIds: string[]; unlimitedRuns: boolean }> => apiRequest('/admin/alpha-event/rewards', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  revokeAlphaReward: (grantId: string, reason?: string): Promise<{ id: string; revoked: boolean; activeReward?: AdminAlphaRewardGrant | null; reason?: string }> => apiRequest(`/admin/alpha-event/rewards/${encodeURIComponent(grantId)}/revoke`, { method: 'POST', body: JSON.stringify({ reason }), requiresAuth: true }),
-  updateAlphaParticipant: (userId: string, data: Partial<Omit<NonNullable<AdminAlphaParticipant['alphaParticipant']>, 'id' | 'feedback'>>): Promise<NonNullable<AdminAlphaParticipant['alphaParticipant']>> => apiRequest(`/admin/alpha-event/participants/${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
-  addAlphaParticipantFeedback: (userId: string, note: string): Promise<{ id: string; note: string; createdAt: string; author?: { id: string; fullName?: string | null; email: string } | null }> => apiRequest(`/admin/alpha-event/participants/${encodeURIComponent(userId)}/feedback`, { method: 'POST', body: JSON.stringify({ note }), requiresAuth: true }),
-  viewAsClient: (userId: string): Promise<AdminClientView> => apiRequest(`/admin/users/${encodeURIComponent(userId)}/view-as-client`, { requiresAuth: true }),
-  changeCustomerAccountStatus: (userId: string, data: { status: 'ACTIVE' | 'SUSPENDED' | 'DISABLED'; reason?: string }) => apiRequest<AdminCustomerAccount & { sessionsRevoked: boolean }>(`/admin/users/${encodeURIComponent(userId)}/status`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
-  listAllocationRequests: (status?: string): Promise<AdminAllocationRequest[]> => apiRequest(`/admin/allocation-requests${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
-  reviewAllocationRequest: (id: string, data: { status: 'APPROVED' | 'DECLINED'; staffNote?: string }) => apiRequest<AdminAllocationRequest>(`/admin/allocation-requests/${encodeURIComponent(id)}/review`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  listRecipients: (): Promise<StaffNotificationRecipient[]> => apiRequest('/admin/notification-recipients', { requiresAuth: true }),
-  listManagedSecrets: (): Promise<ManagedSecretMetadata[]> => apiRequest('/admin/secrets', { requiresAuth: true }),
-  saveManagedSecret: (data: { name: string; value: string; description?: string }): Promise<ManagedSecretMetadata> => apiRequest('/admin/secrets', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  importManagedSecrets: (data: { source: "JSON" | "ENV"; entries: Array<{ name: string; value: string; description?: string }> }): Promise<ManagedSecretImportResult> => apiRequest('/admin/secrets/import', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  deleteManagedSecret: (name: string): Promise<{ name: string; deleted: boolean }> => apiRequest('/admin/secrets', { method: 'DELETE', body: JSON.stringify({ name }), requiresAuth: true }),
-  saveRecipient: (data: { email: string; label?: string }) => apiRequest<StaffNotificationRecipient>('/admin/notification-recipients', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  disableRecipient: (id: string) => apiRequest<StaffNotificationRecipient>(`/admin/notification-recipients/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
-  broadcast: (data: { title: string; message: string; audience?: 'ALL_USERS' | 'STAFF' }) => apiRequest<{ deliveredCount: number; audience: string }>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  auditExport: (): Promise<AdminAuditExport> => apiRequest('/admin/audit-export', { requiresAuth: true }),
-  telemetry: (): Promise<AdminTelemetrySummary> => apiRequest('/admin/telemetry', { requiresAuth: true }),
-  providerCredits: (refresh = false): Promise<AdminProviderCreditSnapshot> => apiRequest(`/admin/provider-credits${refresh ? '?refresh=true' : ''}`, { requiresAuth: true }),
-  matrixUnits: (): Promise<AdminMatrixUnitSnapshot> => apiRequest('/admin/matrix-units', { requiresAuth: true }),
-  updateMatrixUnitConfig: (data: Partial<AdminMatrixUnitConfig> & { workspaceId?: string | null }): Promise<AdminMatrixUnitConfig> => apiRequest('/admin/matrix-units/config', { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
-  metrics: (days = 7): Promise<AdminOperationsMetrics> => apiRequest(`/admin/metrics?days=${encodeURIComponent(String(days))}`, { requiresAuth: true }),
-  reliability: (days = 30, workspaceId?: string, projectId?: string): Promise<StaffReliabilityDashboard> => {
+  listCustomerAccounts: (): Promise<AdminCustomerAccount[]> =>
+    apiRequest("/admin/customers", { requiresAuth: true }),
+  diagnoseRun: (runId: string): Promise<AdminRunDiagnosis> =>
+    apiRequest(`/admin/diagnostics/runs/${encodeURIComponent(runId)}`, {
+      requiresAuth: true,
+      cache: "no-store",
+    }),
+  refundDiagnosedRun: (runId: string, reason: string) =>
+    apiRequest<{
+      runId: string;
+      refundedUnits: number;
+      refundedMu: number;
+      idempotent: boolean;
+      ledgerEntryId: string | null;
+    }>(`/admin/diagnostics/runs/${encodeURIComponent(runId)}/refund`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+      requiresAuth: true,
+    }),
+  messageDiagnosedRun: (
+    runId: string,
+    data: { recipientUserIds: string[]; title: string; message: string },
+  ) =>
+    apiRequest<{ runId: string; recipientCount: number; delivered: unknown[] }>(
+      `/admin/diagnostics/runs/${encodeURIComponent(runId)}/message`,
+      { method: "POST", body: JSON.stringify(data), requiresAuth: true },
+    ),
+  listAlphaParticipants: (search?: string): Promise<AdminAlphaParticipant[]> =>
+    apiRequest(
+      `/admin/alpha-event/participants${search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ""}`,
+      { requiresAuth: true, cache: "no-store" },
+    ),
+  listWorkforceAgents: (): Promise<AdminWorkforceAgent[]> =>
+    apiRequest("/admin/workforce/agents", { requiresAuth: true, cache: "no-store" }),
+  workforceRun: (runId: string): Promise<AdminWorkforceSnapshot> =>
+    apiRequest(`/admin/workforce/runs/${encodeURIComponent(runId)}`, {
+      requiresAuth: true,
+      cache: "no-store",
+    }),
+  approveWorkforceDelegation: (messageId: string, reason?: string): Promise<unknown> =>
+    apiRequest(`/admin/workforce/delegations/${encodeURIComponent(messageId)}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+      requiresAuth: true,
+    }),
+  rejectWorkforceDelegation: (messageId: string, reason?: string): Promise<unknown> =>
+    apiRequest(`/admin/workforce/delegations/${encodeURIComponent(messageId)}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+      requiresAuth: true,
+    }),
+  grantAlphaReward: (data: {
+    email: string;
+    tier: Exclude<AlphaRewardTier, "NONE">;
+    startAt?: string;
+    reason?: string;
+  }): Promise<{
+    grant: AdminAlphaRewardGrant;
+    user: { id: string; email: string; fullName?: string | null };
+    replacedGrantIds: string[];
+    unlimitedRuns: boolean;
+  }> =>
+    apiRequest("/admin/alpha-event/rewards", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  revokeAlphaReward: (
+    grantId: string,
+    reason?: string,
+  ): Promise<{
+    id: string;
+    revoked: boolean;
+    activeReward?: AdminAlphaRewardGrant | null;
+    reason?: string;
+  }> =>
+    apiRequest(`/admin/alpha-event/rewards/${encodeURIComponent(grantId)}/revoke`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+      requiresAuth: true,
+    }),
+  updateAlphaParticipant: (
+    userId: string,
+    data: Partial<Omit<NonNullable<AdminAlphaParticipant["alphaParticipant"]>, "id" | "feedback">>,
+  ): Promise<NonNullable<AdminAlphaParticipant["alphaParticipant"]>> =>
+    apiRequest(`/admin/alpha-event/participants/${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  addAlphaParticipantFeedback: (
+    userId: string,
+    note: string,
+  ): Promise<{
+    id: string;
+    note: string;
+    createdAt: string;
+    author?: { id: string; fullName?: string | null; email: string } | null;
+  }> =>
+    apiRequest(`/admin/alpha-event/participants/${encodeURIComponent(userId)}/feedback`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+      requiresAuth: true,
+    }),
+  viewAsClient: (userId: string): Promise<AdminClientView> =>
+    apiRequest(`/admin/users/${encodeURIComponent(userId)}/view-as-client`, { requiresAuth: true }),
+  changeCustomerAccountStatus: (
+    userId: string,
+    data: { status: "ACTIVE" | "SUSPENDED" | "DISABLED"; reason?: string },
+  ) =>
+    apiRequest<AdminCustomerAccount & { sessionsRevoked: boolean }>(
+      `/admin/users/${encodeURIComponent(userId)}/status`,
+      { method: "PATCH", body: JSON.stringify(data), requiresAuth: true },
+    ),
+  listAllocationRequests: (status?: string): Promise<AdminAllocationRequest[]> =>
+    apiRequest(
+      `/admin/allocation-requests${status ? `?status=${encodeURIComponent(status)}` : ""}`,
+      { requiresAuth: true },
+    ),
+  reviewAllocationRequest: (
+    id: string,
+    data: { status: "APPROVED" | "DECLINED"; staffNote?: string },
+  ) =>
+    apiRequest<AdminAllocationRequest>(
+      `/admin/allocation-requests/${encodeURIComponent(id)}/review`,
+      { method: "POST", body: JSON.stringify(data), requiresAuth: true },
+    ),
+  listRecipients: (): Promise<StaffNotificationRecipient[]> =>
+    apiRequest("/admin/notification-recipients", { requiresAuth: true }),
+  listManagedSecrets: (): Promise<ManagedSecretMetadata[]> =>
+    apiRequest("/admin/secrets", { requiresAuth: true }),
+  saveManagedSecret: (data: {
+    name: string;
+    value: string;
+    description?: string;
+  }): Promise<ManagedSecretMetadata> =>
+    apiRequest("/admin/secrets", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  importManagedSecrets: (data: {
+    source: "JSON" | "ENV";
+    entries: Array<{ name: string; value: string; description?: string }>;
+  }): Promise<ManagedSecretImportResult> =>
+    apiRequest("/admin/secrets/import", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  deleteManagedSecret: (name: string): Promise<{ name: string; deleted: boolean }> =>
+    apiRequest("/admin/secrets", {
+      method: "DELETE",
+      body: JSON.stringify({ name }),
+      requiresAuth: true,
+    }),
+  saveRecipient: (data: { email: string; label?: string }) =>
+    apiRequest<StaffNotificationRecipient>("/admin/notification-recipients", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  disableRecipient: (id: string) =>
+    apiRequest<StaffNotificationRecipient>(
+      `/admin/notification-recipients/${encodeURIComponent(id)}`,
+      { method: "DELETE", requiresAuth: true },
+    ),
+  broadcast: (data: { title: string; message: string; audience?: "ALL_USERS" | "STAFF" }) =>
+    apiRequest<{ deliveredCount: number; audience: string }>("/admin/notifications/broadcast", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  auditExport: (): Promise<AdminAuditExport> =>
+    apiRequest("/admin/audit-export", { requiresAuth: true }),
+  telemetry: (): Promise<AdminTelemetrySummary> =>
+    apiRequest("/admin/telemetry", { requiresAuth: true }),
+  providerCredits: (refresh = false): Promise<AdminProviderCreditSnapshot> =>
+    apiRequest(`/admin/provider-credits${refresh ? "?refresh=true" : ""}`, { requiresAuth: true }),
+  matrixUnits: (): Promise<AdminMatrixUnitSnapshot> =>
+    apiRequest("/admin/matrix-units", { requiresAuth: true }),
+  updateMatrixUnitConfig: (
+    data: Partial<AdminMatrixUnitConfig> & { workspaceId?: string | null },
+  ): Promise<AdminMatrixUnitConfig> =>
+    apiRequest("/admin/matrix-units/config", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  metrics: (days = 7): Promise<AdminOperationsMetrics> =>
+    apiRequest(`/admin/metrics?days=${encodeURIComponent(String(days))}`, { requiresAuth: true }),
+  reliability: (
+    days = 30,
+    workspaceId?: string,
+    projectId?: string,
+  ): Promise<StaffReliabilityDashboard> => {
     const params = new URLSearchParams({ days: String(days) });
     if (workspaceId) params.set("workspaceId", workspaceId);
     if (projectId) params.set("projectId", projectId);
-    return apiRequest(`/admin/reliability?${params.toString()}`, { requiresAuth: true, cache: "no-store" });
+    return apiRequest(`/admin/reliability?${params.toString()}`, {
+      requiresAuth: true,
+      cache: "no-store",
+    });
   },
-  reviewReliabilityQuarantine: (id: string, data: { status: "ACTIVE" | "RESOLVED" | "REJECTED" | "REVOKED"; resolutionNote?: string }): Promise<StaffReliabilityDashboard["quarantines"][number]> => apiRequest(`/admin/reliability/quarantines/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(data), requiresAuth: true }),
-  controlTower: (): Promise<AdminControlTowerSnapshot> => apiRequest('/admin/control-tower', { requiresAuth: true }),
-  listTargetComplaints: (status?: TargetComplaintStatus): Promise<TargetComplaint[]> => apiRequest(`/target-complaints/staff${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
-  reviewTargetComplaint: (id: string, data: { status: TargetComplaintStatus; staffNote?: string; suspendTarget?: boolean }): Promise<TargetComplaint> => apiRequest(`/target-complaints/staff/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
-  listTargetSuspensions: (): Promise<TargetSuspension[]> => apiRequest('/target-complaints/staff/suspensions', { requiresAuth: true }),
-  revokeTargetSuspension: (id: string, note?: string): Promise<TargetSuspension> => apiRequest(`/target-complaints/staff/suspensions/${encodeURIComponent(id)}/revoke`, { method: 'POST', body: JSON.stringify({ note }), requiresAuth: true }),
-  listAiProviderConfigs: (): Promise<AdminAiProviderConfig[]> => apiRequest('/admin/ai-provider-configs', { requiresAuth: true }),
-  listAiModelCatalog: (params: { provider: AdminAiProviderConfig["provider"]; secretRef: string; accountId?: string; baseUrl?: string; useCase?: AdminAiProviderConfig["useCase"]; refresh?: boolean }): Promise<AdminAiModelCatalogResponse> => {
+  reviewReliabilityQuarantine: (
+    id: string,
+    data: { status: "ACTIVE" | "RESOLVED" | "REJECTED" | "REVOKED"; resolutionNote?: string },
+  ): Promise<StaffReliabilityDashboard["quarantines"][number]> =>
+    apiRequest(`/admin/reliability/quarantines/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  controlTower: (): Promise<AdminControlTowerSnapshot> =>
+    apiRequest("/admin/control-tower", { requiresAuth: true }),
+  listTargetComplaints: (status?: TargetComplaintStatus): Promise<TargetComplaint[]> =>
+    apiRequest(`/target-complaints/staff${status ? `?status=${encodeURIComponent(status)}` : ""}`, {
+      requiresAuth: true,
+    }),
+  reviewTargetComplaint: (
+    id: string,
+    data: { status: TargetComplaintStatus; staffNote?: string; suspendTarget?: boolean },
+  ): Promise<TargetComplaint> =>
+    apiRequest(`/target-complaints/staff/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  listTargetSuspensions: (): Promise<TargetSuspension[]> =>
+    apiRequest("/target-complaints/staff/suspensions", { requiresAuth: true }),
+  revokeTargetSuspension: (id: string, note?: string): Promise<TargetSuspension> =>
+    apiRequest(`/target-complaints/staff/suspensions/${encodeURIComponent(id)}/revoke`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+      requiresAuth: true,
+    }),
+  listAiProviderConfigs: (): Promise<AdminAiProviderConfig[]> =>
+    apiRequest("/admin/ai-provider-configs", { requiresAuth: true }),
+  listAiModelCatalog: (params: {
+    provider: AdminAiProviderConfig["provider"];
+    secretRef: string;
+    accountId?: string;
+    baseUrl?: string;
+    useCase?: AdminAiProviderConfig["useCase"];
+    refresh?: boolean;
+  }): Promise<AdminAiModelCatalogResponse> => {
     const search = new URLSearchParams({ provider: params.provider, secretRef: params.secretRef });
     if (params.accountId) search.set("accountId", params.accountId);
     if (params.baseUrl) search.set("baseUrl", params.baseUrl);
     if (params.useCase) search.set("useCase", params.useCase);
     if (params.refresh) search.set("refresh", "true");
-    return apiRequest(`/admin/ai-provider-configs/catalog?${search.toString()}`, { requiresAuth: true });
+    return apiRequest(`/admin/ai-provider-configs/catalog?${search.toString()}`, {
+      requiresAuth: true,
+    });
   },
-  saveAiProviderConfig: (data: Partial<AdminAiProviderConfig> & Pick<AdminAiProviderConfig, 'provider' | 'model' | 'useCase' | 'secretRef'>): Promise<AdminAiProviderConfig> => apiRequest('/admin/ai-provider-configs', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  healthCheckAiProviderConfig: (id: string): Promise<AdminAiProviderConfig> => apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}/health-check`, { method: 'POST', requiresAuth: true }),
-  benchmarkAiProviderConfig: (id: string, samples = 3): Promise<AdminAiProviderBenchmarkResponse> => apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}/benchmark`, { method: 'POST', body: JSON.stringify({ samples }), requiresAuth: true }),
-  deleteAiProviderConfig: (id: string): Promise<{ id: string; deleted: boolean }> => apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}`, { method: 'DELETE', requiresAuth: true }),
-  workerHealth: (): Promise<WorkerHealth> => apiRequest('/admin/worker-health', { requiresAuth: true }),
-  listStaff: (): Promise<StaffManagementData> => apiRequest('/admin/staff', { requiresAuth: true }),
-  inviteStaff: (data: { emails: string[]; proposedName?: string; role?: StaffRole; internalNote?: string }) => apiRequest<{ results: Array<{ email: string; status: string; invitationId?: string; message?: string }> }>('/admin/staff/invitations', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  resendStaffInvitation: (id: string) => apiRequest<{ id: string; status: StaffInvitationStatus; expiresAt: string }>(`/admin/staff/invitations/${encodeURIComponent(id)}/resend`, { method: 'POST', requiresAuth: true }),
-  revokeStaffInvitation: (id: string) => apiRequest<{ id: string; status: StaffInvitationStatus }>(`/admin/staff/invitations/${encodeURIComponent(id)}/revoke`, { method: 'POST', requiresAuth: true }),
-  changeStaffRole: (userId: string, role: StaffRole) => apiRequest<StaffMembership>(`/admin/staff/${encodeURIComponent(userId)}/role`, { method: 'PATCH', body: JSON.stringify({ role }), requiresAuth: true }),
-  disableStaff: (userId: string) => apiRequest<StaffMembership>(`/admin/staff/${encodeURIComponent(userId)}/disable`, { method: 'POST', requiresAuth: true }),
-  enableStaff: (userId: string) => apiRequest<StaffMembership>(`/admin/staff/${encodeURIComponent(userId)}/enable`, { method: 'POST', requiresAuth: true }),
-  revokeStaffSessions: (userId: string) => apiRequest<{ message: string }>(`/admin/staff/${encodeURIComponent(userId)}/revoke-sessions`, { method: 'POST', requiresAuth: true }),
+  saveAiProviderConfig: (
+    data: Partial<AdminAiProviderConfig> &
+      Pick<AdminAiProviderConfig, "provider" | "model" | "useCase" | "secretRef">,
+  ): Promise<AdminAiProviderConfig> =>
+    apiRequest("/admin/ai-provider-configs", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  healthCheckAiProviderConfig: (id: string): Promise<AdminAiProviderConfig> =>
+    apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}/health-check`, {
+      method: "POST",
+      requiresAuth: true,
+    }),
+  benchmarkAiProviderConfig: (id: string, samples = 3): Promise<AdminAiProviderBenchmarkResponse> =>
+    apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}/benchmark`, {
+      method: "POST",
+      body: JSON.stringify({ samples }),
+      requiresAuth: true,
+    }),
+  deleteAiProviderConfig: (id: string): Promise<{ id: string; deleted: boolean }> =>
+    apiRequest(`/admin/ai-provider-configs/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      requiresAuth: true,
+    }),
+  workerHealth: (): Promise<WorkerHealth> =>
+    apiRequest("/admin/worker-health", { requiresAuth: true }),
+  listStaff: (): Promise<StaffManagementData> => apiRequest("/admin/staff", { requiresAuth: true }),
+  inviteStaff: (data: {
+    emails: string[];
+    proposedName?: string;
+    role?: StaffRole;
+    internalNote?: string;
+  }) =>
+    apiRequest<{
+      results: Array<{ email: string; status: string; invitationId?: string; message?: string }>;
+    }>("/admin/staff/invitations", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  resendStaffInvitation: (id: string) =>
+    apiRequest<{ id: string; status: StaffInvitationStatus; expiresAt: string }>(
+      `/admin/staff/invitations/${encodeURIComponent(id)}/resend`,
+      { method: "POST", requiresAuth: true },
+    ),
+  revokeStaffInvitation: (id: string) =>
+    apiRequest<{ id: string; status: StaffInvitationStatus }>(
+      `/admin/staff/invitations/${encodeURIComponent(id)}/revoke`,
+      { method: "POST", requiresAuth: true },
+    ),
+  changeStaffRole: (userId: string, role: StaffRole) =>
+    apiRequest<StaffMembership>(`/admin/staff/${encodeURIComponent(userId)}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+      requiresAuth: true,
+    }),
+  disableStaff: (userId: string) =>
+    apiRequest<StaffMembership>(`/admin/staff/${encodeURIComponent(userId)}/disable`, {
+      method: "POST",
+      requiresAuth: true,
+    }),
+  enableStaff: (userId: string) =>
+    apiRequest<StaffMembership>(`/admin/staff/${encodeURIComponent(userId)}/enable`, {
+      method: "POST",
+      requiresAuth: true,
+    }),
+  revokeStaffSessions: (userId: string) =>
+    apiRequest<{ message: string }>(`/admin/staff/${encodeURIComponent(userId)}/revoke-sessions`, {
+      method: "POST",
+      requiresAuth: true,
+    }),
 };
 
 export const staffInvitationApi = {
-  preview: (token: string): Promise<StaffInvitationPreview> => apiRequest(`/staff-invitations/${encodeURIComponent(token)}`),
-  accept: (token: string, data: { password?: string; fullName?: string }) => apiRequest<{ message: string; email: string; existingAccount: boolean }>(`/staff-invitations/${encodeURIComponent(token)}/accept`, { method: 'POST', body: JSON.stringify(data) }),
-  decline: (token: string) => apiRequest<{ message: string }>(`/staff-invitations/${encodeURIComponent(token)}/decline`, { method: 'POST' }),
+  preview: (token: string): Promise<StaffInvitationPreview> =>
+    apiRequest(`/staff-invitations/${encodeURIComponent(token)}`),
+  accept: (token: string, data: { password?: string; fullName?: string }) =>
+    apiRequest<{ message: string; email: string; existingAccount: boolean }>(
+      `/staff-invitations/${encodeURIComponent(token)}/accept`,
+      { method: "POST", body: JSON.stringify(data) },
+    ),
+  decline: (token: string) =>
+    apiRequest<{ message: string }>(`/staff-invitations/${encodeURIComponent(token)}/decline`, {
+      method: "POST",
+    }),
 };
 
 export const usersApi = {
@@ -2096,23 +3103,30 @@ export const usersApi = {
     body.append("avatar", file);
     return apiRequest("/users/me/avatar", { method: "POST", body, requiresAuth: true });
   },
-  removeAvatar: (): Promise<CurrentUserResponse> => apiRequest("/users/me/avatar", { method: "DELETE", requiresAuth: true }),
+  removeAvatar: (): Promise<CurrentUserResponse> =>
+    apiRequest("/users/me/avatar", { method: "DELETE", requiresAuth: true }),
 };
 
-const sleepForPlanRetry = (milliseconds: number) => new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
+const sleepForPlanRetry = (milliseconds: number) =>
+  new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
 
 const isRetryablePlanGenerationError = (error: unknown): error is ApiRequestError =>
   error instanceof ApiRequestError && error.status >= 500 && error.status < 600;
 
 export const quickScanApi = {
-  run: (data: { targetUrl: string; ownershipConfirmed: boolean }): Promise<OnboardingQuickScanResult> => apiRequest('/onboarding/quick-scan', {
-    method: 'POST',
-    body: JSON.stringify(data),
-    timeoutMs: QUICK_SCAN_TIMEOUT_MS,
-  }),
+  run: (data: {
+    targetUrl: string;
+    ownershipConfirmed: boolean;
+  }): Promise<OnboardingQuickScanResult> =>
+    apiRequest("/onboarding/quick-scan", {
+      method: "POST",
+      body: JSON.stringify(data),
+      timeoutMs: QUICK_SCAN_TIMEOUT_MS,
+    }),
 };
 
-export type CustomerWorkerHealthState = "HEALTHY" | "DEGRADED" | "STALE" | "DRAINING" | "UNREPORTED" | "STANDBY";
+export type CustomerWorkerHealthState =
+  "HEALTHY" | "DEGRADED" | "STALE" | "DRAINING" | "UNREPORTED" | "STANDBY";
 export type CustomerWorkerPoolStatus = "HEALTHY" | "DEGRADED" | "NO_ACTIVE_RUN";
 export interface CustomerWorkerHealthAgent {
   key: string;
@@ -2141,52 +3155,370 @@ export interface CustomerWorkerPoolHealth {
   status: CustomerWorkerPoolStatus;
   healthPercent: number | null;
   run: { id: string | null; mode: string | null; status: string | null; updatedAt: string | null };
-  capacity: { activeSlots: number; maxSlots: number; availableSlots: number; utilizationPercent: number };
+  capacity: {
+    activeSlots: number;
+    maxSlots: number;
+    availableSlots: number;
+    utilizationPercent: number;
+  };
   workers: { registered: number; active: number; idle: number; busy: number; unavailable: number };
-  tasks: { total: number; queued: number; accepted: number; running: number; completed: number; failed: number; blocked: number; needsReview: number; muReserved: number };
+  tasks: {
+    total: number;
+    queued: number;
+    accepted: number;
+    running: number;
+    completed: number;
+    failed: number;
+    blocked: number;
+    needsReview: number;
+    muReserved: number;
+  };
   agents: CustomerWorkerHealthAgent[];
 }
 
 export const v2Api = {
-  listRoles: (projectId: string, environmentId: string): Promise<ProjectRole[]> => apiRequest(`/roles/project/${encodeURIComponent(projectId)}/environment/${encodeURIComponent(environmentId)}`, { requiresAuth: true }),
-  createRole: (data: { projectId: string; environmentId: string; name: string; roleType: ProjectRoleType; loginUrl: string; verificationUrl: string; username?: string; password?: string; usernameSelector?: string; passwordSelector?: string; submitSelector?: string }): Promise<ProjectRole> => apiRequest('/roles', { method: 'POST', body: JSON.stringify(data), requiresAuth: true, timeoutMs: 60_000 }),
-  updateRole: (roleId: string, data: Partial<{ name: string; loginUrl: string; verificationUrl: string; username: string; password: string; usernameSelector: string; passwordSelector: string; submitSelector: string }>): Promise<ProjectRole> => apiRequest(`/roles/${encodeURIComponent(roleId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true, timeoutMs: 60_000 }),
-  deleteRole: (roleId: string): Promise<ProjectRole> => apiRequest(`/roles/${encodeURIComponent(roleId)}`, { method: 'DELETE', requiresAuth: true }),
-  getWorkerPoolHealth: (projectId: string): Promise<CustomerWorkerPoolHealth> => apiRequest(`/projects/${encodeURIComponent(projectId)}/workforce-health`, { requiresAuth: true, cache: "no-store" }),
-  listEnvironments: (projectId: string): Promise<V2Environment[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
-  createEnvironment: (data: { organizationId: string; workspaceId: string; projectId: string; name: string; kind?: V2EnvironmentKind; baseUrl: string; description?: string; healthChecks?: unknown[]; expectedConfig?: unknown; allowedHostnames?: unknown }): Promise<V2Environment> => apiRequest('/environments', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  updateEnvironment: (environmentId: string, data: { name?: string; kind?: V2EnvironmentKind; baseUrl?: string; description?: string; healthChecks?: unknown[]; expectedConfig?: unknown; allowedHostnames?: unknown }): Promise<V2Environment> => apiRequest(`/environments/${encodeURIComponent(environmentId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
-  archiveEnvironment: (environmentId: string): Promise<V2Environment> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/archive`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true }),
-  restoreEnvironment: (environmentId: string): Promise<V2Environment> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/restore`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true }),
-  listDependencies: (environmentId: string): Promise<V2EnvironmentDependency[]> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/dependencies`, { requiresAuth: true }),
-  createDependency: (data: { environmentId: string; name: string; kind?: V2DependencyKind; checkPath: string; expectedStatus?: number }): Promise<V2EnvironmentDependency> => apiRequest('/environment-dependencies', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  checkDependency: (dependencyId: string): Promise<{ dependency: V2EnvironmentDependency; status: V2DependencyStatus; httpStatus: number | null; latencyMs: number; error: string | null }> => apiRequest(`/environment-dependencies/${encodeURIComponent(dependencyId)}/health-check`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true, timeoutMs: 20_000 }),
-  checkAllDependencies: (environmentId: string): Promise<{ environmentId: string; total: number; healthy: number; results: unknown[] }> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/dependencies/health-check`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true, timeoutMs: 30_000 }),
-  listSnapshots: (environmentId: string): Promise<V2EnvironmentSnapshot[]> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/snapshots`, { requiresAuth: true }),
-  createSnapshot: (environmentId: string, label: string): Promise<V2EnvironmentSnapshot> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/snapshots`, { method: 'POST', body: JSON.stringify({ label }), requiresAuth: true }),
-  getEnvironmentDrift: (environmentId: string): Promise<{ status: 'NO_BASELINE' | 'IN_SYNC' | 'DRIFTED'; environmentId: string; latestSnapshot: V2EnvironmentSnapshot | null; changed: string[] }> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/drift`, { requiresAuth: true }),
-  checkEnvironmentHealth: (environmentId: string): Promise<{ environment: V2Environment; status: V2EnvironmentHealthStatus; passed: number; total: number; durationMs: number; checks: Array<{ name: string; path: string; status: number | null; ok: boolean; latencyMs: number | null; error?: string }> }> => apiRequest(`/environments/${encodeURIComponent(environmentId)}/health-check`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true, timeoutMs: 20_000 }),
-  listTestDataFixtures: (projectId: string): Promise<V2TestDataFixture[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/test-data-fixtures`, { requiresAuth: true }),
-  createTestDataFixture: (data: { projectId: string; environmentId?: string; name: string; description?: string; strategy?: V2FixtureStrategy; seedSpec?: unknown; resetSpec?: unknown; maskedFields?: string[] }): Promise<V2TestDataFixture> => apiRequest('/test-data-fixtures', { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  updateTestDataFixture: (fixtureId: string, data: { name?: string; description?: string; strategy?: V2FixtureStrategy; status?: V2FixtureStatus; seedSpec?: unknown; resetSpec?: unknown; maskedFields?: string[] }): Promise<V2TestDataFixture> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
-  validateTestDataFixture: (fixtureId: string): Promise<{ fixture: V2TestDataFixture; status: string; executable: boolean; message: string }> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/validate`, { method: 'POST', body: JSON.stringify({}), requiresAuth: true }),
-  executeTestDataFixture: (fixtureId: string, operation: 'seed' | 'reset', confirmed: boolean): Promise<{ fixture: V2TestDataFixture; operation: string; status: string; durationMs: number }> => apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/execute`, { method: 'POST', body: JSON.stringify({ operation, confirmed }), requiresAuth: true, timeoutMs: 20_000 }),
-  listFindingWorkflows: (projectId: string, status?: V2FindingWorkflowStatus): Promise<V2FindingWorkflow[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows${status ? `?status=${encodeURIComponent(status)}` : ''}`, { requiresAuth: true }),
-  createFindingWorkflow: (projectId: string, data: { failureSignatureId?: string; title: string; issueKey?: string; issueUrl?: string; ownerId?: string; expectedBehavior?: string; actualBehavior?: string; remediationNote?: string }): Promise<V2FindingWorkflow> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  updateFindingWorkflow: (projectId: string, workflowId: string, data: { status?: V2FindingWorkflowStatus; issueKey?: string; issueUrl?: string; ownerId?: string; remediationNote?: string }): Promise<V2FindingWorkflow> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows/${encodeURIComponent(workflowId)}`, { method: 'PATCH', body: JSON.stringify(data), requiresAuth: true }),
-  createFindingRetest: (projectId: string, workflowId: string, runId: string, summary?: string): Promise<{ workflow: V2FindingWorkflow; retest: V2FindingRetest; verdict: string; evidenceCount: number }> => apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows/${encodeURIComponent(workflowId)}/retests`, { method: 'POST', body: JSON.stringify({ runId, summary }), requiresAuth: true }),
-  startScan: (projectId: string, data: { environmentId?: string; targetUrl?: string; missionGoal?: string; accessMode?: V2MissionAccessMode } = {}): Promise<V2ApplicationScan> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  listScans: (projectId: string): Promise<V2ApplicationScan[]> => apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
-  getScan: (scanId: string): Promise<V2ApplicationScan> => apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
-  getJourneyGraph: (scanId: string): Promise<{ scanId: string; projectId: string; targetOrigin: string; generatedAt?: string | null; graph: V2JourneyGraph }> => apiRequest(`/scans/${encodeURIComponent(scanId)}/journey-graph`, { requiresAuth: true }),
-  createPlanFromScan: async (scanId: string, data: { name: string; mode?: V2PlannerMode | string; missionGoal?: string; accessMode?: V2MissionAccessMode; fixtureId?: string }): Promise<V2TestPlan> => {
-    const payload = { ...data, ...(data.mode ? { mode: normalizeV2PlannerMode(data.mode) } : {}) };
-    const request = () => apiRequest<V2TestPlan>(`/scans/${encodeURIComponent(scanId)}/plans`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
+  listRoles: (projectId: string, environmentId: string): Promise<ProjectRole[]> =>
+    apiRequest(
+      `/roles/project/${encodeURIComponent(projectId)}/environment/${encodeURIComponent(environmentId)}`,
+      { requiresAuth: true },
+    ),
+  createRole: (data: {
+    projectId: string;
+    environmentId: string;
+    name: string;
+    roleType: ProjectRoleType;
+    loginUrl: string;
+    verificationUrl: string;
+    username?: string;
+    password?: string;
+    usernameSelector?: string;
+    passwordSelector?: string;
+    submitSelector?: string;
+  }): Promise<ProjectRole> =>
+    apiRequest("/roles", {
+      method: "POST",
+      body: JSON.stringify(data),
       requiresAuth: true,
-      timeoutMs: PLAN_PREPARATION_TIMEOUT_MS,
-    });
+      timeoutMs: 60_000,
+    }),
+  updateRole: (
+    roleId: string,
+    data: Partial<{
+      name: string;
+      loginUrl: string;
+      verificationUrl: string;
+      username: string;
+      password: string;
+      usernameSelector: string;
+      passwordSelector: string;
+      submitSelector: string;
+    }>,
+  ): Promise<ProjectRole> =>
+    apiRequest(`/roles/${encodeURIComponent(roleId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+      timeoutMs: 60_000,
+    }),
+  deleteRole: (roleId: string): Promise<ProjectRole> =>
+    apiRequest(`/roles/${encodeURIComponent(roleId)}`, { method: "DELETE", requiresAuth: true }),
+  getWorkerPoolHealth: (projectId: string): Promise<CustomerWorkerPoolHealth> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/workforce-health`, {
+      requiresAuth: true,
+      cache: "no-store",
+    }),
+  listEnvironments: (projectId: string): Promise<V2Environment[]> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
+  createEnvironment: (data: {
+    organizationId: string;
+    workspaceId: string;
+    projectId: string;
+    name: string;
+    kind?: V2EnvironmentKind;
+    baseUrl: string;
+    description?: string;
+    healthChecks?: unknown[];
+    expectedConfig?: unknown;
+    allowedHostnames?: unknown;
+  }): Promise<V2Environment> =>
+    apiRequest("/environments", { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
+  updateEnvironment: (
+    environmentId: string,
+    data: {
+      name?: string;
+      kind?: V2EnvironmentKind;
+      baseUrl?: string;
+      description?: string;
+      healthChecks?: unknown[];
+      expectedConfig?: unknown;
+      allowedHostnames?: unknown;
+    },
+  ): Promise<V2Environment> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  archiveEnvironment: (environmentId: string): Promise<V2Environment> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/archive`, {
+      method: "POST",
+      body: JSON.stringify({}),
+      requiresAuth: true,
+    }),
+  restoreEnvironment: (environmentId: string): Promise<V2Environment> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/restore`, {
+      method: "POST",
+      body: JSON.stringify({}),
+      requiresAuth: true,
+    }),
+  listDependencies: (environmentId: string): Promise<V2EnvironmentDependency[]> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/dependencies`, {
+      requiresAuth: true,
+    }),
+  createDependency: (data: {
+    environmentId: string;
+    name: string;
+    kind?: V2DependencyKind;
+    checkPath: string;
+    expectedStatus?: number;
+  }): Promise<V2EnvironmentDependency> =>
+    apiRequest("/environment-dependencies", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  checkDependency: (
+    dependencyId: string,
+  ): Promise<{
+    dependency: V2EnvironmentDependency;
+    status: V2DependencyStatus;
+    httpStatus: number | null;
+    latencyMs: number;
+    error: string | null;
+  }> =>
+    apiRequest(`/environment-dependencies/${encodeURIComponent(dependencyId)}/health-check`, {
+      method: "POST",
+      body: JSON.stringify({}),
+      requiresAuth: true,
+      timeoutMs: 20_000,
+    }),
+  checkAllDependencies: (
+    environmentId: string,
+  ): Promise<{ environmentId: string; total: number; healthy: number; results: unknown[] }> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/dependencies/health-check`, {
+      method: "POST",
+      body: JSON.stringify({}),
+      requiresAuth: true,
+      timeoutMs: 30_000,
+    }),
+  listSnapshots: (environmentId: string): Promise<V2EnvironmentSnapshot[]> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/snapshots`, {
+      requiresAuth: true,
+    }),
+  createSnapshot: (environmentId: string, label: string): Promise<V2EnvironmentSnapshot> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/snapshots`, {
+      method: "POST",
+      body: JSON.stringify({ label }),
+      requiresAuth: true,
+    }),
+  getEnvironmentDrift: (
+    environmentId: string,
+  ): Promise<{
+    status: "NO_BASELINE" | "IN_SYNC" | "DRIFTED";
+    environmentId: string;
+    latestSnapshot: V2EnvironmentSnapshot | null;
+    changed: string[];
+  }> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/drift`, { requiresAuth: true }),
+  checkEnvironmentHealth: (
+    environmentId: string,
+  ): Promise<{
+    environment: V2Environment;
+    status: V2EnvironmentHealthStatus;
+    passed: number;
+    total: number;
+    durationMs: number;
+    checks: Array<{
+      name: string;
+      path: string;
+      status: number | null;
+      ok: boolean;
+      latencyMs: number | null;
+      error?: string;
+    }>;
+  }> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/health-check`, {
+      method: "POST",
+      body: JSON.stringify({}),
+      requiresAuth: true,
+      timeoutMs: 20_000,
+    }),
+  listTestDataFixtures: (projectId: string): Promise<V2TestDataFixture[]> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/test-data-fixtures`, {
+      requiresAuth: true,
+    }),
+  createTestDataFixture: (data: {
+    projectId: string;
+    environmentId?: string;
+    name: string;
+    description?: string;
+    strategy?: V2FixtureStrategy;
+    seedSpec?: unknown;
+    resetSpec?: unknown;
+    maskedFields?: string[];
+  }): Promise<V2TestDataFixture> =>
+    apiRequest("/test-data-fixtures", {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  updateTestDataFixture: (
+    fixtureId: string,
+    data: {
+      name?: string;
+      description?: string;
+      strategy?: V2FixtureStrategy;
+      status?: V2FixtureStatus;
+      seedSpec?: unknown;
+      resetSpec?: unknown;
+      maskedFields?: string[];
+    },
+  ): Promise<V2TestDataFixture> =>
+    apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  validateTestDataFixture: (
+    fixtureId: string,
+  ): Promise<{
+    fixture: V2TestDataFixture;
+    status: string;
+    executable: boolean;
+    message: string;
+  }> =>
+    apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/validate`, {
+      method: "POST",
+      body: JSON.stringify({}),
+      requiresAuth: true,
+    }),
+  executeTestDataFixture: (
+    fixtureId: string,
+    operation: "seed" | "reset",
+    confirmed: boolean,
+  ): Promise<{
+    fixture: V2TestDataFixture;
+    operation: string;
+    status: string;
+    durationMs: number;
+  }> =>
+    apiRequest(`/test-data-fixtures/${encodeURIComponent(fixtureId)}/execute`, {
+      method: "POST",
+      body: JSON.stringify({ operation, confirmed }),
+      requiresAuth: true,
+      timeoutMs: 20_000,
+    }),
+  listFindingWorkflows: (
+    projectId: string,
+    status?: V2FindingWorkflowStatus,
+  ): Promise<V2FindingWorkflow[]> =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/finding-workflows${status ? `?status=${encodeURIComponent(status)}` : ""}`,
+      { requiresAuth: true },
+    ),
+  createFindingWorkflow: (
+    projectId: string,
+    data: {
+      failureSignatureId?: string;
+      title: string;
+      issueKey?: string;
+      issueUrl?: string;
+      ownerId?: string;
+      expectedBehavior?: string;
+      actualBehavior?: string;
+      remediationNote?: string;
+    },
+  ): Promise<V2FindingWorkflow> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/finding-workflows`, {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  updateFindingWorkflow: (
+    projectId: string,
+    workflowId: string,
+    data: {
+      status?: V2FindingWorkflowStatus;
+      issueKey?: string;
+      issueUrl?: string;
+      ownerId?: string;
+      remediationNote?: string;
+    },
+  ): Promise<V2FindingWorkflow> =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/finding-workflows/${encodeURIComponent(workflowId)}`,
+      { method: "PATCH", body: JSON.stringify(data), requiresAuth: true },
+    ),
+  createFindingRetest: (
+    projectId: string,
+    workflowId: string,
+    runId: string,
+    summary?: string,
+  ): Promise<{
+    workflow: V2FindingWorkflow;
+    retest: V2FindingRetest;
+    verdict: string;
+    evidenceCount: number;
+  }> =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/finding-workflows/${encodeURIComponent(workflowId)}/retests`,
+      { method: "POST", body: JSON.stringify({ runId, summary }), requiresAuth: true },
+    ),
+  startScan: (
+    projectId: string,
+    data: {
+      environmentId?: string;
+      targetUrl?: string;
+      missionGoal?: string;
+      accessMode?: V2MissionAccessMode;
+    } = {},
+  ): Promise<V2ApplicationScan> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  listScans: (projectId: string): Promise<V2ApplicationScan[]> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/scans`, { requiresAuth: true }),
+  getScan: (scanId: string): Promise<V2ApplicationScan> =>
+    apiRequest(`/scans/${encodeURIComponent(scanId)}`, { requiresAuth: true }),
+  getJourneyGraph: (
+    scanId: string,
+  ): Promise<{
+    scanId: string;
+    projectId: string;
+    targetOrigin: string;
+    generatedAt?: string | null;
+    graph: V2JourneyGraph;
+  }> => apiRequest(`/scans/${encodeURIComponent(scanId)}/journey-graph`, { requiresAuth: true }),
+  createPlanFromScan: async (
+    scanId: string,
+    data: {
+      name: string;
+      mode?: V2PlannerMode | string;
+      missionGoal?: string;
+      accessMode?: V2MissionAccessMode;
+      fixtureId?: string;
+    },
+  ): Promise<V2TestPlan> => {
+    const payload = { ...data, ...(data.mode ? { mode: normalizeV2PlannerMode(data.mode) } : {}) };
+    const request = () =>
+      apiRequest<V2TestPlan>(`/scans/${encodeURIComponent(scanId)}/plans`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+        requiresAuth: true,
+        timeoutMs: PLAN_PREPARATION_TIMEOUT_MS,
+      });
 
     try {
       return await request();
@@ -2202,11 +3534,85 @@ export const v2Api = {
       }
     }
   },
-  getPlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}`, { requiresAuth: true }),
-  approvePlan: (planId: string): Promise<V2TestPlan> => apiRequest(`/plans/${encodeURIComponent(planId)}/approve`, { method: 'POST', requiresAuth: true }),
-  runPlan: (planId: string, data: TriggerRunRequest = {}): Promise<TriggerRunResponse & { planId?: string }> => apiRequest(`/plans/${encodeURIComponent(planId)}/run`, { method: 'POST', body: JSON.stringify(data), requiresAuth: true }),
-  approvePolicy: (planId: string, decisionId: string) => apiRequest<V2PolicyDecision>(`/plans/${encodeURIComponent(planId)}/policy/${encodeURIComponent(decisionId)}/approve`, { method: 'POST', requiresAuth: true }),
-  rejectPolicy: (planId: string, decisionId: string) => apiRequest<V2PolicyDecision>(`/plans/${encodeURIComponent(planId)}/policy/${encodeURIComponent(decisionId)}/reject`, { method: 'POST', requiresAuth: true }),
+  getPlan: (planId: string): Promise<V2TestPlan> =>
+    apiRequest(`/plans/${encodeURIComponent(planId)}`, { requiresAuth: true }),
+  approvePlan: (planId: string): Promise<V2TestPlan> =>
+    apiRequest(`/plans/${encodeURIComponent(planId)}/approve`, {
+      method: "POST",
+      requiresAuth: true,
+    }),
+  runPlan: (
+    planId: string,
+    data: TriggerRunRequest = {},
+  ): Promise<TriggerRunResponse & { planId?: string }> =>
+    apiRequest(`/plans/${encodeURIComponent(planId)}/run`, {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  approvePolicy: (planId: string, decisionId: string) =>
+    apiRequest<V2PolicyDecision>(
+      `/plans/${encodeURIComponent(planId)}/policy/${encodeURIComponent(decisionId)}/approve`,
+      { method: "POST", requiresAuth: true },
+    ),
+  rejectPolicy: (planId: string, decisionId: string) =>
+    apiRequest<V2PolicyDecision>(
+      `/plans/${encodeURIComponent(planId)}/policy/${encodeURIComponent(decisionId)}/reject`,
+      { method: "POST", requiresAuth: true },
+    ),
+};
+
+export type ScenarioStep =
+  | { type: "NAVIGATE"; path: string }
+  | { type: "CLICK"; selector: string }
+  | { type: "FILL"; selector: string; text: string }
+  | { type: "WAIT_FOR_ELEMENT"; selector: string; timeoutMs: number }
+  | { type: "ASSERT_URL"; path: string }
+  | { type: "ASSERT_VISIBLE"; selector: string };
+export interface CreateScenarioPayload {
+  projectId: string;
+  name: string;
+  description?: string;
+  steps: ScenarioStep[];
+}
+export interface ScenarioCatalogItem {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string | null;
+  steps: ScenarioStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+export interface GenerateScenarioRequest {
+  projectId: string;
+  prompt: string;
+}
+export interface GenerateScenarioResponse {
+  steps: ScenarioStep[];
+}
+export const scenariosApi = {
+  list: (projectId: string): Promise<ScenarioCatalogItem[]> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/scenarios`, {
+      requiresAuth: true,
+      cache: "no-store",
+    }),
+  create: (projectId: string, payload: CreateScenarioPayload): Promise<ScenarioCatalogItem> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/scenarios`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      requiresAuth: true,
+    }),
+  generate: (
+    projectId: string,
+    payload: GenerateScenarioRequest,
+  ): Promise<GenerateScenarioResponse> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/scenarios/generate`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      requiresAuth: true,
+      timeoutMs: 120_000,
+    }),
 };
 
 export const projectsApi = {
@@ -2224,7 +3630,14 @@ export const projectsApi = {
     }),
 };
 
-export type RunStatus = "passed" | "passed_with_findings" | "partially_tested" | "blocked" | "failed" | "running" | "queued";
+export type RunStatus =
+  | "passed"
+  | "passed_with_findings"
+  | "partially_tested"
+  | "blocked"
+  | "failed"
+  | "running"
+  | "queued";
 
 export interface RunListItem {
   id: string;
@@ -2242,7 +3655,8 @@ export interface RunListItem {
 
 export type RunMessageAuthorType = "USER" | "AGENT" | "SYSTEM";
 export type RunMessageKind = "MESSAGE" | "CONTROL" | "APPROVAL" | "STATUS" | "SUMMARY";
-export type RunConsoleControlAction = "PAUSE" | "RESUME" | "APPROVE" | "ALLOW_ACTION" | "ALLOW_SCENARIO" | "SKIP" | "STOP";
+export type RunConsoleControlAction =
+  "PAUSE" | "RESUME" | "APPROVE" | "ALLOW_ACTION" | "ALLOW_SCENARIO" | "SKIP" | "STOP";
 
 export interface RunMessage {
   id: string;
@@ -2272,52 +3686,145 @@ export const runsApi = {
   getExecutionState: async (projectId: string, runId: string): Promise<RunExecutionState> => {
     const encodedProjectId = encodeURIComponent(projectId);
     const encodedRunId = encodeURIComponent(runId);
-    return apiRequest<RunExecutionState>(`/projects/${encodedProjectId}/runs/${encodedRunId}/execution-state`, {
-      requiresAuth: true,
-      cache: "no-store",
-    });
+    return apiRequest<RunExecutionState>(
+      `/projects/${encodedProjectId}/runs/${encodedRunId}/execution-state`,
+      {
+        requiresAuth: true,
+        cache: "no-store",
+      },
+    );
   },
   getQaState: async (projectId: string, runId: string, limit = 200): Promise<QaLiveState> => {
     const encodedProjectId = encodeURIComponent(projectId);
     const encodedRunId = encodeURIComponent(runId);
-    return apiRequest<QaLiveState>(`/projects/${encodedProjectId}/runs/${encodedRunId}/qa-state?limit=${Math.max(1, Math.min(500, Math.floor(limit)))}`, {
-      requiresAuth: true,
-      timeoutMs: 30_000,
-    });
+    return apiRequest<QaLiveState>(
+      `/projects/${encodedProjectId}/runs/${encodedRunId}/qa-state?limit=${Math.max(1, Math.min(500, Math.floor(limit)))}`,
+      {
+        requiresAuth: true,
+        timeoutMs: 30_000,
+      },
+    );
   },
   listMessages: (projectId: string, runId: string): Promise<RunMessage[]> =>
-    apiRequest<RunMessage[]>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`, { requiresAuth: true }),
-  addMessage: (projectId: string, runId: string, body: string, metadata?: Record<string, unknown>): Promise<RunMessage> =>
-    apiRequest<RunMessage>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`, {
+    apiRequest<RunMessage[]>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`,
+      { requiresAuth: true },
+    ),
+  addMessage: (
+    projectId: string,
+    runId: string,
+    body: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<RunMessage> =>
+    apiRequest<RunMessage>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify({ body, metadata }),
+        requiresAuth: true,
+      },
+    ),
+  control: (
+    projectId: string,
+    runId: string,
+    action: RunConsoleControlAction,
+    body?: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<{
+    action: RunConsoleControlAction;
+    accepted: boolean;
+    message?: RunMessage;
+    terminalized?: boolean;
+  }> =>
+    apiRequest<{
+      action: RunConsoleControlAction;
+      accepted: boolean;
+      message?: RunMessage;
+      terminalized?: boolean;
+    }>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/console/control`,
+      {
+        method: "POST",
+        body: JSON.stringify({ action, body, metadata }),
+        requiresAuth: true,
+        timeoutMs: action === "STOP" ? 15_000 : 20_000,
+      },
+    ),
+  continue: (
+    projectId: string,
+    runId: string,
+    instruction?: string,
+  ): Promise<{
+    id: string;
+    projectId: string;
+    status: string;
+    continuationOfRunId?: string | null;
+    planId?: string | null;
+  }> =>
+    apiRequest<{
+      id: string;
+      projectId: string;
+      status: string;
+      continuationOfRunId?: string | null;
+      planId?: string | null;
+    }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/continue`, {
       method: "POST",
-      body: JSON.stringify({ body, metadata }),
-      requiresAuth: true,
-    }),
-  control: (projectId: string, runId: string, action: RunConsoleControlAction, body?: string, metadata?: Record<string, unknown>): Promise<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage; terminalized?: boolean }> =>
-    apiRequest<{ action: RunConsoleControlAction; accepted: boolean; message?: RunMessage; terminalized?: boolean }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/console/control`, {
-      method: "POST",
-      body: JSON.stringify({ action, body, metadata }),
-      requiresAuth: true,
-      timeoutMs: action === "STOP" ? 15_000 : 20_000,
-    }),
-  continue: (projectId: string, runId: string, instruction?: string): Promise<{ id: string; projectId: string; status: string; continuationOfRunId?: string | null; planId?: string | null }> =>
-    apiRequest<{ id: string; projectId: string; status: string; continuationOfRunId?: string | null; planId?: string | null }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/continue`, {
-      method: "POST",
-      body: JSON.stringify({ instruction: instruction?.trim() || undefined, idempotencyKey: `console-continue-${runId}-${Date.now()}` }),
+      body: JSON.stringify({
+        instruction: instruction?.trim() || undefined,
+        idempotencyKey: `console-continue-${runId}-${Date.now()}`,
+      }),
       requiresAuth: true,
     }),
   deleteMessages: (projectId: string, runId: string): Promise<{ deleted: number }> =>
-    apiRequest<{ deleted: number }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`, { method: "DELETE", requiresAuth: true }),
-  deleteRun: (projectId: string, runId: string): Promise<{ runId: string; deleted: boolean; r2ObjectsDeleted: number; databaseRecordsDeleted: number; preservedCreditLedgerEntries: number }> =>
-    apiRequest<{ runId: string; deleted: boolean; r2ObjectsDeleted: number; databaseRecordsDeleted: number; preservedCreditLedgerEntries: number }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}`, { method: "DELETE", requiresAuth: true, timeoutMs: 60_000 }),
+    apiRequest<{ deleted: number }>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/messages`,
+      { method: "DELETE", requiresAuth: true },
+    ),
+  deleteRun: (
+    projectId: string,
+    runId: string,
+  ): Promise<{
+    runId: string;
+    deleted: boolean;
+    r2ObjectsDeleted: number;
+    databaseRecordsDeleted: number;
+    preservedCreditLedgerEntries: number;
+  }> =>
+    apiRequest<{
+      runId: string;
+      deleted: boolean;
+      r2ObjectsDeleted: number;
+      databaseRecordsDeleted: number;
+      preservedCreditLedgerEntries: number;
+    }>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}`, {
+      method: "DELETE",
+      requiresAuth: true,
+      timeoutMs: 60_000,
+    }),
   getHandoff: (projectId: string, runId: string): Promise<BrowserHandoff | null> =>
-    apiRequest<BrowserHandoff | null>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff`, { requiresAuth: true }),
+    apiRequest<BrowserHandoff | null>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff`,
+      { requiresAuth: true },
+    ),
   claimHandoff: (projectId: string, runId: string): Promise<BrowserHandoff> =>
-    apiRequest<BrowserHandoff>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff/claim`, { method: "POST", requiresAuth: true, body: JSON.stringify({}) }),
-  completeHandoff: (projectId: string, runId: string, data: { email: string; password: string }): Promise<BrowserHandoff> =>
-    apiRequest<BrowserHandoff>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff/complete`, { method: "POST", requiresAuth: true, body: JSON.stringify(data) }),
+    apiRequest<BrowserHandoff>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff/claim`,
+      { method: "POST", requiresAuth: true, body: JSON.stringify({}) },
+    ),
+  completeHandoff: (
+    projectId: string,
+    runId: string,
+    data: { email: string; password: string },
+  ): Promise<BrowserHandoff> =>
+    apiRequest<BrowserHandoff>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff/complete`,
+      { method: "POST", requiresAuth: true, body: JSON.stringify(data) },
+    ),
   cancelHandoff: (projectId: string, runId: string): Promise<BrowserHandoff> =>
-    apiRequest<BrowserHandoff>(`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff/cancel`, { method: "POST", requiresAuth: true, body: JSON.stringify({}) }),
+    apiRequest<BrowserHandoff>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/handoff/cancel`,
+      { method: "POST", requiresAuth: true, body: JSON.stringify({}) },
+    ),
 };
 
 export interface AllocationRequest {
@@ -2327,8 +3834,13 @@ export interface AllocationRequest {
   submittedAt: string;
 }
 export const billingApi = {
-  status: (): Promise<{ organizationId: string; plan: PublicPlan; status: string; periodEnd?: string | null; whopPlanId?: string | null }> =>
-    apiRequest("/billing/status", { requiresAuth: true, cache: "no-store" }),
+  status: (): Promise<{
+    organizationId: string;
+    plan: PublicPlan;
+    status: string;
+    periodEnd?: string | null;
+    whopPlanId?: string | null;
+  }> => apiRequest("/billing/status", { requiresAuth: true, cache: "no-store" }),
   submitAllocationRequest: async (data: AllocationRequest): Promise<void> => {
     const webhookUrl = import.meta.env.VITE_ALLOCATION_WEBHOOK_URL;
     if (!webhookUrl) {

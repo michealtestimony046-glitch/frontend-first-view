@@ -49,6 +49,7 @@ import { Route as AppProjectsRouteImport } from './routes/app.projects'
 import { Route as AppReliabilityRouteImport } from './routes/app.reliability'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppRunsRouteImport } from './routes/app.runs'
+import { Route as AppScenariosRouteImport } from './routes/app.scenarios'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppWorkforceRouteImport } from './routes/app.workforce'
 import { Route as AuthConfirmEmailRouteImport } from './routes/auth.confirm-email'
@@ -269,6 +270,11 @@ const AppRunsRoute = AppRunsRouteImport.update({
   path: '/runs',
   getParentRoute: () => AppRoute,
 } as any)
+const AppScenariosRoute = AppScenariosRouteImport.update({
+  id: '/scenarios',
+  path: '/scenarios',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -397,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/app/reliability': typeof AppReliabilityRoute
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
+  '/app/scenarios': typeof AppScenariosRoute
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/app/workforce': typeof AppWorkforceRoute
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
@@ -454,6 +461,7 @@ export interface FileRoutesByTo {
   '/app/projects': typeof AppProjectsRoute
   '/app/reliability': typeof AppReliabilityRoute
   '/app/reports': typeof AppReportsRoute
+  '/app/scenarios': typeof AppScenariosRoute
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/app/workforce': typeof AppWorkforceRoute
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
@@ -514,6 +522,7 @@ export interface FileRoutesById {
   '/app/reliability': typeof AppReliabilityRoute
   '/app/reports': typeof AppReportsRoute
   '/app/runs': typeof AppRunsRouteWithChildren
+  '/app/scenarios': typeof AppScenariosRoute
   '/app/settings': typeof AppSettingsRouteWithChildren
   '/app/workforce': typeof AppWorkforceRoute
   '/auth/confirm-email': typeof AuthConfirmEmailRoute
@@ -575,6 +584,7 @@ export interface FileRouteTypes {
     | '/app/reliability'
     | '/app/reports'
     | '/app/runs'
+    | '/app/scenarios'
     | '/app/settings'
     | '/app/workforce'
     | '/auth/confirm-email'
@@ -632,6 +642,7 @@ export interface FileRouteTypes {
     | '/app/projects'
     | '/app/reliability'
     | '/app/reports'
+    | '/app/scenarios'
     | '/app/settings'
     | '/app/workforce'
     | '/auth/confirm-email'
@@ -691,6 +702,7 @@ export interface FileRouteTypes {
     | '/app/reliability'
     | '/app/reports'
     | '/app/runs'
+    | '/app/scenarios'
     | '/app/settings'
     | '/app/workforce'
     | '/auth/confirm-email'
@@ -1034,6 +1046,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRunsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/scenarios': {
+      id: '/app/scenarios'
+      path: '/scenarios'
+      fullPath: '/app/scenarios'
+      preLoaderRoute: typeof AppScenariosRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/settings': {
       id: '/app/settings'
       path: '/settings'
@@ -1194,6 +1213,7 @@ interface AppRouteChildren {
   AppReliabilityRoute: typeof AppReliabilityRoute
   AppReportsRoute: typeof AppReportsRoute
   AppRunsRoute: typeof AppRunsRouteWithChildren
+  AppScenariosRoute: typeof AppScenariosRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppWorkforceRoute: typeof AppWorkforceRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1210,6 +1230,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReliabilityRoute: AppReliabilityRoute,
   AppReportsRoute: AppReportsRoute,
   AppRunsRoute: AppRunsRouteWithChildren,
+  AppScenariosRoute: AppScenariosRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppWorkforceRoute: AppWorkforceRoute,
   AppIndexRoute: AppIndexRoute,
