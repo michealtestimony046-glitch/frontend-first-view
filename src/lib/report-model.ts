@@ -208,7 +208,52 @@ export function normalizeReport(run: LiveRun, report: RunReport): NormalizedRepo
   const issues = raw.map(({ value, source }, index) =>
     issueFrom(run, report, value, index, source),
   );
-  const unique = [...new Map(issues.map((issue) => [issue.id, issue])).values()];
+  const unique = [
+    ...new Map(
+      issues.map((issue) => {
+        const signature = [
+          issue.title.toLowerCase(),
+          issue.category.toLowerCase(),
+          issue.kind,
+          issue.scope.toLowerCase(),
+          issue.context.scenario ?? "",
+        ].join("|");
+        return [signature, issue];
+      }),
+    ).values(),
+  ];
+  issues.forEach((candidate) => {
+    const signature = [
+      candidate.title.toLowerCase(),
+      candidate.category.toLowerCase(),
+      candidate.kind,
+      candidate.scope.toLowerCase(),
+      candidate.context.scenario ?? "",
+    ].join("|");
+    const existing = unique.find(
+      (issue) =>
+        [
+          issue.title.toLowerCase(),
+          issue.category.toLowerCase(),
+          issue.kind,
+          issue.scope.toLowerCase(),
+          issue.context.scenario ?? "",
+        ].join("|") === signature,
+    );
+    if (!existing || existing === candidate) return;
+    existing.occurrences += candidate.occurrences;
+    if (existing.severity === "info" && candidate.severity !== "info")
+      existing.severity = candidate.severity;
+    if (!existing.screenshot && candidate.screenshot) existing.screenshot = candidate.screenshot;
+    existing.evidence.console = [
+      ...existing.evidence.console,
+      ...candidate.evidence.console,
+    ].filter((event, index, all) => all.findIndex((item) => item === event) === index);
+    existing.evidence.network = [
+      ...existing.evidence.network,
+      ...candidate.evidence.network,
+    ].filter((event, index, all) => all.findIndex((item) => item === event) === index);
+  });
   const scenarios = report.v2Plan?.scenarios ?? [];
   const counts = unique.reduce(
     (acc, issue) => ({ ...acc, [issue.severity]: acc[issue.severity] + 1 }),

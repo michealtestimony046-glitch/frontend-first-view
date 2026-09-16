@@ -536,7 +536,7 @@ function RunDetailPage() {
         </div>
 
         <div className="mt-6">
-          {tab === "overview" && <OverviewTab report={report} />}
+          {tab === "overview" && <OverviewTab report={report} issues={normalizedIssues} onIssue={setSelectedIssue} />}
           {tab === "screenshots" && (
             <ScreenshotsTab report={report} selected={selected} setSelected={setSelected} />
           )}
@@ -1093,7 +1093,7 @@ function GlobalQuickScanPanel({ report }: { report: RunReport }) {
   );
 }
 
-function OverviewTab({ report }: { report: RunReport }) {
+function OverviewTab({ report, issues, onIssue }: { report: RunReport; issues: ReportIssue[]; onIssue: (issue: ReportIssue) => void }) {
   const errors = report.errors ?? [];
   const assertions = report.assertions ?? [];
   return (
@@ -1115,7 +1115,10 @@ function OverviewTab({ report }: { report: RunReport }) {
               compact
             />
           ) : (
-            errors.map((e, i) => <ErrorRow key={i} error={e} />)
+            errors.map((e, i) => {
+              const issue = issues.find((candidate) => candidate.error === e) ?? issues.find((candidate) => candidate.title === e.message);
+              return issue ? <button type="button" key={i} onClick={() => onIssue(issue)} className="block w-full text-left hover:bg-accent/30"><ErrorRow error={e} /></button> : <ErrorRow key={i} error={e} />;
+            })
           )}
         </div>
       </div>
