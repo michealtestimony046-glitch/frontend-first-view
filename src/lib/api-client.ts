@@ -302,6 +302,10 @@ export interface QuickScanHandoffRequest {
 }
 
 export interface TriggerRunRequest {
+  scenarioIds?: string[];
+  roleIds?: string[];
+  viewportIds?: string[];
+  networkProfiles?: Array<"FAST" | "SLOW_3G" | "OFFLINE">;
   targetUrl?: string;
   idempotencyKey?: string;
   email?: string;
