@@ -106,6 +106,7 @@ function DiscoveryPage() {
   const [quickScanRunning, setQuickScanRunning] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [catalogGenerating, setCatalogGenerating] = useState(false);
+  const [projectChanging, setProjectChanging] = useState(false);
   const [running, setRunning] = useState(false);
   const [enableVision, setEnableVision] = useState(false);
   const [enableRecovery, setEnableRecovery] = useState(false);
@@ -122,6 +123,24 @@ function DiscoveryPage() {
   const selectedTargetUrl = normalizeTargetUrl(
     selectedEnvironment?.baseUrl || project?.defaultTargetUrl,
   );
+
+  const handleProjectChange = (nextProjectId: string) => {
+    if (!live.projects.some((item) => item.id === nextProjectId) || nextProjectId === project?.id)
+      return;
+    setProjectChanging(true);
+    setEnvironments([]);
+    setScans([]);
+    setSelectedScan(null);
+    setPlan(null);
+    setEnvironmentId("");
+    setQuickScanResult(null);
+    setCatalogNotice(null);
+    setCapacityStatus(null);
+    setQueuedRunId(null);
+    setError(null);
+    setTargetAuthorizationConfirmed(false);
+    live.setActiveProject(nextProjectId);
+  };
 
   useEffect(() => {
     if (!project) {
@@ -150,7 +169,10 @@ function DiscoveryPage() {
           setError(cause instanceof Error ? cause.message : "Unable to load discovery data.");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setProjectChanging(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -413,12 +435,8 @@ function DiscoveryPage() {
               <span className="sr-only">Active project</span>
               <select
                 value={project.id}
-                onChange={(event) => {
-                  live.setActiveProject(event.target.value);
-                  setSelectedScan(null);
-                  setPlan(null);
-                  setCatalogNotice(null);
-                }}
+                onChange={(event) => handleProjectChange(event.target.value)}
+                disabled={projectChanging}
                 className="rounded-md border border-border bg-surface-2/60 px-2.5 py-1.5 font-medium text-foreground"
               >
                 {live.projects.map((item) => (

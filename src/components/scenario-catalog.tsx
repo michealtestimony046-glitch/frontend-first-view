@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, GripVertical, Loader2, Plus, Sparkles, Trash2, X, XCircle } from "lucide-react";
+import {
+  Check,
+  GripVertical,
+  Loader2,
+  Plus,
+  Sparkles,
+  Trash2,
+  TriangleAlert,
+  X,
+  XCircle,
+} from "lucide-react";
 import {
   ApiRequestError,
   organizationsApi,
@@ -219,6 +229,7 @@ export function ScenarioCatalogPage() {
               <tr>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Steps</th>
+                <th className="px-4 py-3">Verification</th>
                 <th className="px-4 py-3">Created</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -233,6 +244,25 @@ export function ScenarioCatalogPage() {
                     </div>
                   </td>
                   <td className="px-4 py-4 font-mono text-xs">{item.steps.length}</td>
+                  <td className="px-4 py-4">
+                    {item.isVerified ? (
+                      <span
+                        title="Verified by a successful Dry Run"
+                        aria-label="Verified"
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-xs text-emerald-300"
+                      >
+                        <Check className="h-3.5 w-3.5" /> Verified
+                      </span>
+                    ) : (
+                      <span
+                        title="Unverified — run Dry Run before saving edits"
+                        aria-label="Unverified"
+                        className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-xs text-amber-300"
+                      >
+                        <TriangleAlert className="h-3.5 w-3.5" /> Unverified
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-4 text-xs text-muted-foreground">
                     {new Date(item.createdAt).toLocaleString()}
                   </td>
@@ -322,9 +352,7 @@ function ScenarioBuilder({
     status: "passed" | "failed";
     results: Array<{ index: number; status: "passed" | "failed"; error?: string }>;
     error: string | null;
-  } | null>(() =>
-    initialItem?.isVerified ? { status: "passed", results: [], error: null } : null,
-  );
+  } | null>(null);
   const [verifying, setVerifying] = useState(false);
   const payload = useMemo(
     () => ({ projectId, ...draft, ...(draft.description ? {} : { description: undefined }) }),
@@ -416,6 +444,10 @@ function ScenarioBuilder({
     }
     if (verification?.status === "failed") {
       setError("Dry Run failed. Edit or regenerate the steps, then verify again before saving.");
+      return;
+    }
+    if (verification?.status !== "passed") {
+      setError("Run Verify (Dry Run) successfully before saving this scenario.");
       return;
     }
     setSaving(true);
@@ -641,7 +673,7 @@ function ScenarioBuilder({
           </button>
           <button
             onClick={() => void save()}
-            disabled={generating || saving || verifying || verification?.status === "failed"}
+            disabled={generating || saving || verifying || verification?.status !== "passed"}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}Save scenario
