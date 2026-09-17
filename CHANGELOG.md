@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.10.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.9.1...v0.10.0) (2026-09-17)
+
+
+### Features
+
+* add AI-assisted scenario builder ([4160869](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/4160869c5f80f6fb0f0f7164592e783a2c561f73))
+* add environment role configuration dashboard ([32afe59](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/32afe596afd1b9af28fb9481f89a9840e70a41b6))
+* add local run configuration matrix UI ([df3b929](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/df3b9299f706e4f1e7f2f3f6a38c7ad7e7ae327b))
+* add scenario dry run controls ([f5db1a7](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/f5db1a7e58844faf5807198da4be7461c2fb6e62))
+* add secret vault UI and scenario variables ([f59152c](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/f59152ca6b1d80820b667af992cd95bfccae9abc))
+* add standard network profiles to matrix runs ([f31bd17](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/f31bd17dcfe47e85aca1bb8f6d1272d757aa7bef))
+* cap scenario builder steps ([ba44a11](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/ba44a11809d807e20d1e46aad3c8b24b332bfa8e))
+* route discovery generation to scenarios ([aec738f](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/aec738f6c333452e47bab0a5c902a2edbd5885b7))
+* support dynamic matrix run selections ([95d2046](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/95d2046b1e8f7d7f977effa78172b1d8c1f203a8))
+* unify severity issue detail views ([3316c38](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/3316c38c91015b7f27394ab4dfef81a304c6d8b7))
+
+
+### Bug Fixes
+
+* enforce scenario verification gate ([9becd10](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/9becd1009bfee33d37edd5b069b072d5fac6a408))
+* restore frontend validation compatibility ([e682e5b](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/e682e5b3c7e302323d5db10ac26f3041bd0ae892))
+* simplify duplicate run findings and overview links ([1802e89](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/1802e89e77114dcb5fbaadd5575dc9f76b6d1613))
+* type frontend error boundaries safely ([a94918f](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/a94918f9f24059e2ee31012485c91892710ecfdd))
+* wire run configuration matrix to execution ([c9d75a6](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/c9d75a63d4313de0e80c19c3b42a874e0f039c57))
+
 ## [0.9.1](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.9.0...v0.9.1) (2026-08-28)
 
 
