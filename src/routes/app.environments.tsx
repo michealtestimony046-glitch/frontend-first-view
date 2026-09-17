@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Database,
   GitCompareArrows,
+  KeyRound,
   Loader2,
   Play,
   Plus,
@@ -13,6 +14,7 @@ import {
   Save,
   ShieldCheck,
   TestTube2,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import {
@@ -25,6 +27,7 @@ import {
   type V2Environment,
   type V2EnvironmentDependency,
   type V2EnvironmentSnapshot,
+  type EnvironmentSecretMetadata,
   type V2FixtureStrategy,
   type V2TestDataFixture,
   type Workspace,
@@ -150,7 +153,11 @@ function EnvironmentsPage() {
         v2Api.listTestDataFixtures(projectId),
       ]);
       setEnvironments(environmentItems);
-      setActiveEnvironmentId((current) => current && environmentItems.some((item) => item.id === current) ? current : environmentItems[0]?.id ?? null);
+      setActiveEnvironmentId((current) =>
+        current && environmentItems.some((item) => item.id === current)
+          ? current
+          : (environmentItems[0]?.id ?? null),
+      );
       setFixtures(fixtureItems);
     } catch (cause) {
       setError(toMessage(cause, "Unable to load environment and test-data records."));
@@ -380,7 +387,37 @@ function EnvironmentsPage() {
               </div>
             </section>
           </div>
-          {environments.length > 0 && projectId && <div className="mt-5"><label className="mb-2 block text-xs font-medium text-muted-foreground" htmlFor="active-role-environment">Active environment for role management</label><select id="active-role-environment" value={activeEnvironmentId ?? ""} onChange={(event) => setActiveEnvironmentId(event.target.value)} className="rounded-md border border-border bg-surface-2/30 px-3 py-2 text-sm"><option value="" disabled>Select environment</option>{environments.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.kind}</option>)}</select><RoleManagementPanel projectId={projectId} environment={environments.find((item) => item.id === activeEnvironmentId) ?? environments[0]} /></div>}
+          {environments.length > 0 && projectId && (
+            <div className="mt-5">
+              <label
+                className="mb-2 block text-xs font-medium text-muted-foreground"
+                htmlFor="active-role-environment"
+              >
+                Active environment for role management
+              </label>
+              <select
+                id="active-role-environment"
+                value={activeEnvironmentId ?? ""}
+                onChange={(event) => setActiveEnvironmentId(event.target.value)}
+                className="rounded-md border border-border bg-surface-2/30 px-3 py-2 text-sm"
+              >
+                <option value="" disabled>
+                  Select environment
+                </option>
+                {environments.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} · {item.kind}
+                  </option>
+                ))}
+              </select>
+              <RoleManagementPanel
+                projectId={projectId}
+                environment={
+                  environments.find((item) => item.id === activeEnvironmentId) ?? environments[0]
+                }
+              />
+            </div>
+          )}
           <div className="mt-5 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 text-xs leading-5 text-muted-foreground">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <p>
@@ -474,6 +511,13 @@ function EnvironmentRow({
   >("HTTP");
   const [snapshotLabel, setSnapshotLabel] = useState("");
   const [action, setAction] = useState<string | null>(null);
+  const [secrets, setSecrets] = useState<EnvironmentSecretMetadata[]>([]);
+  const [secretsLoading, setSecretsLoading] = useState(false);
+  const [secretError, setSecretError] = useState<string | null>(null);
+  const [secretFormOpen, setSecretFormOpen] = useState(false);
+  const [secretKey, setSecretKey] = useState("");
+  const [secretValue, setSecretValue] = useState("");
+  const [rotatingKey, setRotatingKey] = useState<string | null>(null);
   const health = environment.healthStatus ?? "UNKNOWN";
 
   const loadDetails = async () => {
@@ -508,10 +552,78 @@ function EnvironmentRow({
     }
   };
 
+  const loadSecrets = async () => {
+    setSecretsLoading(true);
+    setSecretError(null);
+    try {
+      setSecrets(await v2Api.listEnvironmentSecrets(environment.id));
+    } catch (cause) {
+      setSecretError(toMessage(cause, "Unable to load secret metadata."));
+    } finally {
+      setSecretsLoading(false);
+    }
+  };
+
+  const openSecretForm = (key?: string) => {
+    setRotatingKey(key ?? null);
+    setSecretKey(key ?? "SECRET_");
+    setSecretValue("");
+    setSecretError(null);
+    setSecretFormOpen(true);
+  };
+
+  const saveSecret = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const normalizedKey = secretKey.trim().toUpperCase();
+    if (!/^SECRET_[A-Z0-9_]+$/.test(normalizedKey)) {
+      setSecretError(
+        "Key must start with SECRET_ and contain only uppercase letters, numbers, and underscores.",
+      );
+      return;
+    }
+    if (!secretValue) {
+      setSecretError("Secret value is required.");
+      return;
+    }
+    setAction("secret");
+    setSecretError(null);
+    try {
+      if (rotatingKey)
+        await v2Api.rotateEnvironmentSecret(environment.id, rotatingKey, secretValue);
+      else
+        await v2Api.createEnvironmentSecret(environment.id, {
+          key: normalizedKey,
+          value: secretValue,
+        });
+      setSecretFormOpen(false);
+      setSecretValue("");
+      await loadSecrets();
+    } catch (cause) {
+      setSecretError(toMessage(cause, "Unable to save secret."));
+    } finally {
+      setAction(null);
+    }
+  };
+
+  const deleteSecret = async (key: string) => {
+    if (!window.confirm(`Delete secret “${key}”? This cannot be undone.`)) return;
+    setAction(`delete-secret-${key}`);
+    setSecretError(null);
+    try {
+      await v2Api.deleteEnvironmentSecret(environment.id, key);
+      setSecrets((current) => current.filter((item) => item.key !== key));
+    } catch (cause) {
+      setSecretError(toMessage(cause, "Unable to delete secret."));
+    } finally {
+      setAction(null);
+    }
+  };
+
   const toggleDetails = () => {
     const next = !expanded;
     setExpanded(next);
     if (next && dependencies.length === 0 && snapshots.length === 0 && !drift) void loadDetails();
+    if (next && secrets.length === 0 && !secretsLoading) void loadSecrets();
   };
 
   const addDependency = async (event: React.FormEvent) => {
@@ -802,6 +914,134 @@ function EnvironmentRow({
                   <GitCompareArrows className="h-3 w-3" /> Recalculate drift
                 </button>
               </div>
+              <section className="rounded-md border border-primary/20 bg-primary/5 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <KeyRound className="h-4 w-4 text-primary" />
+                      <h3 className="text-sm font-semibold">Secret Vault</h3>
+                    </div>
+                    <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                      Write-only credentials for this environment. Values are never returned or
+                      displayed.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openSecretForm()}
+                    className="rounded-md bg-primary px-2.5 py-1.5 text-[11px] font-semibold text-primary-foreground"
+                  >
+                    Add secret
+                  </button>
+                </div>
+                {secretError && (
+                  <p
+                    role="alert"
+                    className="mt-3 rounded border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive"
+                  >
+                    {secretError}
+                  </p>
+                )}
+                {secretFormOpen && (
+                  <form
+                    onSubmit={(event) => void saveSecret(event)}
+                    className="mt-3 grid gap-2 rounded-md border border-border bg-surface p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+                  >
+                    <Field label="Key name">
+                      <input
+                        value={secretKey}
+                        onChange={(event) => setSecretKey(event.target.value.toUpperCase())}
+                        disabled={Boolean(rotatingKey) || action === "secret"}
+                        placeholder="SECRET_ADMIN_TOKEN"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    </Field>
+                    <Field label={rotatingKey ? `New value for ${rotatingKey}` : "Secret value"}>
+                      <input
+                        type="password"
+                        value={secretValue}
+                        onChange={(event) => setSecretValue(event.target.value)}
+                        disabled={action === "secret"}
+                        autoComplete="new-password"
+                      />
+                    </Field>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={action === "secret"}
+                        className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                      >
+                        {action === "secret" ? "Saving…" : rotatingKey ? "Rotate" : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSecretFormOpen(false);
+                          setSecretValue("");
+                        }}
+                        className="rounded-md border border-border px-3 py-2 text-xs hover:bg-accent"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+                {secretsLoading ? (
+                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading secret metadata…
+                  </div>
+                ) : secrets.length === 0 ? (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    No secrets stored for this environment.
+                  </p>
+                ) : (
+                  <div className="mt-3 overflow-x-auto rounded border border-border">
+                    <table className="w-full min-w-[34rem] text-left text-xs">
+                      <thead className="border-b border-border bg-surface-2/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2">Key</th>
+                          <th className="px-3 py-2">Value</th>
+                          <th className="px-3 py-2">Last used</th>
+                          <th className="px-3 py-2 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {secrets.map((secret) => (
+                          <tr key={secret.id} className="border-b border-border/60 last:border-0">
+                            <td className="px-3 py-2 font-mono">{secret.key}</td>
+                            <td className="px-3 py-2" aria-label="Value hidden">
+                              ••••••••
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {secret.lastUsedAt
+                                ? new Date(secret.lastUsedAt).toLocaleString()
+                                : "Never"}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => openSecretForm(secret.key)}
+                                className="mr-2 text-primary hover:underline"
+                              >
+                                Rotate
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void deleteSecret(secret.key)}
+                                disabled={action === `delete-secret-${secret.key}`}
+                                className="inline-flex items-center gap-1 text-destructive hover:underline disabled:opacity-50"
+                              >
+                                <Trash2 className="h-3 w-3" /> Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
             </>
           )}
         </div>

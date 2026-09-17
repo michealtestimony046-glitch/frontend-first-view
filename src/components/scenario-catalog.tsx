@@ -16,7 +16,9 @@ import {
   projectsApi,
   scenariosApi,
   workspacesApi,
+  v2Api,
   type CreateScenarioPayload,
+  type EnvironmentSecretMetadata,
   type Project,
   type ScenarioCatalogItem,
   type ScenarioStep,
@@ -52,6 +54,12 @@ const inputClass =
 const freshStep = (): ScenarioStep => ({ type: "NAVIGATE", path: "/" });
 const toMessage = (cause: unknown, fallback: string) =>
   cause instanceof Error ? cause.message : fallback;
+const DYNAMIC_VARIABLES = ["{{DYNAMIC_EMAIL}}", "{{DYNAMIC_FIRST_NAME}}", "{{DYNAMIC_LAST_NAME}}"];
+const SECRET_TOKEN_PATTERN = /\{\{(SECRET_[A-Z0-9_]+)\}\}/g;
+
+function secretKeysIn(value: string): string[] {
+  return Array.from(value.matchAll(SECRET_TOKEN_PATTERN), (match) => match[1]);
+}
 
 function isScenarioStep(value: unknown): value is ScenarioStep {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -348,6 +356,12 @@ function ScenarioBuilder({
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [discoveryMapMissing, setDiscoveryMapMissing] = useState(false);
+  const [environments, setEnvironments] = useState<Array<{ id: string; name: string }>>([]);
+  const [activeEnvironmentId, setActiveEnvironmentId] = useState("");
+  const [environmentSecrets, setEnvironmentSecrets] = useState<EnvironmentSecretMetadata[]>([]);
+  const [secretsLoading, setSecretsLoading] = useState(false);
+  const [secretsError, setSecretsError] = useState<string | null>(null);
+  const [variablesOpen, setVariablesOpen] = useState<number | null>(null);
   const [verification, setVerification] = useState<{
     status: "passed" | "failed";
     results: Array<{ index: number; status: "passed" | "failed"; error?: string }>;
@@ -358,6 +372,55 @@ function ScenarioBuilder({
     () => ({ projectId, ...draft, ...(draft.description ? {} : { description: undefined }) }),
     [projectId, draft],
   );
+  useEffect(() => {
+    let cancelled = false;
+    void v2Api
+      .listEnvironments(projectId)
+      .then((items) => {
+        if (cancelled) return;
+        const available = items
+          .filter((item) => !item.archivedAt)
+          .map((item) => ({ id: item.id, name: item.name }));
+        setEnvironments(available);
+        setActiveEnvironmentId((current) =>
+          current && available.some((item) => item.id === current)
+            ? current
+            : (available[0]?.id ?? ""),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setSecretsError("Unable to load environments for variables.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+  useEffect(() => {
+    if (!activeEnvironmentId) {
+      setEnvironmentSecrets([]);
+      return;
+    }
+    let cancelled = false;
+    setSecretsLoading(true);
+    setSecretsError(null);
+    void v2Api
+      .listEnvironmentSecrets(activeEnvironmentId)
+      .then((items) => {
+        if (!cancelled) setEnvironmentSecrets(items);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEnvironmentSecrets([]);
+          setSecretsError("Unable to load environment secret keys.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSecretsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeEnvironmentId]);
   const updateStep = (index: number, step: ScenarioStep) => (
     setVerification(null),
     setDraft((current) => ({
@@ -387,6 +450,13 @@ function ScenarioBuilder({
         (!Number.isInteger(step.timeoutMs) || step.timeoutMs < 1 || step.timeoutMs > 120000)
       )
         return "Timeout must be an integer from 1 to 120000 ms.";
+      if (
+        step.type === "FILL" &&
+        secretKeysIn(step.text).some(
+          (key) => !new Set(environmentSecrets.map((item) => item.key)).has(key),
+        )
+      )
+        return "Secret key not found in active environment.";
     }
     return null;
   };
@@ -602,6 +672,14 @@ function ScenarioBuilder({
                 step={step}
                 canRemove={draft.steps.length > 1}
                 disabled={generating || saving || verifying}
+                environments={environments}
+                activeEnvironmentId={activeEnvironmentId}
+                onActiveEnvironmentChange={setActiveEnvironmentId}
+                environmentSecrets={environmentSecrets}
+                secretsLoading={secretsLoading}
+                secretsError={secretsError}
+                variablesOpen={variablesOpen === index}
+                onVariablesOpenChange={(open) => setVariablesOpen(open ? index : null)}
                 onChange={(next) => updateStep(index, next)}
                 onRemove={() => {
                   setVerification(null);
@@ -689,6 +767,14 @@ function StepEditor({
   step,
   canRemove,
   disabled,
+  environments,
+  activeEnvironmentId,
+  onActiveEnvironmentChange,
+  environmentSecrets,
+  secretsLoading,
+  secretsError,
+  variablesOpen,
+  onVariablesOpenChange,
   onChange,
   onRemove,
 }: {
@@ -696,6 +782,14 @@ function StepEditor({
   step: ScenarioStep;
   canRemove: boolean;
   disabled: boolean;
+  environments: Array<{ id: string; name: string }>;
+  activeEnvironmentId: string;
+  onActiveEnvironmentChange: (value: string) => void;
+  environmentSecrets: EnvironmentSecretMetadata[];
+  secretsLoading: boolean;
+  secretsError: string | null;
+  variablesOpen: boolean;
+  onVariablesOpenChange: (open: boolean) => void;
   onChange: (step: ScenarioStep) => void;
   onRemove: () => void;
 }) {
@@ -771,7 +865,121 @@ function StepEditor({
             {field("Element selector", step.selector, (value) =>
               onChange({ ...step, selector: value }),
             )}
-            {field("Text", step.text, (value) => onChange({ ...step, text: value }))}
+            <label className="relative text-xs font-medium">
+              <span className="flex items-center justify-between gap-2">
+                <span>Text</span>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onVariablesOpenChange(!variablesOpen)}
+                  className="rounded border border-primary/40 px-2 py-1 font-mono text-[10px] text-primary hover:bg-primary/10 disabled:opacity-50"
+                  aria-expanded={variablesOpen}
+                  aria-haspopup="menu"
+                >
+                  &#123;x&#125; Variables
+                </button>
+              </span>
+              <input
+                disabled={disabled}
+                type="text"
+                value={step.text}
+                onChange={(event) => onChange({ ...step, text: event.target.value })}
+                className={`${inputClass} mt-1 disabled:opacity-60`}
+                aria-describedby={
+                  secretKeysIn(step.text).some(
+                    (key) => !environmentSecrets.some((item) => item.key === key),
+                  )
+                    ? `secret-warning-${index}`
+                    : undefined
+                }
+              />
+              {secretKeysIn(step.text).some(
+                (key) => !environmentSecrets.some((item) => item.key === key),
+              ) && (
+                <span
+                  id={`secret-warning-${index}`}
+                  className="mt-1 block text-[11px] text-warning"
+                >
+                  Secret key not found in active environment.
+                </span>
+              )}
+              {variablesOpen && (
+                <div
+                  className="absolute right-0 top-14 z-20 w-80 rounded-md border border-border bg-surface p-3 shadow-xl"
+                  role="menu"
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Dynamic Data
+                  </p>
+                  <div className="mt-1 grid gap-1">
+                    {DYNAMIC_VARIABLES.map((token) => (
+                      <button
+                        key={token}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          onChange({ ...step, text: `${step.text}${token}` });
+                          onVariablesOpenChange(false);
+                        }}
+                        className="rounded px-2 py-1.5 text-left font-mono text-xs hover:bg-accent"
+                      >
+                        {token}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-3 border-t border-border pt-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Environment Secrets
+                      </p>
+                      {environments.length > 0 && (
+                        <select
+                          value={activeEnvironmentId}
+                          onChange={(event) => onActiveEnvironmentChange(event.target.value)}
+                          className="max-w-[9rem] rounded border border-border bg-surface-2 px-1.5 py-1 text-[10px]"
+                          aria-label="Active environment for secret variables"
+                        >
+                          {environments.map((environment) => (
+                            <option key={environment.id} value={environment.id}>
+                              {environment.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    {secretsLoading ? (
+                      <p className="mt-2 text-xs text-muted-foreground">Loading secret keys…</p>
+                    ) : secretsError ? (
+                      <p className="mt-2 text-xs text-warning">{secretsError}</p>
+                    ) : environmentSecrets.length === 0 ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        No secret keys in this environment.
+                      </p>
+                    ) : (
+                      <div className="mt-1 grid max-h-40 gap-1 overflow-y-auto">
+                        {environmentSecrets.map((secret) => {
+                          const token = `{{${secret.key}}}`;
+                          return (
+                            <button
+                              key={secret.id}
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                onChange({ ...step, text: `${step.text}${token}` });
+                                onVariablesOpenChange(false);
+                              }}
+                              className="rounded px-2 py-1.5 text-left font-mono text-xs hover:bg-accent"
+                            >
+                              {token}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </label>
           </>
         )}
         {step.type === "WAIT_FOR_ELEMENT" && (

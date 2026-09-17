@@ -676,6 +676,16 @@ export interface V2Environment {
   createdAt?: string;
   updatedAt?: string;
 }
+export interface EnvironmentSecretMetadata {
+  id: string;
+  environmentId: string;
+  key: string;
+  lastUsedAt?: string | null;
+}
+export interface EnvironmentSecretWrite {
+  key: string;
+  value: string;
+}
 export type ProjectRoleType = "GUEST" | "AUTHENTICATED";
 export type ProjectRoleSessionStatus = "UNVERIFIED" | "ACTIVE" | "EXPIRED" | "INVALID_CREDENTIALS";
 export interface ProjectRole {
@@ -3229,6 +3239,38 @@ export const v2Api = {
     }),
   listEnvironments: (projectId: string): Promise<V2Environment[]> =>
     apiRequest(`/projects/${encodeURIComponent(projectId)}/environments`, { requiresAuth: true }),
+  listEnvironmentSecrets: (environmentId: string): Promise<EnvironmentSecretMetadata[]> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/secrets`, {
+      requiresAuth: true,
+      cache: "no-store",
+    }),
+  createEnvironmentSecret: (
+    environmentId: string,
+    data: EnvironmentSecretWrite,
+  ): Promise<EnvironmentSecretMetadata> =>
+    apiRequest(`/environments/${encodeURIComponent(environmentId)}/secrets`, {
+      method: "POST",
+      body: JSON.stringify(data),
+      requiresAuth: true,
+    }),
+  rotateEnvironmentSecret: (
+    environmentId: string,
+    key: string,
+    value: string,
+  ): Promise<EnvironmentSecretMetadata> =>
+    apiRequest(
+      `/environments/${encodeURIComponent(environmentId)}/secrets/${encodeURIComponent(key)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ value }),
+        requiresAuth: true,
+      },
+    ),
+  deleteEnvironmentSecret: (environmentId: string, key: string): Promise<void> =>
+    apiRequest(
+      `/environments/${encodeURIComponent(environmentId)}/secrets/${encodeURIComponent(key)}`,
+      { method: "DELETE", requiresAuth: true },
+    ),
   createEnvironment: (data: {
     organizationId: string;
     workspaceId: string;
