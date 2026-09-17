@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GripVertical, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Check, GripVertical, Loader2, Plus, Sparkles, Trash2, X, XCircle } from "lucide-react";
 import {
   ApiRequestError,
   organizationsApi,
@@ -82,6 +82,7 @@ export function ScenarioCatalogPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<ScenarioCatalogItem | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -152,6 +153,7 @@ export function ScenarioCatalogPage() {
         <button
           onClick={() => {
             setNotice(null);
+            setEditing(null);
             setOpen(true);
           }}
           disabled={!projectId}
@@ -218,6 +220,7 @@ export function ScenarioCatalogPage() {
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Steps</th>
                 <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -233,6 +236,35 @@ export function ScenarioCatalogPage() {
                   <td className="px-4 py-4 text-xs text-muted-foreground">
                     {new Date(item.createdAt).toLocaleString()}
                   </td>
+                  <td className="px-4 py-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditing(item);
+                        setOpen(true);
+                      }}
+                      className="mr-2 text-primary hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!window.confirm(`Delete scenario “${item.name}”?`)) return;
+                        try {
+                          await scenariosApi.remove(projectId, item.id);
+                          setItems((current) =>
+                            current.filter((candidate) => candidate.id !== item.id),
+                          );
+                        } catch (cause) {
+                          setError(toMessage(cause, "Unable to delete scenario."));
+                        }
+                      }}
+                      className="text-destructive hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -242,10 +274,16 @@ export function ScenarioCatalogPage() {
       {open && projectId && (
         <ScenarioBuilder
           projectId={projectId}
+          initialItem={editing}
           onClose={() => setOpen(false)}
           onCreated={(item) => {
-            setItems((current) => [item, ...current]);
+            setItems((current) =>
+              editing
+                ? current.map((candidate) => (candidate.id === item.id ? item : candidate))
+                : [item, ...current],
+            );
             setOpen(false);
+            setEditing(null);
             setNotice(`Scenario “${item.name}” saved.`);
           }}
         />
@@ -256,29 +294,49 @@ export function ScenarioCatalogPage() {
 
 function ScenarioBuilder({
   projectId,
+  initialItem,
   onClose,
   onCreated,
 }: {
   projectId: string;
+  initialItem: ScenarioCatalogItem | null;
   onClose: () => void;
   onCreated: (item: ScenarioCatalogItem) => void;
 }) {
-  const [draft, setDraft] = useState<Draft>({ name: "", description: "", steps: [freshStep()] });
+  const [draft, setDraft] = useState<Draft>(() =>
+    initialItem
+      ? {
+          name: initialItem.name,
+          description: initialItem.description ?? "",
+          steps: initialItem.steps,
+        }
+      : { name: "", description: "", steps: [freshStep()] },
+  );
   const [prompt, setPrompt] = useState("");
   const [showGenerator, setShowGenerator] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [discoveryMapMissing, setDiscoveryMapMissing] = useState(false);
+  const [verification, setVerification] = useState<{
+    status: "passed" | "failed";
+    results: Array<{ index: number; status: "passed" | "failed"; error?: string }>;
+    error: string | null;
+  } | null>(() =>
+    initialItem?.isVerified ? { status: "passed", results: [], error: null } : null,
+  );
+  const [verifying, setVerifying] = useState(false);
   const payload = useMemo(
     () => ({ projectId, ...draft, ...(draft.description ? {} : { description: undefined }) }),
     [projectId, draft],
   );
-  const updateStep = (index: number, step: ScenarioStep) =>
+  const updateStep = (index: number, step: ScenarioStep) => (
+    setVerification(null),
     setDraft((current) => ({
       ...current,
       steps: current.steps.map((item, itemIndex) => (itemIndex === index ? step : item)),
-    }));
+    }))
+  );
   const validate = () => {
     if (!draft.name.trim()) return "Scenario name is required.";
     if (draft.steps.length < 1) return "Add at least one step.";
@@ -316,6 +374,7 @@ function ScenarioBuilder({
       if (!isScenarioStepList(result.steps))
         throw new Error("The AI returned unsupported scenario steps. Nothing was changed.");
       setDiscoveryMapMissing(result.discoveryMapMissing);
+      setVerification(null);
       setDraft((current) => ({ ...current, steps: result.steps }));
       setShowGenerator(false);
       setPrompt("");
@@ -325,16 +384,52 @@ function ScenarioBuilder({
       setGenerating(false);
     }
   };
+  const verify = async () => {
+    const issue = validate();
+    if (issue) {
+      setError(issue);
+      return;
+    }
+    setVerifying(true);
+    setError(null);
+    try {
+      const result = await scenariosApi.verify(projectId, draft.steps);
+      setVerification({ status: result.status, results: result.results, error: result.error });
+      if (result.status === "failed")
+        setError(result.error || "Dry Run failed. Edit the step and verify again before saving.");
+    } catch (cause) {
+      setVerification({
+        status: "failed",
+        results: [],
+        error: toMessage(cause, "Unable to complete Dry Run."),
+      });
+      setError(toMessage(cause, "Unable to complete Dry Run."));
+    } finally {
+      setVerifying(false);
+    }
+  };
   const save = async () => {
     const issue = validate();
     if (issue) {
       setError(issue);
       return;
     }
+    if (verification?.status === "failed") {
+      setError("Dry Run failed. Edit or regenerate the steps, then verify again before saving.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      onCreated(await scenariosApi.create(projectId, payload));
+      const savePayload = {
+        ...payload,
+        ...(verification?.status === "passed" ? { isVerified: true } : {}),
+      };
+      onCreated(
+        initialItem
+          ? await scenariosApi.update(projectId, initialItem.id, savePayload)
+          : await scenariosApi.create(projectId, savePayload),
+      );
     } catch (cause) {
       setError(
         cause instanceof ApiRequestError && cause.status === 409
@@ -420,7 +515,10 @@ function ScenarioBuilder({
             Scenario name
             <input
               value={draft.name}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+              onChange={(event) => {
+                setVerification(null);
+                setDraft({ ...draft, name: event.target.value });
+              }}
               maxLength={160}
               className={`${inputClass} mt-1`}
             />
@@ -429,7 +527,10 @@ function ScenarioBuilder({
             Description <span className="font-normal text-muted-foreground">(optional)</span>
             <input
               value={draft.description}
-              onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+              onChange={(event) => {
+                setVerification(null);
+                setDraft({ ...draft, description: event.target.value });
+              }}
               maxLength={2000}
               className={`${inputClass} mt-1`}
             />
@@ -439,7 +540,10 @@ function ScenarioBuilder({
           <div className="flex items-center justify-between">
             <h3 className="font-display font-semibold">Steps</h3>
             <button
-              onClick={() => setDraft({ ...draft, steps: [...draft.steps, freshStep()] })}
+              onClick={() => {
+                setVerification(null);
+                setDraft({ ...draft, steps: [...draft.steps, freshStep()] });
+              }}
               disabled={generating || saving}
               className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
             >
@@ -448,20 +552,40 @@ function ScenarioBuilder({
             </button>
           </div>
           {draft.steps.map((step, index) => (
-            <StepEditor
-              key={index}
-              index={index}
-              step={step}
-              canRemove={draft.steps.length > 1}
-              disabled={generating || saving}
-              onChange={(next) => updateStep(index, next)}
-              onRemove={() =>
-                setDraft({
-                  ...draft,
-                  steps: draft.steps.filter((_, itemIndex) => itemIndex !== index),
-                })
-              }
-            />
+            <div key={index}>
+              <StepEditor
+                index={index}
+                step={step}
+                canRemove={draft.steps.length > 1}
+                disabled={generating || saving || verifying}
+                onChange={(next) => updateStep(index, next)}
+                onRemove={() => {
+                  setVerification(null);
+                  setDraft({
+                    ...draft,
+                    steps: draft.steps.filter((_, itemIndex) => itemIndex !== index),
+                  });
+                }}
+              />
+              {verification?.results.find((result) => result.index === index) &&
+                (() => {
+                  const result = verification.results.find(
+                    (candidate) => candidate.index === index,
+                  )!;
+                  return (
+                    <div
+                      className={`mt-2 flex items-start gap-2 text-xs ${result.status === "passed" ? "text-emerald-400" : "text-destructive"}`}
+                    >
+                      {result.status === "passed" ? (
+                        <Check className="mt-0.5 h-4 w-4" />
+                      ) : (
+                        <XCircle className="mt-0.5 h-4 w-4" />
+                      )}
+                      <span>{result.status === "passed" ? "Verified" : result.error}</span>
+                    </div>
+                  );
+                })()}
+            </div>
           ))}
         </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -496,8 +620,16 @@ function ScenarioBuilder({
             Cancel
           </button>
           <button
+            type="button"
+            onClick={() => void verify()}
+            disabled={generating || saving || verifying}
+            className="inline-flex items-center gap-2 rounded-md border border-primary/40 px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50"
+          >
+            {verifying && <Loader2 className="h-4 w-4 animate-spin" />}Verify (Dry Run)
+          </button>
+          <button
             onClick={() => void save()}
-            disabled={generating || saving}
+            disabled={generating || saving || verifying || verification?.status === "failed"}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}Save scenario

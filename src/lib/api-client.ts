@@ -3574,6 +3574,7 @@ export interface CreateScenarioPayload {
   name: string;
   description?: string;
   steps: ScenarioStep[];
+  isVerified?: boolean;
 }
 export interface ScenarioCatalogItem {
   id: string;
@@ -3581,6 +3582,7 @@ export interface ScenarioCatalogItem {
   name: string;
   description?: string | null;
   steps: ScenarioStep[];
+  isVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -3592,6 +3594,14 @@ export interface GenerateScenarioResponse {
   steps: ScenarioStep[];
   discoveryMapMissing: boolean;
   discoverySummary?: { routes: string[]; selectors: string[] };
+}
+export interface VerifyScenarioResponse {
+  status: "passed" | "failed";
+  results: Array<{ index: number; status: "passed" | "failed"; error?: string }>;
+  failedStepIndex: number | null;
+  error: string | null;
+  suggestedStep?: ScenarioStep;
+  queued: boolean;
 }
 export interface GenerateFromDiscoveryResponse {
   scanId: string | null;
@@ -3632,6 +3642,34 @@ export const scenariosApi = {
       requiresAuth: true,
       timeoutMs: 120_000,
     }),
+  verify: (projectId: string, steps: ScenarioStep[]): Promise<VerifyScenarioResponse> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/scenarios/verify`, {
+      method: "POST",
+      body: JSON.stringify({ projectId, steps }),
+      requiresAuth: true,
+      timeoutMs: 120_000,
+    }),
+  update: (
+    projectId: string,
+    scenarioId: string,
+    payload: CreateScenarioPayload,
+  ): Promise<ScenarioCatalogItem> =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/scenarios/${encodeURIComponent(scenarioId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+        requiresAuth: true,
+      },
+    ),
+  remove: (projectId: string, scenarioId: string): Promise<ScenarioCatalogItem> =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/scenarios/${encodeURIComponent(scenarioId)}`,
+      {
+        method: "DELETE",
+        requiresAuth: true,
+      },
+    ),
 };
 
 export const projectsApi = {
