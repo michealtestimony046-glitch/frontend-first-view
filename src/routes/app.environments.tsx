@@ -42,10 +42,7 @@ type Panel = "environment" | "fixture" | null;
 
 export const Route = createFileRoute("/app/environments")({
   head: () => ({
-    meta: [
-      { title: "Environments & test data · Matrix QA" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Secrets & environments · Matrix QA" }, { name: "robots", content: "noindex" }],
   }),
   component: EnvironmentsPage,
 });
@@ -214,7 +211,7 @@ function EnvironmentsPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
-              Environments &amp; test data
+              Secrets &amp; environments
             </h1>
             <span className="rounded-full border border-primary/25 bg-primary/5 px-2 py-0.5 font-mono text-[10px] text-primary">
               CONTROL PLANE
