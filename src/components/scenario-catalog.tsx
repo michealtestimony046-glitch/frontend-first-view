@@ -491,7 +491,11 @@ function ScenarioBuilder({
     setVerifying(true);
     setError(null);
     try {
-      const result = await scenariosApi.verify(projectId, draft.steps);
+      const result = await scenariosApi.verify(
+        projectId,
+        draft.steps,
+        activeEnvironmentId || undefined,
+      );
       setVerification({ status: result.status, results: result.results, error: result.error });
       if (result.status === "failed")
         setError(result.error || "Dry Run failed. Edit the step and verify again before saving.");

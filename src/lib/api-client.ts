@@ -3684,10 +3684,14 @@ export const scenariosApi = {
       requiresAuth: true,
       timeoutMs: 120_000,
     }),
-  verify: (projectId: string, steps: ScenarioStep[]): Promise<VerifyScenarioResponse> =>
+  verify: (
+    projectId: string,
+    steps: ScenarioStep[],
+    environmentId?: string,
+  ): Promise<VerifyScenarioResponse> =>
     apiRequest(`/projects/${encodeURIComponent(projectId)}/scenarios/verify`, {
       method: "POST",
-      body: JSON.stringify({ projectId, steps }),
+      body: JSON.stringify({ projectId, steps, ...(environmentId ? { environmentId } : {}) }),
       requiresAuth: true,
       timeoutMs: 120_000,
     }),
