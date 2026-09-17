@@ -1223,7 +1223,8 @@ function PlanReview({
       </div>
       {matrixSummary && <MatrixDepthSummary summary={matrixSummary} />}
       {
-        <div className="max-h-[30rem] divide-y divide-border overflow-y-auto">
+        <div className="max-w-[100vw] overflow-x-auto">
+          <div className="max-h-[30rem] min-w-[36rem] divide-y divide-border overflow-y-auto">
           {plan.scenarios.map((scenario) => {
             const decision = plan.policyDecisions.find((item) => item.scenarioId === scenario.id);
             return (
@@ -1273,6 +1274,7 @@ function PlanReview({
               </div>
             );
           })}
+          </div>
         </div>
       }
       {quickScanResult?.status === "COMPLETED" && (
