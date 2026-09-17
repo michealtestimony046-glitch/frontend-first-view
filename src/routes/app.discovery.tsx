@@ -1,7 +1,39 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AlertTriangle, ArrowRight, CheckCircle2, CircleDot, Eye, ExternalLink, GitBranch, Globe2, Loader2, Play, Radar, RefreshCw, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
-import { formatRunStartError, quickScanApi, v2Api, type OnboardingQuickScanResult, type ProviderCapacityDecision, type V2ApplicationScan, type V2Environment, type V2JourneyGraph, type V2MatrixSummary, type V2PlanStatus, type V2PlannerMode, type V2PolicyDecision, type V2TestPlan, type V2WebPrecheck } from "@/lib/api-client";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  CircleDot,
+  Eye,
+  ExternalLink,
+  GitBranch,
+  Globe2,
+  Loader2,
+  Play,
+  Radar,
+  RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
+import {
+  formatRunStartError,
+  quickScanApi,
+  scenariosApi,
+  v2Api,
+  type OnboardingQuickScanResult,
+  type ProviderCapacityDecision,
+  type V2ApplicationScan,
+  type V2Environment,
+  type V2JourneyGraph,
+  type V2MatrixSummary,
+  type V2PlanStatus,
+  type V2PlannerMode,
+  type V2PolicyDecision,
+  type V2TestPlan,
+  type V2WebPrecheck,
+} from "@/lib/api-client";
 import { toQuickScanHandoff } from "@/lib/quick-scan-handoff";
 import { useLivePortfolio } from "@/lib/live-data";
 
@@ -17,19 +49,31 @@ function normalizeTargetUrl(value: string | null | undefined) {
 
 function sameTargetOrigin(left: string | undefined, right: string | undefined) {
   if (!left || !right) return false;
-  try { return new URL(left).origin === new URL(right).origin; } catch { return false; }
+  try {
+    return new URL(left).origin === new URL(right).origin;
+  } catch {
+    return false;
+  }
 }
 
 function discoveryProgressLabel(phase: string | undefined) {
   switch (phase) {
-    case "PRECHECK": return "Checking target reachability";
-    case "BROWSER_START": return "Starting isolated browser";
-    case "MAPPING": return "Mapping same-origin pages";
-    case "AI_ENRICHMENT": return "Summarizing discovery evidence";
-    case "FINALIZING": return "Saving the fresh map";
-    case "COMPLETED": return "Discovery complete";
-    case "FAILED": return "Discovery stopped";
-    default: return "Waiting for discovery progress";
+    case "PRECHECK":
+      return "Checking target reachability";
+    case "BROWSER_START":
+      return "Starting isolated browser";
+    case "MAPPING":
+      return "Mapping same-origin pages";
+    case "AI_ENRICHMENT":
+      return "Summarizing discovery evidence";
+    case "FINALIZING":
+      return "Saving the fresh map";
+    case "COMPLETED":
+      return "Discovery complete";
+    case "FAILED":
+      return "Discovery stopped";
+    default:
+      return "Waiting for discovery progress";
   }
 }
 
@@ -37,7 +81,10 @@ export const Route = createFileRoute("/app/discovery")({
   head: () => ({
     meta: [
       { title: "Discovery · Matrix QA" },
-      { name: "description", content: "Map an application, review the proposed QA plan, and start a safe adaptive run." },
+      {
+        name: "description",
+        content: "Map an application, review the proposed QA plan, and start a safe adaptive run.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -58,6 +105,7 @@ function DiscoveryPage() {
   const [scanning, setScanning] = useState(false);
   const [quickScanRunning, setQuickScanRunning] = useState(false);
   const [planning, setPlanning] = useState(false);
+  const [catalogGenerating, setCatalogGenerating] = useState(false);
   const [running, setRunning] = useState(false);
   const [enableVision, setEnableVision] = useState(false);
   const [enableRecovery, setEnableRecovery] = useState(false);
@@ -65,12 +113,15 @@ function DiscoveryPage() {
   const [capacityStatus, setCapacityStatus] = useState<ProviderCapacityDecision | null>(null);
   const [queuedRunId, setQueuedRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [catalogNotice, setCatalogNotice] = useState<string | null>(null);
 
   const project = live.activeProject;
   const organization = live.activeOrganization;
   const workspace = live.activeWorkspace;
   const selectedEnvironment = environments.find((environment) => environment.id === environmentId);
-  const selectedTargetUrl = normalizeTargetUrl(selectedEnvironment?.baseUrl || project?.defaultTargetUrl);
+  const selectedTargetUrl = normalizeTargetUrl(
+    selectedEnvironment?.baseUrl || project?.defaultTargetUrl,
+  );
 
   useEffect(() => {
     if (!project) {
@@ -88,11 +139,22 @@ function DiscoveryPage() {
         if (cancelled) return;
         setEnvironments(loadedEnvironments);
         setScans(loadedScans);
-        setSelectedScan(loadedScans.find((scan) => scan.status === "RUNNING" || scan.status === "PENDING") ?? loadedScans[0] ?? null);
+        setSelectedScan(
+          loadedScans.find((scan) => scan.status === "RUNNING" || scan.status === "PENDING") ??
+            loadedScans[0] ??
+            null,
+        );
       })
-      .catch((cause) => { if (!cancelled) setError(cause instanceof Error ? cause.message : "Unable to load discovery data."); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      .catch((cause) => {
+        if (!cancelled)
+          setError(cause instanceof Error ? cause.message : "Unable to load discovery data.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [project?.id]);
 
   useEffect(() => {
@@ -107,7 +169,7 @@ function DiscoveryPage() {
         const refreshed = await v2Api.getScan(selectedScan.id);
         if (cancelled) return;
         setSelectedScan(refreshed);
-        setScans((current) => current.map((scan) => scan.id === refreshed.id ? refreshed : scan));
+        setScans((current) => current.map((scan) => (scan.id === refreshed.id ? refreshed : scan)));
         if (["PENDING", "RUNNING"].includes(refreshed.status)) {
           timer = window.setTimeout(poll, 2500);
         } else {
@@ -122,15 +184,22 @@ function DiscoveryPage() {
     };
     setScanning(true);
     timer = window.setTimeout(poll, 1800);
-    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
   }, [selectedScan?.id]);
 
   const runQuickScan = async (targetUrl: string) => {
     setQuickScanRunning(true);
     try {
-      const result = await quickScanApi.run({ targetUrl, ownershipConfirmed: targetAuthorizationConfirmed });
+      const result = await quickScanApi.run({
+        targetUrl,
+        ownershipConfirmed: targetAuthorizationConfirmed,
+      });
       setQuickScanResult(result);
-      if (result.status !== "COMPLETED") throw new Error(result.errorMessage || "Quick Scan could not reach this target.");
+      if (result.status !== "COMPLETED")
+        throw new Error(result.errorMessage || "Quick Scan could not reach this target.");
       return result;
     } finally {
       setQuickScanRunning(false);
@@ -144,7 +213,9 @@ function DiscoveryPage() {
       return;
     }
     if (!targetAuthorizationConfirmed) {
-      setError("Confirm that you own or are authorized to test this target before starting Quick Scan.");
+      setError(
+        "Confirm that you own or are authorized to test this target before starting Quick Scan.",
+      );
       return;
     }
     setError(null);
@@ -158,7 +229,39 @@ function DiscoveryPage() {
       setScans((current) => [created, ...current.filter((scan) => scan.id !== created.id)]);
     } catch (cause) {
       setScanning(false);
-      setError(cause instanceof Error ? cause.message : "Unable to complete Quick Scan and start application discovery.");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to complete Quick Scan and start application discovery.",
+      );
+    }
+  };
+
+  const generateScenarios = async () => {
+    if (!project || !selectedScan || selectedScan.status !== "COMPLETED") return;
+    setCatalogGenerating(true);
+    setCatalogNotice(null);
+    setError(null);
+    try {
+      const result = await scenariosApi.generateFromDiscovery(project.id, selectedScan.id);
+      if (result.discoveryMapMissing) {
+        setCatalogNotice(result.warnings[0] || "Run Discovery first to create catalog scenarios.");
+        return;
+      }
+      setCatalogNotice(
+        result.created.length > 0
+          ? `${result.created.length} scenario${result.created.length === 1 ? "" : "s"} added${result.skipped.length ? ` · ${result.skipped.length} already in the catalog` : ""}.`
+          : `${result.skipped.length} scenario${result.skipped.length === 1 ? "" : "s"} already in the catalog.`,
+      );
+      window.location.href = "/app/scenarios";
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to synthesize scenarios from this Discovery map.",
+      );
+    } finally {
+      setCatalogGenerating(false);
     }
   };
 
@@ -167,10 +270,15 @@ function DiscoveryPage() {
     setPlanning(true);
     setError(null);
     try {
-      const created = await v2Api.createPlanFromScan(selectedScan.id, { name: planName.trim() || "Adaptive smoke plan", mode });
+      const created = await v2Api.createPlanFromScan(selectedScan.id, {
+        name: planName.trim() || "Adaptive smoke plan",
+        mode,
+      });
       setPlan(created);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to generate a plan from this scan.");
+      setError(
+        cause instanceof Error ? cause.message : "Unable to generate a plan from this scan.",
+      );
     } finally {
       setPlanning(false);
     }
@@ -178,25 +286,49 @@ function DiscoveryPage() {
 
   const reloadPlan = async () => {
     if (!plan) return;
-    try { setPlan(await v2Api.getPlan(plan.id)); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to refresh plan."); }
+    try {
+      setPlan(await v2Api.getPlan(plan.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to refresh plan.");
+    }
   };
 
   const approvePlan = async () => {
     if (!plan) return;
     setPlanning(true);
-    try { setPlan(await v2Api.approvePlan(plan.id)); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to approve this plan."); } finally { setPlanning(false); }
+    try {
+      setPlan(await v2Api.approvePlan(plan.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to approve this plan.");
+    } finally {
+      setPlanning(false);
+    }
   };
 
   const approveDecision = async (decision: V2PolicyDecision) => {
     if (!plan) return;
     setPlanning(true);
-    try { await v2Api.approvePolicy(plan.id, decision.id); await reloadPlan(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to approve this policy decision."); } finally { setPlanning(false); }
+    try {
+      await v2Api.approvePolicy(plan.id, decision.id);
+      await reloadPlan();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to approve this policy decision.");
+    } finally {
+      setPlanning(false);
+    }
   };
 
   const rejectDecision = async (decision: V2PolicyDecision) => {
     if (!plan) return;
     setPlanning(true);
-    try { await v2Api.rejectPolicy(plan.id, decision.id); await reloadPlan(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to reject this policy decision."); } finally { setPlanning(false); }
+    try {
+      await v2Api.rejectPolicy(plan.id, decision.id);
+      await reloadPlan();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to reject this policy decision.");
+    } finally {
+      setPlanning(false);
+    }
   };
 
   const runPlan = async () => {
@@ -207,18 +339,28 @@ function DiscoveryPage() {
       return;
     }
     if (!targetAuthorizationConfirmed) {
-      setError("Confirm that you own or are authorized to test this target before starting the browser test.");
+      setError(
+        "Confirm that you own or are authorized to test this target before starting the browser test.",
+      );
       return;
     }
     setRunning(true);
     setError(null);
     try {
-      const handoffResult = quickScanResult && sameTargetOrigin(quickScanResult.targetUrl, targetUrl)
-        ? quickScanResult
-        : await runQuickScan(targetUrl);
+      const handoffResult =
+        quickScanResult && sameTargetOrigin(quickScanResult.targetUrl, targetUrl)
+          ? quickScanResult
+          : await runQuickScan(targetUrl);
       const quickScanHandoff = toQuickScanHandoff(handoffResult);
-      if (!quickScanHandoff) throw new Error("Complete Quick Scan before starting the browser test.");
-      const response = await v2Api.runPlan(plan.id, { targetUrl, enableVision, enableRecovery, targetAuthorizationConfirmed, quickScanHandoff });
+      if (!quickScanHandoff)
+        throw new Error("Complete Quick Scan before starting the browser test.");
+      const response = await v2Api.runPlan(plan.id, {
+        targetUrl,
+        enableVision,
+        enableRecovery,
+        targetAuthorizationConfirmed,
+        quickScanHandoff,
+      });
       const providerCapacity = response.metadata?.providerCapacity;
       if (providerCapacity?.status === "WAITING") {
         setCapacityStatus(providerCapacity);
@@ -234,22 +376,73 @@ function DiscoveryPage() {
   };
 
   const map = selectedScan?.projectMap;
-  const safeToExecute = Boolean(plan && plan.status === "APPROVED" && plan.policyDecisions.length > 0 && plan.policyDecisions.every((decision) =>
-    (decision.tier === "SAFE" && decision.status === "ALLOWED") ||
-    (decision.tier === "CAUTION" && decision.status === "APPROVED")
-  ));
+  const safeToExecute = Boolean(
+    plan &&
+    plan.status === "APPROVED" &&
+    plan.policyDecisions.length > 0 &&
+    plan.policyDecisions.every(
+      (decision) =>
+        (decision.tier === "SAFE" && decision.status === "ALLOWED") ||
+        (decision.tier === "CAUTION" && decision.status === "APPROVED"),
+    ),
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
       <header className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-primary"><Radar className="h-3.5 w-3.5" /> Application discovery</div>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Map first. Test what matters.</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Matrix QA observes your selected application, proposes an intent-based smoke plan, and shows the safety decisions before any adaptive run can start.</p>
+          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-primary">
+            <Radar className="h-3.5 w-3.5" /> Application discovery
+          </div>
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
+            Map first. Test what matters.
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Matrix QA observes your selected application, proposes an intent-based smoke plan, and
+            shows the safety decisions before any adaptive run can start.
+          </p>
         </div>
-        {project && <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="rounded-md border border-border bg-surface-2/60 px-2.5 py-1.5">{organization?.name ?? "Organization"}</span><span>/</span><span>{workspace?.name ?? "Workspace"}</span><span>/</span><span className="font-medium text-foreground">{project.name}</span></div>}
+        {project && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-md border border-border bg-surface-2/60 px-2.5 py-1.5">
+              {organization?.name ?? "Organization"}
+            </span>
+            <span>/</span>
+            <span>{workspace?.name ?? "Workspace"}</span>
+            <label className="ml-1 flex items-center gap-2">
+              <span className="sr-only">Active project</span>
+              <select
+                value={project.id}
+                onChange={(event) => {
+                  live.setActiveProject(event.target.value);
+                  setSelectedScan(null);
+                  setPlan(null);
+                  setCatalogNotice(null);
+                }}
+                className="rounded-md border border-border bg-surface-2/60 px-2.5 py-1.5 font-medium text-foreground"
+              >
+                {live.projects.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
       </header>
 
+      {project && (
+        <div className="mt-5 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
+          Site updated? Run Discovery to refresh your application map and keep AI scenario
+          generation accurate.
+        </div>
+      )}
+      {catalogNotice && (
+        <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+          {catalogNotice}
+        </div>
+      )}
       {!project ? (
         <EmptyState />
       ) : (
@@ -258,61 +451,345 @@ function DiscoveryPage() {
             <div className="surface-card p-5">
               <SectionEyebrow step="01" label="Observe" />
               <h2 className="mt-3 font-display text-xl font-semibold">Discover this application</h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">Quick Scan runs first for fast structural signals. Then read-only discovery maps same-origin routes, and the browser agent investigates from the combined evidence without treating any lead as proof.</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Quick Scan runs first for fast structural signals. Then read-only discovery maps
+                same-origin routes, and the browser agent investigates from the combined evidence
+                without treating any lead as proof.
+              </p>
               <div className="mt-5 space-y-3">
-                <div className="rounded-md border border-border bg-surface-2/50 px-3 py-2.5"><div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Project target</div><div className="mt-1 flex items-center gap-2 text-sm"><Globe2 className="h-4 w-4 text-primary" /><span className="truncate">{project.defaultTargetUrl || "No default target configured"}</span></div></div>
-                <label className="block"><span className="mb-1.5 block text-xs font-medium text-muted-foreground">Environment <span className="font-normal">(optional)</span></span><select value={environmentId} onChange={(event) => { setEnvironmentId(event.target.value); setTargetAuthorizationConfirmed(false); setQuickScanResult(null); }} className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"><option value="">Use project target</option>{environments.map((environment) => <option key={environment.id} value={environment.id}>{environment.name} · {environment.kind}</option>)}</select></label>
-                <label className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-xs"><input type="checkbox" checked={targetAuthorizationConfirmed} onChange={(event) => setTargetAuthorizationConfirmed(event.target.checked)} disabled={scanning || running} className="mt-0.5 accent-primary" /><span><span className="flex items-center gap-1.5 font-medium text-foreground"><ShieldCheck className="h-3.5 w-3.5 text-primary" />I own or am authorized to test this target</span><span className="mt-0.5 block leading-5 text-muted-foreground">Quick Scan and the browser agent will use this target only for the authorized QA run.</span></span></label>
-                <button type="button" onClick={startScan} disabled={scanning || loading || !selectedTargetUrl || !targetAuthorizationConfirmed} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-45">{scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}{quickScanRunning ? "Running Quick Scan…" : scanning ? "Mapping application…" : "Run Quick Scan & start discovery"}</button>
-                {!project.defaultTargetUrl && !environmentId && <p className="text-xs text-warning">Add a project target or create an environment before scanning.</p>}
+                <div className="rounded-md border border-border bg-surface-2/50 px-3 py-2.5">
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Project target
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-sm">
+                    <Globe2 className="h-4 w-4 text-primary" />
+                    <span className="truncate">
+                      {project.defaultTargetUrl || "No default target configured"}
+                    </span>
+                  </div>
+                </div>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Environment <span className="font-normal">(optional)</span>
+                  </span>
+                  <select
+                    value={environmentId}
+                    onChange={(event) => {
+                      setEnvironmentId(event.target.value);
+                      setTargetAuthorizationConfirmed(false);
+                      setQuickScanResult(null);
+                    }}
+                    className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="">Use project target</option>
+                    {environments.map((environment) => (
+                      <option key={environment.id} value={environment.id}>
+                        {environment.name} · {environment.kind}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={targetAuthorizationConfirmed}
+                    onChange={(event) => setTargetAuthorizationConfirmed(event.target.checked)}
+                    disabled={scanning || running}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <span>
+                    <span className="flex items-center gap-1.5 font-medium text-foreground">
+                      <ShieldCheck className="h-3.5 w-3.5 text-primary" />I own or am authorized to
+                      test this target
+                    </span>
+                    <span className="mt-0.5 block leading-5 text-muted-foreground">
+                      Quick Scan and the browser agent will use this target only for the authorized
+                      QA run.
+                    </span>
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={startScan}
+                  disabled={
+                    scanning || loading || !selectedTargetUrl || !targetAuthorizationConfirmed
+                  }
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground btn-primary-glow disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {scanning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Radar className="h-4 w-4" />
+                  )}
+                  {quickScanRunning
+                    ? "Running Quick Scan…"
+                    : scanning
+                      ? "Mapping application…"
+                      : "Run Quick Scan & start discovery"}
+                </button>
+                {!project.defaultTargetUrl && !environmentId && (
+                  <p className="text-xs text-warning">
+                    Add a project target or create an environment before scanning.
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="surface-card overflow-hidden">
-              <div className="flex items-center justify-between border-b border-border px-5 py-4"><div><h2 className="font-display text-base font-semibold">Discovery history</h2><p className="text-[11px] text-muted-foreground">Only scans for this project are shown.</p></div><button type="button" onClick={() => live.refresh()} className="rounded-md border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Refresh project data"><RefreshCw className="h-3.5 w-3.5" /></button></div>
-              {loading ? <div className="flex items-center gap-2 px-5 py-8 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading scans…</div> : scans.length === 0 ? <div className="px-5 py-8 text-sm text-muted-foreground">No discovery has run for this project yet.</div> : <ul className="max-h-[26rem] divide-y divide-border overflow-y-auto">{scans.slice(0, 8).map((scan) => <li key={scan.id}><button type="button" onClick={() => { setSelectedScan(scan); setPlan(null); setQuickScanResult(null); setTargetAuthorizationConfirmed(false); }} className={`flex w-full items-center justify-between gap-3 px-5 py-3 text-left hover:bg-accent/40 ${selectedScan?.id === scan.id ? "bg-primary/5" : ""}`}><span className="min-w-0"><span className="block truncate font-mono text-xs text-foreground">{scan.targetUrl}</span><span className="mt-1 block text-[11px] text-muted-foreground">{scan.createdAt ? new Date(scan.createdAt).toLocaleString() : "Recent"}</span></span><ScanStatus status={scan.status} /></button></li>)}</ul>}
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <div>
+                  <h2 className="font-display text-base font-semibold">Discovery history</h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    Only scans for this project are shown.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => live.refresh()}
+                  className="rounded-md border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="Refresh project data"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {loading ? (
+                <div className="flex items-center gap-2 px-5 py-8 text-xs text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading scans…
+                </div>
+              ) : scans.length === 0 ? (
+                <div className="px-5 py-8 text-sm text-muted-foreground">
+                  No discovery has run for this project yet.
+                </div>
+              ) : (
+                <ul className="max-h-[26rem] divide-y divide-border overflow-y-auto">
+                  {scans.slice(0, 8).map((scan) => (
+                    <li key={scan.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedScan(scan);
+                          setPlan(null);
+                          setQuickScanResult(null);
+                          setTargetAuthorizationConfirmed(false);
+                        }}
+                        className={`flex w-full items-center justify-between gap-3 px-5 py-3 text-left hover:bg-accent/40 ${selectedScan?.id === scan.id ? "bg-primary/5" : ""}`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-mono text-xs text-foreground">
+                            {scan.targetUrl}
+                          </span>
+                          <span className="mt-1 block text-[11px] text-muted-foreground">
+                            {scan.createdAt ? new Date(scan.createdAt).toLocaleString() : "Recent"}
+                          </span>
+                        </span>
+                        <ScanStatus status={scan.status} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </section>
 
           <section className="space-y-5">
-            {!selectedScan ? <div className="surface-card flex min-h-[420px] items-center justify-center p-8 text-center"><div><Radar className="mx-auto h-10 w-10 text-primary/50" /><h2 className="mt-4 font-display text-xl font-semibold">Your project map will appear here</h2><p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Start discovery to see routes, features, controls, and risk signals before creating a test plan.</p></div></div> : <>
-              <MapSummary scan={selectedScan} map={map} />
-              {selectedScan.status === "COMPLETED" && <PlanReview plan={plan} planName={planName} setPlanName={setPlanName} mode={mode} setMode={setMode} planning={planning} generatePlan={generatePlan} approvePlan={approvePlan} approveDecision={approveDecision} rejectDecision={rejectDecision} reloadPlan={reloadPlan} runPlan={runPlan} running={running} safeToExecute={safeToExecute} enableVision={enableVision} enableRecovery={enableRecovery} setEnableVision={setEnableVision} setEnableRecovery={setEnableRecovery} capacityStatus={capacityStatus} queuedRunId={queuedRunId} quickScanResult={quickScanResult} quickScanRunning={quickScanRunning} targetAuthorizationConfirmed={targetAuthorizationConfirmed} />}
-            </>}
+            {!selectedScan ? (
+              <div className="surface-card flex min-h-[420px] items-center justify-center p-8 text-center">
+                <div>
+                  <Radar className="mx-auto h-10 w-10 text-primary/50" />
+                  <h2 className="mt-4 font-display text-xl font-semibold">
+                    Your project map will appear here
+                  </h2>
+                  <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                    Start discovery to see routes, features, controls, and risk signals before
+                    creating a test plan.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <MapSummary scan={selectedScan} map={map} />
+                {selectedScan.status === "COMPLETED" && (
+                  <CatalogConversionCard
+                    generating={catalogGenerating}
+                    generate={generateScenarios}
+                  />
+                )}
+              </>
+            )}
           </section>
         </div>
       )}
-      {error && <div className="fixed bottom-5 right-5 z-50 max-w-sm rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-xl" role="alert">{error}</div>}
+      {error && (
+        <div
+          className="fixed bottom-5 right-5 z-50 max-w-sm rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-xl"
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
     </div>
   );
 }
 
 function EmptyState() {
-  return <div className="mt-8 surface-card flex min-h-[420px] items-center justify-center p-8 text-center"><div className="max-w-md"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary"><Radar className="h-7 w-7" /></div><h2 className="mt-5 font-display text-2xl font-semibold">Choose a project before discovery</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Discovery is always project-scoped. Create or select a project first so Matrix QA never scans a target from another account.</p><Link to="/app/projects" className="mt-5 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">Open projects <ArrowRight className="h-4 w-4" /></Link></div></div>;
+  return (
+    <div className="mt-8 surface-card flex min-h-[420px] items-center justify-center p-8 text-center">
+      <div className="max-w-md">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Radar className="h-7 w-7" />
+        </div>
+        <h2 className="mt-5 font-display text-2xl font-semibold">
+          Choose a project before discovery
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Discovery is always project-scoped. Create or select a project first so Matrix QA never
+          scans a target from another account.
+        </p>
+        <Link
+          to="/app/projects"
+          className="mt-5 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+        >
+          Open projects <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 function SectionEyebrow({ step, label }: { step: string; label: string }) {
-  return <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-primary"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[9px]">{step}</span>{label}</div>;
+  return (
+    <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-primary">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[9px]">
+        {step}
+      </span>
+      {label}
+    </div>
+  );
 }
 
 function ScanStatus({ status }: { status: V2ApplicationScan["status"] }) {
-  const config = status === "COMPLETED" ? { label: "Mapped", className: "bg-success/15 text-success border-success/30" } : status === "FAILED" ? { label: "Failed", className: "bg-destructive/15 text-destructive border-destructive/30" } : { label: status === "RUNNING" ? "Mapping" : "Queued", className: "bg-primary/15 text-primary border-primary/30" };
-  return <span className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${config.className}`}>{config.label}</span>;
+  const config =
+    status === "COMPLETED"
+      ? { label: "Mapped", className: "bg-success/15 text-success border-success/30" }
+      : status === "FAILED"
+        ? { label: "Failed", className: "bg-destructive/15 text-destructive border-destructive/30" }
+        : {
+            label: status === "RUNNING" ? "Mapping" : "Queued",
+            className: "bg-primary/15 text-primary border-primary/30",
+          };
+  return (
+    <span
+      className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${config.className}`}
+    >
+      {config.label}
+    </span>
+  );
 }
 
 function PrecheckSummary({ precheck }: { precheck?: V2WebPrecheck | null }) {
   if (!precheck) return null;
   const passed = precheck.status === "PASS" && precheck.reachable && precheck.httpStatusOk;
-  return <div className={`mt-5 rounded-md border p-4 text-xs ${passed ? "border-success/30 bg-success/5" : "border-destructive/40 bg-destructive/10"}`}><div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 font-semibold"><CheckCircle2 className={`h-4 w-4 ${passed ? "text-success" : "text-destructive"}`} /> Web precheck</div><span className={`rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${passed ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>{passed ? "Ready to map" : "Needs attention"}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><span><strong className="font-medium text-foreground">Reachability:</strong> {precheck.reachable ? "reachable" : "unreachable"}</span><span><strong className="font-medium text-foreground">HTTP:</strong> {precheck.httpStatus ?? "no response"}</span><span><strong className="font-medium text-foreground">Public routes:</strong> {precheck.publicRouteCount}</span><span><strong className="font-medium text-foreground">Redirects:</strong> {precheck.redirectCount}</span></div><div className="mt-2 text-muted-foreground">robots.txt: {precheck.robots.checked ? precheck.robots.status ?? "unavailable" : "not checked"} · sitemap: {precheck.sitemap.checked ? `${precheck.sitemap.routeCount} routes` : "not checked"}</div>{precheck.errors.length > 0 && <ul className="mt-2 space-y-1 text-destructive">{precheck.errors.map((item, index) => <li key={index}>{item}</li>)}</ul>}</div>;
+  return (
+    <div
+      className={`mt-5 rounded-md border p-4 text-xs ${passed ? "border-success/30 bg-success/5" : "border-destructive/40 bg-destructive/10"}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 font-semibold">
+          <CheckCircle2 className={`h-4 w-4 ${passed ? "text-success" : "text-destructive"}`} /> Web
+          precheck
+        </div>
+        <span
+          className={`rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${passed ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}
+        >
+          {passed ? "Ready to map" : "Needs attention"}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <span>
+          <strong className="font-medium text-foreground">Reachability:</strong>{" "}
+          {precheck.reachable ? "reachable" : "unreachable"}
+        </span>
+        <span>
+          <strong className="font-medium text-foreground">HTTP:</strong>{" "}
+          {precheck.httpStatus ?? "no response"}
+        </span>
+        <span>
+          <strong className="font-medium text-foreground">Public routes:</strong>{" "}
+          {precheck.publicRouteCount}
+        </span>
+        <span>
+          <strong className="font-medium text-foreground">Redirects:</strong>{" "}
+          {precheck.redirectCount}
+        </span>
+      </div>
+      <div className="mt-2 text-muted-foreground">
+        robots.txt:{" "}
+        {precheck.robots.checked ? (precheck.robots.status ?? "unavailable") : "not checked"} ·
+        sitemap:{" "}
+        {precheck.sitemap.checked ? `${precheck.sitemap.routeCount} routes` : "not checked"}
+      </div>
+      {precheck.errors.length > 0 && (
+        <ul className="mt-2 space-y-1 text-destructive">
+          {precheck.errors.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
-function MapSummary({ scan, map }: { scan: V2ApplicationScan; map: V2ApplicationScan["projectMap"] }) {
+function MapSummary({
+  scan,
+  map,
+}: {
+  scan: V2ApplicationScan;
+  map: V2ApplicationScan["projectMap"];
+}) {
   if (scan.status !== "COMPLETED") {
     const progress = scan.summary?.progress;
     const pagesScanned = progress?.pagesScanned;
     const maxPages = progress?.maxPages ?? 8;
     const queuedUrls = progress?.queuedUrls;
-    return <div><PrecheckSummary precheck={scan.projectMap?.precheck ?? scan.summary?.precheck} /><div aria-live="polite" className="surface-card mt-5 flex min-h-[420px] items-center justify-center p-8 text-center"><div className="w-full max-w-md"><Loader2 className="mx-auto h-9 w-9 animate-spin text-primary" /><h2 className="mt-4 font-display text-xl font-semibold">{scan.status === "FAILED" ? "Discovery could not finish" : "Mapping the application"}</h2><p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">{scan.errorMessage || "The scanner is observing same-origin pages and waiting for a terminal result."}</p>{scan.status === "RUNNING" && <div className="mt-5 rounded-md border border-primary/20 bg-primary/5 p-4 text-left text-xs"><div className="font-medium text-foreground">{discoveryProgressLabel(progress?.phase)}</div>{typeof pagesScanned === "number" && <div className="mt-2 text-muted-foreground">{pagesScanned}/{maxPages} pages captured{typeof queuedUrls === "number" ? ` · ${queuedUrls} queued` : ""}</div>}{progress?.lastRoute && <div className="mt-1 truncate text-muted-foreground">Last route: {progress.lastRoute}</div>}</div>}</div></div></div>;
+    return (
+      <div>
+        <PrecheckSummary precheck={scan.projectMap?.precheck ?? scan.summary?.precheck} />
+        <div
+          aria-live="polite"
+          className="surface-card mt-5 flex min-h-[420px] items-center justify-center p-8 text-center"
+        >
+          <div className="w-full max-w-md">
+            <Loader2 className="mx-auto h-9 w-9 animate-spin text-primary" />
+            <h2 className="mt-4 font-display text-xl font-semibold">
+              {scan.status === "FAILED" ? "Discovery could not finish" : "Mapping the application"}
+            </h2>
+            <p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">
+              {scan.errorMessage ||
+                "The scanner is observing same-origin pages and waiting for a terminal result."}
+            </p>
+            {scan.status === "RUNNING" && (
+              <div className="mt-5 rounded-md border border-primary/20 bg-primary/5 p-4 text-left text-xs">
+                <div className="font-medium text-foreground">
+                  {discoveryProgressLabel(progress?.phase)}
+                </div>
+                {typeof pagesScanned === "number" && (
+                  <div className="mt-2 text-muted-foreground">
+                    {pagesScanned}/{maxPages} pages captured
+                    {typeof queuedUrls === "number" ? ` · ${queuedUrls} queued` : ""}
+                  </div>
+                )}
+                {progress?.lastRoute && (
+                  <div className="mt-1 truncate text-muted-foreground">
+                    Last route: {progress.lastRoute}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
   const pages = map?.scannedPages ?? [];
   const actions = map?.actions ?? [];
@@ -320,31 +797,724 @@ function MapSummary({ scan, map }: { scan: V2ApplicationScan; map: V2Application
   const risk = map?.riskSummary ?? { safe: 0, caution: 0, dangerous: 0 };
   const ai = map?.aiEnrichment;
   const aiLabel = !ai || !ai.enabled ? "Off" : ai.degraded ? "Fallback" : "Enriched";
-  return <div><PrecheckSummary precheck={scan.projectMap?.precheck ?? scan.summary?.precheck} /><div className="surface-card mt-5 overflow-hidden"><div className="flex items-start justify-between gap-4 border-b border-border px-5 py-5"><div><div className="flex items-center gap-2 text-xs font-medium text-success"><CheckCircle2 className="h-4 w-4" /> Discovery complete</div><h2 className="mt-2 font-display text-xl font-semibold">Project map ready for review</h2><p className="mt-1 text-sm text-muted-foreground">{map?.targetOrigin || scan.targetUrl}</p></div><a href={scan.targetUrl} target="_blank" rel="noreferrer" className="rounded-md border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Open target"><ExternalLink className="h-4 w-4" /></a></div><div className="grid grid-cols-2 gap-px border-b border-border bg-border sm:grid-cols-4 lg:grid-cols-5"><Metric label="Pages" value={pages.length} /><Metric label="Actions" value={actions.length} /><Metric label="Features" value={features.length} /><Metric label="HTTP errors" value={map?.httpErrors?.length ?? 0} /><Metric label="Map enrichment" value={aiLabel} /></div><JourneyGraphSummary graph={map?.journeyGraph} /><div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_180px]"><div><div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Detected features</div><div className="mt-2 flex flex-wrap gap-1.5">{features.length ? features.map((feature) => <span key={feature} className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-foreground">{feature}</span>) : <span className="text-sm text-muted-foreground">No named features detected yet.</span>}</div><div className="mt-5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Routes observed</div><ul className="mt-2 max-h-[22rem] space-y-2 overflow-y-auto">{pages.slice(0, 8).map((page) => <li key={page.url} className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-2/40 px-3 py-2"><span className="min-w-0 truncate font-mono text-xs text-foreground">{page.route}</span><span className="shrink-0 text-[11px] text-muted-foreground">{page.title || "Untitled"}</span></li>)}</ul></div><div><div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Safety mix</div><div className="mt-3 space-y-2"><RiskRow icon={ShieldCheck} label="Safe" value={risk.safe} tone="text-success" /><RiskRow icon={AlertTriangle} label="Caution" value={risk.caution} tone="text-warning" /><RiskRow icon={ShieldAlert} label="Dangerous" value={risk.dangerous} tone="text-destructive" /></div><p className="mt-4 text-[11px] leading-5 text-muted-foreground">Caution and dangerous controls remain blocked until reviewed by policy.</p></div></div></div></div>;
+  return (
+    <div>
+      <PrecheckSummary precheck={scan.projectMap?.precheck ?? scan.summary?.precheck} />
+      <div className="surface-card mt-5 overflow-hidden">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-5">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-medium text-success">
+              <CheckCircle2 className="h-4 w-4" /> Discovery complete
+            </div>
+            <h2 className="mt-2 font-display text-xl font-semibold">
+              Project map ready for review
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {map?.targetOrigin || scan.targetUrl}
+            </p>
+          </div>
+          <a
+            href={scan.targetUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label="Open target"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </div>
+        <div className="grid grid-cols-2 gap-px border-b border-border bg-border sm:grid-cols-4 lg:grid-cols-5">
+          <Metric label="Pages" value={pages.length} />
+          <Metric label="Actions" value={actions.length} />
+          <Metric label="Features" value={features.length} />
+          <Metric label="HTTP errors" value={map?.httpErrors?.length ?? 0} />
+          <Metric label="Map enrichment" value={aiLabel} />
+        </div>
+        <JourneyGraphSummary graph={map?.journeyGraph} />
+        <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_180px]">
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              Detected features
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {features.length ? (
+                features.map((feature) => (
+                  <span
+                    key={feature}
+                    className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-foreground"
+                  >
+                    {feature}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  No named features detected yet.
+                </span>
+              )}
+            </div>
+            <div className="mt-5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              Routes observed
+            </div>
+            <ul className="mt-2 max-h-[22rem] space-y-2 overflow-y-auto">
+              {pages.slice(0, 8).map((page) => (
+                <li
+                  key={page.url}
+                  className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-2/40 px-3 py-2"
+                >
+                  <span className="min-w-0 truncate font-mono text-xs text-foreground">
+                    {page.route}
+                  </span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {page.title || "Untitled"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              Safety mix
+            </div>
+            <div className="mt-3 space-y-2">
+              <RiskRow icon={ShieldCheck} label="Safe" value={risk.safe} tone="text-success" />
+              <RiskRow
+                icon={AlertTriangle}
+                label="Caution"
+                value={risk.caution}
+                tone="text-warning"
+              />
+              <RiskRow
+                icon={ShieldAlert}
+                label="Dangerous"
+                value={risk.dangerous}
+                tone="text-destructive"
+              />
+            </div>
+            <p className="mt-4 text-[11px] leading-5 text-muted-foreground">
+              Caution and dangerous controls remain blocked until reviewed by policy.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function JourneyGraphSummary({ graph }: { graph?: V2JourneyGraph }) {
-  if (!graph) return <div className="border-b border-border px-5 py-4 text-xs text-muted-foreground">Journey Graph unavailable for this scan. Run a fresh read-only discovery to generate one.</div>;
+  if (!graph)
+    return (
+      <div className="border-b border-border px-5 py-4 text-xs text-muted-foreground">
+        Journey Graph unavailable for this scan. Run a fresh read-only discovery to generate one.
+      </div>
+    );
   const routes = graph.states.filter((state) => state.kind === "route");
   const interactions = graph.states.filter((state) => state.kind === "interaction");
   const reviewStates = graph.states.filter((state) => state.kind === "review");
   const start = graph.states.find((state) => state.id === graph.startStateId);
   const routeNames = new Map(routes.map((state) => [state.id, state.route || state.title || "/"]));
-  return <div className="border-b border-border bg-surface-2/20 px-5 py-5" aria-label="Journey Graph review"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-xs font-medium text-primary"><GitBranch className="h-4 w-4" /> Journey Graph</div><p className="mt-1 text-sm text-muted-foreground">A bounded map of observed routes and interactions. Read-only navigation is approved; state-changing or ambiguous actions remain review-only.</p></div><span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-primary">v{graph.version}</span></div><div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-4"><Metric label="Routes" value={graph.counts.routes} /><Metric label="Interactions" value={graph.counts.interactions} /><Metric label="Transitions" value={graph.counts.transitions} /><Metric label="Needs review" value={graph.counts.reviewRequired} /></div><div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]"><div><div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Observed path</div><div className="mt-2 space-y-2">{routes.slice(0, 8).map((state, index) => <div key={state.id} className="flex items-start gap-2 text-xs"><div className="flex flex-col items-center"><CircleDot className={`mt-0.5 h-3.5 w-3.5 ${state.id === graph.startStateId ? "text-primary" : "text-muted-foreground"}`} />{index < Math.min(routes.length, 8) - 1 && <span className="mt-0.5 h-4 w-px bg-border" />}</div><div className="min-w-0"><div className="truncate font-mono text-foreground">{state.route || "/"}{state.id === graph.startStateId ? <span className="ml-2 rounded-full bg-primary/10 px-1.5 py-0.5 font-sans text-[10px] text-primary">start</span> : null}</div><div className="truncate text-muted-foreground">{state.title || "Observed route"}</div></div></div>)}{routes.length > 8 && <div className="text-[11px] text-muted-foreground">+{routes.length - 8} more observed routes</div>}{routes.length === 0 && <div className="text-sm text-muted-foreground">No route states were captured.</div>}</div></div><div><div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Transitions and review</div><div className="mt-2 space-y-2">{graph.transitions.slice(0, 6).map((transition) => <div key={transition.id} className="rounded-md border border-border bg-surface px-3 py-2 text-xs"><div className="flex items-center justify-between gap-2"><span className="truncate font-medium text-foreground">{transition.trigger}</span><span className={transition.approved ? "text-success" : "text-warning"}>{transition.approved ? "approved" : "review"}</span></div><div className="mt-1 truncate text-muted-foreground">{routeNames.get(transition.from) || transition.from} → {routeNames.get(transition.to) || (transition.to.startsWith("review:") ? "review required" : "interaction")}</div></div>)}{graph.transitions.length > 6 && <div className="text-[11px] text-muted-foreground">+{graph.transitions.length - 6} more transitions</div>}{reviewStates.length > 0 && <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">{reviewStates.length} action{reviewStates.length === 1 ? "" : "s"} require policy review before execution.</div>}{interactions.length === 0 && reviewStates.length === 0 && <div className="text-sm text-muted-foreground">No interactions were discovered.</div>}</div></div></div><div className="mt-4 text-[11px] text-muted-foreground">Start state: <span className="font-mono text-foreground">{start?.route || "/"}</span> · Generated from read-only discovery · dangerous and ambiguous controls are never executed automatically.</div></div>;
+  return (
+    <div
+      className="border-b border-border bg-surface-2/20 px-5 py-5"
+      aria-label="Journey Graph review"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-medium text-primary">
+            <GitBranch className="h-4 w-4" /> Journey Graph
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            A bounded map of observed routes and interactions. Read-only navigation is approved;
+            state-changing or ambiguous actions remain review-only.
+          </p>
+        </div>
+        <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-primary">
+          v{graph.version}
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-4">
+        <Metric label="Routes" value={graph.counts.routes} />
+        <Metric label="Interactions" value={graph.counts.interactions} />
+        <Metric label="Transitions" value={graph.counts.transitions} />
+        <Metric label="Needs review" value={graph.counts.reviewRequired} />
+      </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            Observed path
+          </div>
+          <div className="mt-2 space-y-2">
+            {routes.slice(0, 8).map((state, index) => (
+              <div key={state.id} className="flex items-start gap-2 text-xs">
+                <div className="flex flex-col items-center">
+                  <CircleDot
+                    className={`mt-0.5 h-3.5 w-3.5 ${state.id === graph.startStateId ? "text-primary" : "text-muted-foreground"}`}
+                  />
+                  {index < Math.min(routes.length, 8) - 1 && (
+                    <span className="mt-0.5 h-4 w-px bg-border" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate font-mono text-foreground">
+                    {state.route || "/"}
+                    {state.id === graph.startStateId ? (
+                      <span className="ml-2 rounded-full bg-primary/10 px-1.5 py-0.5 font-sans text-[10px] text-primary">
+                        start
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="truncate text-muted-foreground">
+                    {state.title || "Observed route"}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {routes.length > 8 && (
+              <div className="text-[11px] text-muted-foreground">
+                +{routes.length - 8} more observed routes
+              </div>
+            )}
+            {routes.length === 0 && (
+              <div className="text-sm text-muted-foreground">No route states were captured.</div>
+            )}
+          </div>
+        </div>
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            Transitions and review
+          </div>
+          <div className="mt-2 space-y-2">
+            {graph.transitions.slice(0, 6).map((transition) => (
+              <div
+                key={transition.id}
+                className="rounded-md border border-border bg-surface px-3 py-2 text-xs"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-medium text-foreground">{transition.trigger}</span>
+                  <span className={transition.approved ? "text-success" : "text-warning"}>
+                    {transition.approved ? "approved" : "review"}
+                  </span>
+                </div>
+                <div className="mt-1 truncate text-muted-foreground">
+                  {routeNames.get(transition.from) || transition.from} →{" "}
+                  {routeNames.get(transition.to) ||
+                    (transition.to.startsWith("review:") ? "review required" : "interaction")}
+                </div>
+              </div>
+            ))}
+            {graph.transitions.length > 6 && (
+              <div className="text-[11px] text-muted-foreground">
+                +{graph.transitions.length - 6} more transitions
+              </div>
+            )}
+            {reviewStates.length > 0 && (
+              <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
+                {reviewStates.length} action{reviewStates.length === 1 ? "" : "s"} require policy
+                review before execution.
+              </div>
+            )}
+            {interactions.length === 0 && reviewStates.length === 0 && (
+              <div className="text-sm text-muted-foreground">No interactions were discovered.</div>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 text-[11px] text-muted-foreground">
+        Start state: <span className="font-mono text-foreground">{start?.route || "/"}</span> ·
+        Generated from read-only discovery · dangerous and ambiguous controls are never executed
+        automatically.
+      </div>
+    </div>
+  );
 }
 
-function PlanReview({ plan, planName, setPlanName, mode, setMode, planning, generatePlan, approvePlan, approveDecision, rejectDecision, reloadPlan, runPlan, running, safeToExecute, enableVision, enableRecovery, setEnableVision, setEnableRecovery, capacityStatus, queuedRunId, quickScanResult, quickScanRunning, targetAuthorizationConfirmed }: { plan: V2TestPlan | null; planName: string; setPlanName: (value: string) => void; mode: V2PlannerMode; setMode: (value: V2PlannerMode) => void; planning: boolean; generatePlan: () => void; approvePlan: () => void; approveDecision: (decision: V2PolicyDecision) => void; rejectDecision: (decision: V2PolicyDecision) => void; reloadPlan: () => void; runPlan: () => void; running: boolean; safeToExecute: boolean; enableVision: boolean; enableRecovery: boolean; setEnableVision: (value: boolean) => void; setEnableRecovery: (value: boolean) => void; capacityStatus: ProviderCapacityDecision | null; queuedRunId: string | null; quickScanResult: OnboardingQuickScanResult | null; quickScanRunning: boolean; targetAuthorizationConfirmed: boolean }) {
+function CatalogConversionCard({
+  generating,
+  generate,
+}: {
+  generating: boolean;
+  generate: () => void;
+}) {
+  return (
+    <div className="surface-card mt-5 p-5">
+      <SectionEyebrow step="02" label="Plan" />
+      <h2 className="mt-3 font-display text-xl font-semibold">Convert Map to Scenarios</h2>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        Automatically synthesize standard scenarios (Navigation, Auth, Forms) from discovered routes
+        and save them to your catalog.
+      </p>
+      <button
+        type="button"
+        onClick={generate}
+        disabled={generating}
+        className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+      >
+        {generating ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ArrowRight className="h-4 w-4" />
+        )}
+        Generate &amp; View in Scenarios
+      </button>
+    </div>
+  );
+}
+
+function PlanReview({
+  plan,
+  planName,
+  setPlanName,
+  mode,
+  setMode,
+  planning,
+  generatePlan,
+  approvePlan,
+  approveDecision,
+  rejectDecision,
+  reloadPlan,
+  runPlan,
+  running,
+  safeToExecute,
+  enableVision,
+  enableRecovery,
+  setEnableVision,
+  setEnableRecovery,
+  capacityStatus,
+  queuedRunId,
+  quickScanResult,
+  quickScanRunning,
+  targetAuthorizationConfirmed,
+}: {
+  plan: V2TestPlan | null;
+  planName: string;
+  setPlanName: (value: string) => void;
+  mode: V2PlannerMode;
+  setMode: (value: V2PlannerMode) => void;
+  planning: boolean;
+  generatePlan: () => void;
+  approvePlan: () => void;
+  approveDecision: (decision: V2PolicyDecision) => void;
+  rejectDecision: (decision: V2PolicyDecision) => void;
+  reloadPlan: () => void;
+  runPlan: () => void;
+  running: boolean;
+  safeToExecute: boolean;
+  enableVision: boolean;
+  enableRecovery: boolean;
+  setEnableVision: (value: boolean) => void;
+  setEnableRecovery: (value: boolean) => void;
+  capacityStatus: ProviderCapacityDecision | null;
+  queuedRunId: string | null;
+  quickScanResult: OnboardingQuickScanResult | null;
+  quickScanRunning: boolean;
+  targetAuthorizationConfirmed: boolean;
+}) {
   const aiPlan = plan?.projectMap?.aiPlan;
   const matrixSummary = plan?.projectMap?.matrixSummary;
-  if (!plan) return <div className="surface-card mt-5 p-5"><SectionEyebrow step="02" label="Plan" /><h2 className="mt-3 font-display text-xl font-semibold">Turn the map into a test plan</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">The planner will propose scenarios from observed routes and features. Review them before execution.</p><div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]"><input value={planName} onChange={(event) => setPlanName(event.target.value)} placeholder="Plan name" className="rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary/50" /><select value={mode} onChange={(event) => setMode(event.target.value as V2PlannerMode)} className="rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary/50"><option value="QUICK_SMOKE">Quick smoke</option><option value="STANDARD_ADAPTIVE">Standard adaptive</option><option value="DEEP_MATRIX">Deep matrix</option></select></div><button type="button" onClick={generatePlan} disabled={planning} className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">{planning ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}Generate review plan</button></div>;
-  const blocked = plan.policyDecisions.filter((decision) => decision.status === "BLOCKED" || decision.status === "NEEDS_HUMAN_REVIEW" || decision.status === "PENDING");
-  const approved = plan.policyDecisions.filter((decision) => decision.status === "ALLOWED" || decision.status === "APPROVED").length;
-  return <div className="surface-card overflow-hidden"><div className="flex items-start justify-between gap-3 border-b border-border px-5 py-5"><div><SectionEyebrow step="02" label="Review" /><h2 className="mt-3 font-display text-xl font-semibold">{plan.name}</h2><p className="mt-1 text-sm text-muted-foreground">{plan.mode.replaceAll("_", " ")} · {plan.plannerSource === "AI" ? "Plan generated from current application evidence" : "Plan generation unavailable"}</p><div className="mt-3 max-w-2xl rounded-md border border-primary/20 bg-primary/5 p-3 text-xs"><div className="font-mono text-[10px] uppercase tracking-wider text-primary">Plan rationale</div><p className="mt-1 leading-5 text-muted-foreground">{plan.plannerRationale ?? aiPlan?.planningRationale ?? "No Plan rationale was persisted."}</p>{aiPlan?.uncoveredAreas?.length ? <p className="mt-2 leading-5 text-warning">Uncovered areas: {aiPlan.uncoveredAreas.join(" · ")}</p> : null}</div></div><PlanStatus status={plan.status} /></div><div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-2/30 px-5 py-3 text-xs"><span className="text-muted-foreground">{plan.scenarios.length} scenarios · {matrixSummary?.counts.total ?? plan.scenarios.length} matrix profiles · {approved}/{plan.policyDecisions.length} policy decisions clear</span><button type="button" onClick={reloadPlan} className="inline-flex items-center gap-1.5 text-primary hover:underline"><RefreshCw className="h-3.5 w-3.5" /> Refresh</button></div>{matrixSummary && <MatrixDepthSummary summary={matrixSummary} />}{<div className="max-h-[30rem] divide-y divide-border overflow-y-auto">{plan.scenarios.map((scenario) => { const decision = plan.policyDecisions.find((item) => item.scenarioId === scenario.id); return <div key={scenario.id} className="px-5 py-4"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><Globe2 className="h-4 w-4" /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-semibold">{scenario.name}</h3>{decision && <DecisionPill decision={decision} />}</div><p className="mt-1 text-sm text-muted-foreground">{scenario.intent}</p><p className="mt-2 text-xs leading-5 text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {scenario.expectedOutcome}</p>{decision && (decision.status === "BLOCKED" || decision.status === "NEEDS_HUMAN_REVIEW" || decision.status === "PENDING") && <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-[11px] text-warning">{decision.reason || "This action needs policy review."}</span><button type="button" onClick={() => approveDecision(decision)} disabled={planning} className="rounded-md border border-success/30 px-2.5 py-1 text-[11px] font-medium text-success hover:bg-success/10 disabled:opacity-50">Approve</button><button type="button" onClick={() => rejectDecision(decision)} disabled={planning} className="rounded-md border border-destructive/30 px-2.5 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50">Reject</button></div>}</div></div></div>; })}</div>}{quickScanResult?.status === "COMPLETED" && <div className="border-t border-primary/20 bg-primary/5 px-5 py-4 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-foreground">Quick Scan handoff ready</strong><span className="font-mono text-[10px] uppercase tracking-wider text-primary">hypotheses only</span></div><p className="mt-1 leading-5 text-muted-foreground">{quickScanResult.findings.length} structural lead{quickScanResult.findings.length === 1 ? "" : "s"} will guide the browser agent. It may confirm, not reproduce, leave untested, or discover different issues from live evidence.</p></div>}{plan.status === "APPROVED" && <div className="grid gap-2 border-t border-border px-5 py-4 text-xs"><div className="font-medium">Optional run capabilities</div><label className="flex items-start gap-2"><input type="checkbox" checked={enableVision} onChange={(event) => setEnableVision(event.target.checked)} disabled={running} className="mt-0.5 accent-primary" /><span><span className="flex items-center gap-1.5 font-medium"><Eye className="h-3.5 w-3.5 text-primary" />Enable vision checks</span><span className="block text-muted-foreground">Off by default; lets the worker request visual screenshot analysis when text evidence is insufficient.</span></span></label><label className="flex items-start gap-2"><input type="checkbox" checked={enableRecovery} onChange={(event) => setEnableRecovery(event.target.checked)} disabled={running} className="mt-0.5 accent-primary" /><span><span className="flex items-center gap-1.5 font-medium"><RefreshCw className="h-3.5 w-3.5 text-primary" />Enable recovery attempts</span><span className="block text-muted-foreground">Off by default; lets the agent try approved equivalent locators.</span></span></label></div>}{capacityStatus?.status === "WAITING" && <div className="flex items-start gap-2 border-t border-warning/30 bg-warning/10 px-5 py-4 text-xs text-warning"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span><strong>Shared test capacity is queued.</strong> {capacityStatus.reason || "The run is waiting for the next available test capacity window."} {capacityStatus.retryAt ? <> It will retry after <strong>{new Date(capacityStatus.retryAt).toLocaleString()}</strong>.</> : null}</span></div>}<div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-2/30 px-5 py-4">{plan.status !== "APPROVED" && <button type="button" onClick={approvePlan} disabled={planning || blocked.length > 0 || plan.scenarios.length === 0} className="inline-flex items-center gap-2 rounded-md border border-primary/30 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-45">{planning ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}Approve plan</button>}{plan.status === "APPROVED" && <span className="inline-flex items-center gap-2 text-sm text-success"><CheckCircle2 className="h-4 w-4" /> Plan approved</span>}{plan.status === "APPROVED" && <button type="button" onClick={() => { if (capacityStatus?.status === "WAITING" && queuedRunId) window.location.href = `/app/runs/${queuedRunId}?projectId=${encodeURIComponent(plan.projectId)}`; else runPlan(); }} disabled={running || quickScanRunning || !targetAuthorizationConfirmed || (!capacityStatus && !safeToExecute)} className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45">{running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}{capacityStatus?.status === "WAITING" ? "Open queued run" : quickScanResult?.status === "COMPLETED" ? "Start adaptive run" : "Run Quick Scan & start adaptive run"}</button>}</div></div>;
+  if (!plan)
+    return (
+      <div className="surface-card mt-5 p-5">
+        <SectionEyebrow step="02" label="Plan" />
+        <h2 className="mt-3 font-display text-xl font-semibold">Turn the map into a test plan</h2>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          The planner will propose scenarios from observed routes and features. Review them before
+          execution.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+          <input
+            value={planName}
+            onChange={(event) => setPlanName(event.target.value)}
+            placeholder="Plan name"
+            className="rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary/50"
+          />
+          <select
+            value={mode}
+            onChange={(event) => setMode(event.target.value as V2PlannerMode)}
+            className="rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary/50"
+          >
+            <option value="QUICK_SMOKE">Quick smoke</option>
+            <option value="STANDARD_ADAPTIVE">Standard adaptive</option>
+            <option value="DEEP_MATRIX">Deep matrix</option>
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={generatePlan}
+          disabled={planning}
+          className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {planning ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ArrowRight className="h-4 w-4" />
+          )}
+          Generate review plan
+        </button>
+      </div>
+    );
+  const blocked = plan.policyDecisions.filter(
+    (decision) =>
+      decision.status === "BLOCKED" ||
+      decision.status === "NEEDS_HUMAN_REVIEW" ||
+      decision.status === "PENDING",
+  );
+  const approved = plan.policyDecisions.filter(
+    (decision) => decision.status === "ALLOWED" || decision.status === "APPROVED",
+  ).length;
+  return (
+    <div className="surface-card overflow-hidden">
+      <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-5">
+        <div>
+          <SectionEyebrow step="02" label="Review" />
+          <h2 className="mt-3 font-display text-xl font-semibold">{plan.name}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {plan.mode.replaceAll("_", " ")} ·{" "}
+            {plan.plannerSource === "AI"
+              ? "Plan generated from current application evidence"
+              : "Plan generation unavailable"}
+          </p>
+          <div className="mt-3 max-w-2xl rounded-md border border-primary/20 bg-primary/5 p-3 text-xs">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-primary">
+              Plan rationale
+            </div>
+            <p className="mt-1 leading-5 text-muted-foreground">
+              {plan.plannerRationale ??
+                aiPlan?.planningRationale ??
+                "No Plan rationale was persisted."}
+            </p>
+            {aiPlan?.uncoveredAreas?.length ? (
+              <p className="mt-2 leading-5 text-warning">
+                Uncovered areas: {aiPlan.uncoveredAreas.join(" · ")}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <PlanStatus status={plan.status} />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-2/30 px-5 py-3 text-xs">
+        <span className="text-muted-foreground">
+          {plan.scenarios.length} scenarios · {matrixSummary?.counts.total ?? plan.scenarios.length}{" "}
+          matrix profiles · {approved}/{plan.policyDecisions.length} policy decisions clear
+        </span>
+        <button
+          type="button"
+          onClick={reloadPlan}
+          className="inline-flex items-center gap-1.5 text-primary hover:underline"
+        >
+          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </button>
+      </div>
+      {matrixSummary && <MatrixDepthSummary summary={matrixSummary} />}
+      {
+        <div className="max-h-[30rem] divide-y divide-border overflow-y-auto">
+          {plan.scenarios.map((scenario) => {
+            const decision = plan.policyDecisions.find((item) => item.scenarioId === scenario.id);
+            return (
+              <div key={scenario.id} className="px-5 py-4">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Globe2 className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold">{scenario.name}</h3>
+                      {decision && <DecisionPill decision={decision} />}
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{scenario.intent}</p>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      <span className="font-medium text-foreground">Expected:</span>{" "}
+                      {scenario.expectedOutcome}
+                    </p>
+                    {decision &&
+                      (decision.status === "BLOCKED" ||
+                        decision.status === "NEEDS_HUMAN_REVIEW" ||
+                        decision.status === "PENDING") && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] text-warning">
+                            {decision.reason || "This action needs policy review."}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => approveDecision(decision)}
+                            disabled={planning}
+                            className="rounded-md border border-success/30 px-2.5 py-1 text-[11px] font-medium text-success hover:bg-success/10 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => rejectDecision(decision)}
+                            disabled={planning}
+                            className="rounded-md border border-destructive/30 px-2.5 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      }
+      {quickScanResult?.status === "COMPLETED" && (
+        <div className="border-t border-primary/20 bg-primary/5 px-5 py-4 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <strong className="text-foreground">Quick Scan handoff ready</strong>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-primary">
+              hypotheses only
+            </span>
+          </div>
+          <p className="mt-1 leading-5 text-muted-foreground">
+            {quickScanResult.findings.length} structural lead
+            {quickScanResult.findings.length === 1 ? "" : "s"} will guide the browser agent. It may
+            confirm, not reproduce, leave untested, or discover different issues from live evidence.
+          </p>
+        </div>
+      )}
+      {plan.status === "APPROVED" && (
+        <div className="grid gap-2 border-t border-border px-5 py-4 text-xs">
+          <div className="font-medium">Optional run capabilities</div>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={enableVision}
+              onChange={(event) => setEnableVision(event.target.checked)}
+              disabled={running}
+              className="mt-0.5 accent-primary"
+            />
+            <span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <Eye className="h-3.5 w-3.5 text-primary" />
+                Enable vision checks
+              </span>
+              <span className="block text-muted-foreground">
+                Off by default; lets the worker request visual screenshot analysis when text
+                evidence is insufficient.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={enableRecovery}
+              onChange={(event) => setEnableRecovery(event.target.checked)}
+              disabled={running}
+              className="mt-0.5 accent-primary"
+            />
+            <span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <RefreshCw className="h-3.5 w-3.5 text-primary" />
+                Enable recovery attempts
+              </span>
+              <span className="block text-muted-foreground">
+                Off by default; lets the agent try approved equivalent locators.
+              </span>
+            </span>
+          </label>
+        </div>
+      )}
+      {capacityStatus?.status === "WAITING" && (
+        <div className="flex items-start gap-2 border-t border-warning/30 bg-warning/10 px-5 py-4 text-xs text-warning">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <strong>Shared test capacity is queued.</strong>{" "}
+            {capacityStatus.reason ||
+              "The run is waiting for the next available test capacity window."}{" "}
+            {capacityStatus.retryAt ? (
+              <>
+                {" "}
+                It will retry after{" "}
+                <strong>{new Date(capacityStatus.retryAt).toLocaleString()}</strong>.
+              </>
+            ) : null}
+          </span>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-2/30 px-5 py-4">
+        {plan.status !== "APPROVED" && (
+          <button
+            type="button"
+            onClick={approvePlan}
+            disabled={planning || blocked.length > 0 || plan.scenarios.length === 0}
+            className="inline-flex items-center gap-2 rounded-md border border-primary/30 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {planning ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ShieldCheck className="h-4 w-4" />
+            )}
+            Approve plan
+          </button>
+        )}
+        {plan.status === "APPROVED" && (
+          <span className="inline-flex items-center gap-2 text-sm text-success">
+            <CheckCircle2 className="h-4 w-4" /> Plan approved
+          </span>
+        )}
+        {plan.status === "APPROVED" && (
+          <button
+            type="button"
+            onClick={() => {
+              if (capacityStatus?.status === "WAITING" && queuedRunId)
+                window.location.href = `/app/runs/${queuedRunId}?projectId=${encodeURIComponent(plan.projectId)}`;
+              else runPlan();
+            }}
+            disabled={
+              running ||
+              quickScanRunning ||
+              !targetAuthorizationConfirmed ||
+              (!capacityStatus && !safeToExecute)
+            }
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+            {capacityStatus?.status === "WAITING"
+              ? "Open queued run"
+              : quickScanResult?.status === "COMPLETED"
+                ? "Start adaptive run"
+                : "Run Quick Scan & start adaptive run"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function MatrixDepthSummary({ summary }: { summary: V2MatrixSummary }) { return <section className="border-b border-border bg-surface-2/20 px-5 py-4" aria-label="Matrix Depth review"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono text-[10px] uppercase tracking-wider text-primary">Matrix Depth · v{summary.version}</div><p className="mt-1 text-xs leading-5 text-muted-foreground">Deterministic profiles expand the reviewed journey without inventing roles, fixtures, browsers, or network conditions. Every profile remains subject to the same policy decision.</p></div><span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-primary">{summary.mode.replaceAll("_", " ")}</span></div><div className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-6"><Metric label="Profiles" value={summary.counts.total} /><Metric label="Roles" value={summary.counts.roles} /><Metric label="Devices" value={summary.counts.devices} /><Metric label="Browsers" value={summary.counts.browsers} /><Metric label="Data states" value={summary.counts.dataStates} /><Metric label="Edge cases" value={summary.counts.edgeCases} /></div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{summary.profiles.slice(0, 6).map((profile) => <div key={profile.id} className="rounded-md border border-border bg-surface px-3 py-2 text-xs"><div className="font-mono text-[10px] text-primary">{profile.id}</div><div className="mt-1 text-muted-foreground">Priority <span className="font-mono text-foreground">{profile.priorityScore}</span> · {profile.rationale}</div></div>)}</div>{summary.pruned.length > 0 && <details className="mt-3 text-xs"><summary className="cursor-pointer text-warning">{summary.pruned.length} unsupported or unnecessary dimension paths pruned</summary><div className="mt-2 space-y-1 text-muted-foreground">{summary.pruned.slice(0, 6).map((item) => <div key={`${item.dimension}:${item.value}`}><span className="font-mono text-foreground">{item.dimension}={item.value}</span> — {item.reason}</div>)}</div></details>}<div className="mt-3 text-[11px] text-muted-foreground">Generated from {summary.generatedFrom === "OBSERVED_PLAN_AND_EXECUTION_CAPABILITIES" ? "the approved plan and current worker capabilities" : "deterministic Matrix Depth rules"}; this panel is a review surface, not proof that a run has executed.</div></section>; }
+function MatrixDepthSummary({ summary }: { summary: V2MatrixSummary }) {
+  return (
+    <section
+      className="border-b border-border bg-surface-2/20 px-5 py-4"
+      aria-label="Matrix Depth review"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-wider text-primary">
+            Matrix Depth · v{summary.version}
+          </div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Deterministic profiles expand the reviewed journey without inventing roles, fixtures,
+            browsers, or network conditions. Every profile remains subject to the same policy
+            decision.
+          </p>
+        </div>
+        <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-primary">
+          {summary.mode.replaceAll("_", " ")}
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-6">
+        <Metric label="Profiles" value={summary.counts.total} />
+        <Metric label="Roles" value={summary.counts.roles} />
+        <Metric label="Devices" value={summary.counts.devices} />
+        <Metric label="Browsers" value={summary.counts.browsers} />
+        <Metric label="Data states" value={summary.counts.dataStates} />
+        <Metric label="Edge cases" value={summary.counts.edgeCases} />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {summary.profiles.slice(0, 6).map((profile) => (
+          <div
+            key={profile.id}
+            className="rounded-md border border-border bg-surface px-3 py-2 text-xs"
+          >
+            <div className="font-mono text-[10px] text-primary">{profile.id}</div>
+            <div className="mt-1 text-muted-foreground">
+              Priority <span className="font-mono text-foreground">{profile.priorityScore}</span> ·{" "}
+              {profile.rationale}
+            </div>
+          </div>
+        ))}
+      </div>
+      {summary.pruned.length > 0 && (
+        <details className="mt-3 text-xs">
+          <summary className="cursor-pointer text-warning">
+            {summary.pruned.length} unsupported or unnecessary dimension paths pruned
+          </summary>
+          <div className="mt-2 space-y-1 text-muted-foreground">
+            {summary.pruned.slice(0, 6).map((item) => (
+              <div key={`${item.dimension}:${item.value}`}>
+                <span className="font-mono text-foreground">
+                  {item.dimension}={item.value}
+                </span>{" "}
+                — {item.reason}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+      <div className="mt-3 text-[11px] text-muted-foreground">
+        Generated from{" "}
+        {summary.generatedFrom === "OBSERVED_PLAN_AND_EXECUTION_CAPABILITIES"
+          ? "the approved plan and current worker capabilities"
+          : "deterministic Matrix Depth rules"}
+        ; this panel is a review surface, not proof that a run has executed.
+      </div>
+    </section>
+  );
+}
 
-function Metric({ label, value }: { label: string; value: string | number }) { return <div className="bg-surface px-4 py-3"><div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div><div className="mt-1 font-display text-xl font-semibold">{value}</div></div>; }
-function RiskRow({ icon: Icon, label, value, tone }: { icon: typeof ShieldCheck; label: string; value: number; tone: string }) { return <div className="flex items-center justify-between text-xs"><span className={`flex items-center gap-1.5 ${tone}`}><Icon className="h-3.5 w-3.5" />{label}</span><span className="font-mono text-foreground">{value}</span></div>; }
-function PlanStatus({ status }: { status: V2PlanStatus }) { const styles: Record<V2PlanStatus, string> = { DRAFT: "bg-muted text-muted-foreground border-border", READY: "bg-primary/10 text-primary border-primary/20", AWAITING_APPROVAL: "bg-warning/15 text-warning border-warning/30", APPROVED: "bg-success/15 text-success border-success/30", RUNNING: "bg-primary/15 text-primary border-primary/30", COMPLETED: "bg-success/15 text-success border-success/30", FAILED: "bg-destructive/15 text-destructive border-destructive/30", CANCELLED: "bg-muted text-muted-foreground border-border" }; return <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${styles[status]}`}>{status.replaceAll("_", " ")}</span>; }
-function DecisionPill({ decision }: { decision: V2PolicyDecision }) { const safe = (decision.tier === "SAFE" && decision.status === "ALLOWED") || (decision.tier === "CAUTION" && decision.status === "APPROVED"); const blocked = decision.status === "BLOCKED" || decision.status === "NEEDS_HUMAN_REVIEW" || decision.status === "PENDING"; return <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${safe ? "border-success/30 bg-success/10 text-success" : blocked ? "border-warning/30 bg-warning/10 text-warning" : "border-primary/30 bg-primary/10 text-primary"}`}>{decision.tier} · {decision.status.replaceAll("_", " ")}</span>; }
+function Metric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="bg-surface px-4 py-3">
+      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 font-display text-xl font-semibold">{value}</div>
+    </div>
+  );
+}
+function RiskRow({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof ShieldCheck;
+  label: string;
+  value: number;
+  tone: string;
+}) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className={`flex items-center gap-1.5 ${tone}`}>
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </span>
+      <span className="font-mono text-foreground">{value}</span>
+    </div>
+  );
+}
+function PlanStatus({ status }: { status: V2PlanStatus }) {
+  const styles: Record<V2PlanStatus, string> = {
+    DRAFT: "bg-muted text-muted-foreground border-border",
+    READY: "bg-primary/10 text-primary border-primary/20",
+    AWAITING_APPROVAL: "bg-warning/15 text-warning border-warning/30",
+    APPROVED: "bg-success/15 text-success border-success/30",
+    RUNNING: "bg-primary/15 text-primary border-primary/30",
+    COMPLETED: "bg-success/15 text-success border-success/30",
+    FAILED: "bg-destructive/15 text-destructive border-destructive/30",
+    CANCELLED: "bg-muted text-muted-foreground border-border",
+  };
+  return (
+    <span
+      className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${styles[status]}`}
+    >
+      {status.replaceAll("_", " ")}
+    </span>
+  );
+}
+function DecisionPill({ decision }: { decision: V2PolicyDecision }) {
+  const safe =
+    (decision.tier === "SAFE" && decision.status === "ALLOWED") ||
+    (decision.tier === "CAUTION" && decision.status === "APPROVED");
+  const blocked =
+    decision.status === "BLOCKED" ||
+    decision.status === "NEEDS_HUMAN_REVIEW" ||
+    decision.status === "PENDING";
+  return (
+    <span
+      className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${safe ? "border-success/30 bg-success/10 text-success" : blocked ? "border-warning/30 bg-warning/10 text-warning" : "border-primary/30 bg-primary/10 text-primary"}`}
+    >
+      {decision.tier} · {decision.status.replaceAll("_", " ")}
+    </span>
+  );
+}

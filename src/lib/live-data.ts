@@ -58,6 +58,7 @@ export interface LivePortfolio {
   activeOrganization: Organization | null;
   activeWorkspace: Workspace | null;
   activeProject: Project | null;
+  setActiveProject: (projectId: string) => void;
   loading: boolean;
   error: string | null;
   refresh: () => void;
@@ -79,7 +80,12 @@ const formatDate = (value: unknown) => {
 };
 
 const eventDate = (value: unknown, fallback: unknown) => {
-  const numeric = typeof value === "number" ? value : typeof value === "string" && /^\d+(\.\d+)?$/.test(value) ? Number(value) : NaN;
+  const numeric =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && /^\d+(\.\d+)?$/.test(value)
+        ? Number(value)
+        : NaN;
   if (Number.isFinite(numeric) && numeric >= 0 && numeric < 1_000_000_000_000) {
     const base = safeDate(fallback);
     if (base) return new Date(base.getTime() + numeric);
@@ -98,7 +104,8 @@ const recordValue = (value: unknown): Record<string, unknown> =>
 
 const severityFor = (item: Record<string, unknown>): LiveIssue["severity"] => {
   const explicit = textValue(item.severity, "").toLowerCase();
-  if (explicit === "critical" || explicit === "high" || explicit === "medium" || explicit === "low") return explicit;
+  if (explicit === "critical" || explicit === "high" || explicit === "medium" || explicit === "low")
+    return explicit;
   const status = Number(item.status);
   const subtype = textValue(item.subtype, "").toLowerCase();
   if (subtype === "pageerror" || subtype === "console" || status >= 500) return "critical";
@@ -109,7 +116,10 @@ const severityFor = (item: Record<string, unknown>): LiveIssue["severity"] => {
 
 const issueFrom = (run: LiveRun, report: RunReport, raw: unknown, index: number): LiveIssue => {
   const item = recordValue(raw);
-  const message = textValue(item.message ?? item.error ?? item.text ?? item.title, "Unlabelled backend finding");
+  const message = textValue(
+    item.message ?? item.error ?? item.text ?? item.title,
+    "Unlabelled backend finding",
+  );
   const subtype = textValue(item.subtype ?? item.category ?? item.type, "finding").toLowerCase();
   const status = Number(item.status);
   const scope = textValue(item.target ?? item.url ?? item.scope, run.targetUrl);
@@ -138,7 +148,9 @@ export const deriveIssues = (runs: LiveRun[], reports: RunReport[]): LiveIssue[]
     if (!run) return;
     const rawItems = [
       ...(Array.isArray(report.errors) ? report.errors : []),
-      ...(Array.isArray((report as Record<string, unknown>).issues) ? ((report as Record<string, unknown>).issues as unknown[]) : []),
+      ...(Array.isArray((report as Record<string, unknown>).issues)
+        ? ((report as Record<string, unknown>).issues as unknown[])
+        : []),
     ];
     rawItems.forEach((raw, index) => {
       const issue = issueFrom(run, report, raw, index);
@@ -150,12 +162,19 @@ export const deriveIssues = (runs: LiveRun[], reports: RunReport[]): LiveIssue[]
       }
       existing.occurrences += 1;
       if (!existing.affectedRuns.includes(run.id)) existing.affectedRuns.push(run.id);
-      const candidate = eventDate(recordValue(raw).timestamp ?? recordValue(raw).t, run.startedAt ?? run.createdAt);
-      if (candidate && candidate.getTime() < (safeDate(existing.firstSeen)?.getTime() ?? Infinity)) existing.firstSeen = formatDate(candidate);
-      if (candidate && candidate.getTime() > (safeDate(existing.lastSeen)?.getTime() ?? -Infinity)) existing.lastSeen = formatDate(candidate);
+      const candidate = eventDate(
+        recordValue(raw).timestamp ?? recordValue(raw).t,
+        run.startedAt ?? run.createdAt,
+      );
+      if (candidate && candidate.getTime() < (safeDate(existing.firstSeen)?.getTime() ?? Infinity))
+        existing.firstSeen = formatDate(candidate);
+      if (candidate && candidate.getTime() > (safeDate(existing.lastSeen)?.getTime() ?? -Infinity))
+        existing.lastSeen = formatDate(candidate);
     });
   });
-  return [...grouped.values()].sort((a, b) => b.occurrences - a.occurrences || a.title.localeCompare(b.title));
+  return [...grouped.values()].sort(
+    (a, b) => b.occurrences - a.occurrences || a.title.localeCompare(b.title),
+  );
 };
 
 export const deriveAuditEntries = (runs: LiveRun[], reports: RunReport[]): LiveAuditEntry[] => {
@@ -167,9 +186,17 @@ export const deriveAuditEntries = (runs: LiveRun[], reports: RunReport[]): LiveA
     if (!Array.isArray(auditLog)) return;
     auditLog.forEach((raw, index) => {
       const item = recordValue(raw);
-      const timestamp = eventDate(item.timestamp ?? item.t, run.startedAt ?? run.createdAt).getTime();
+      const timestamp = eventDate(
+        item.timestamp ?? item.t,
+        run.startedAt ?? run.createdAt,
+      ).getTime();
       const type = textValue(item.type, "info").toLowerCase();
-      const category: LiveAuditCategory = type === "warning" ? "console_warning" : type === "redirect" ? "network_noise" : "visual_shift";
+      const category: LiveAuditCategory =
+        type === "warning"
+          ? "console_warning"
+          : type === "redirect"
+            ? "network_noise"
+            : "visual_shift";
       entries.push({
         id: `${run.id}-audit-${index}`,
         ts: formatDate(timestamp),
@@ -177,7 +204,10 @@ export const deriveAuditEntries = (runs: LiveRun[], reports: RunReport[]): LiveA
         category,
         message: textValue(item.message, "Audit event"),
         source: textValue(item.url ?? item.source, "") || undefined,
-        reason: type === "warning" ? "Retained as a non-primary warning" : "Retained outside the primary finding stream",
+        reason:
+          type === "warning"
+            ? "Retained as a non-primary warning"
+            : "Retained outside the primary finding stream",
         timestamp,
       });
     });
@@ -187,7 +217,7 @@ export const deriveAuditEntries = (runs: LiveRun[], reports: RunReport[]): LiveA
 
 export function useLivePortfolio(): LivePortfolio {
   const [reloadKey, setReloadKey] = useState(0);
-  const [state, setState] = useState<Omit<LivePortfolio, "refresh">>({
+  const [state, setState] = useState<Omit<LivePortfolio, "refresh" | "setActiveProject">>({
     organizations: [],
     workspaces: [],
     projects: [],
@@ -208,17 +238,30 @@ export function useLivePortfolio(): LivePortfolio {
       setState((current) => ({ ...current, loading: true, error: null }));
       try {
         const organizations = await organizationsApi.list();
-        const storedOrg = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_ORG_KEY) : null;
-        const activeOrganization = organizations.find((item) => item.id === storedOrg) ?? organizations[0] ?? null;
-        if (activeOrganization && typeof window !== "undefined") localStorage.setItem(ACTIVE_ORG_KEY, activeOrganization.id);
-        const workspaces = activeOrganization ? await workspacesApi.list(activeOrganization.id) : [];
-        const storedWorkspace = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_WORKSPACE_KEY) : null;
-        const activeWorkspace = workspaces.find((item) => item.id === storedWorkspace) ?? workspaces[0] ?? null;
-        if (activeWorkspace && typeof window !== "undefined") localStorage.setItem(ACTIVE_WORKSPACE_KEY, activeWorkspace.id);
-        const projects = activeOrganization ? await projectsApi.list(activeOrganization.id, activeWorkspace?.id) : [];
-        const storedProject = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_PROJECT_KEY) : null;
-        const activeProject = projects.find((item) => item.id === storedProject) ?? projects[0] ?? null;
-        if (activeProject && typeof window !== "undefined") localStorage.setItem(ACTIVE_PROJECT_KEY, activeProject.id);
+        const storedOrg =
+          typeof window !== "undefined" ? localStorage.getItem(ACTIVE_ORG_KEY) : null;
+        const activeOrganization =
+          organizations.find((item) => item.id === storedOrg) ?? organizations[0] ?? null;
+        if (activeOrganization && typeof window !== "undefined")
+          localStorage.setItem(ACTIVE_ORG_KEY, activeOrganization.id);
+        const workspaces = activeOrganization
+          ? await workspacesApi.list(activeOrganization.id)
+          : [];
+        const storedWorkspace =
+          typeof window !== "undefined" ? localStorage.getItem(ACTIVE_WORKSPACE_KEY) : null;
+        const activeWorkspace =
+          workspaces.find((item) => item.id === storedWorkspace) ?? workspaces[0] ?? null;
+        if (activeWorkspace && typeof window !== "undefined")
+          localStorage.setItem(ACTIVE_WORKSPACE_KEY, activeWorkspace.id);
+        const projects = activeOrganization
+          ? await projectsApi.list(activeOrganization.id, activeWorkspace?.id)
+          : [];
+        const storedProject =
+          typeof window !== "undefined" ? localStorage.getItem(ACTIVE_PROJECT_KEY) : null;
+        const activeProject =
+          projects.find((item) => item.id === storedProject) ?? projects[0] ?? null;
+        if (activeProject && typeof window !== "undefined")
+          localStorage.setItem(ACTIVE_PROJECT_KEY, activeProject.id);
         if (cancelled) return;
         setState((current) => ({
           ...current,
@@ -232,10 +275,12 @@ export function useLivePortfolio(): LivePortfolio {
           error: null,
         }));
 
-        const groupedRuns = await Promise.all(projects.map(async (project) => {
-          const items = await runsApi.list(project.id);
-          return items.map((run) => ({ ...run, project }));
-        }));
+        const groupedRuns = await Promise.all(
+          projects.map(async (project) => {
+            const items = await runsApi.list(project.id);
+            return items.map((run) => ({ ...run, project }));
+          }),
+        );
         const runs = groupedRuns.flat().sort((a, b) => {
           const left = safeDate(a.startedAt ?? a.createdAt)?.getTime() ?? 0;
           const right = safeDate(b.startedAt ?? b.createdAt)?.getTime() ?? 0;
@@ -249,13 +294,15 @@ export function useLivePortfolio(): LivePortfolio {
           auditEntries: deriveAuditEntries(runs, current.reports),
         }));
 
-        const reportResults = await Promise.all(runs.slice(0, 24).map(async (run) => {
-          try {
-            return await runsApi.getReport(run.projectId, run.id);
-          } catch {
-            return null;
-          }
-        }));
+        const reportResults = await Promise.all(
+          runs.slice(0, 24).map(async (run) => {
+            try {
+              return await runsApi.getReport(run.projectId, run.id);
+            } catch {
+              return null;
+            }
+          }),
+        );
         const reports = reportResults.filter((report): report is RunReport => Boolean(report));
         if (cancelled) return;
         setState((current) => ({
@@ -265,14 +312,30 @@ export function useLivePortfolio(): LivePortfolio {
           auditEntries: deriveAuditEntries(runs, reports),
         }));
       } catch (cause) {
-        if (!cancelled) setState((current) => ({ ...current, loading: false, error: toMessage(cause, "Unable to load live Matrix QA data.") }));
+        if (!cancelled)
+          setState((current) => ({
+            ...current,
+            loading: false,
+            error: toMessage(cause, "Unable to load live Matrix QA data."),
+          }));
       }
     };
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [reloadKey]);
 
-  return useMemo(() => ({ ...state, refresh: () => setReloadKey((key) => key + 1) }), [state]);
+  const setActiveProject = (projectId: string) => {
+    const project = state.projects.find((item) => item.id === projectId) ?? null;
+    if (!project) return;
+    if (typeof window !== "undefined") window.localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
+    setState((current) => ({ ...current, activeProject: project }));
+  };
+  return useMemo(
+    () => ({ ...state, setActiveProject, refresh: () => setReloadKey((key) => key + 1) }),
+    [state],
+  );
 }
 
 export const formatLiveDate = formatDate;
@@ -282,7 +345,8 @@ export const formatLiveDuration = (seconds?: number | null) => {
   return `${Math.floor(total / 60)}m ${String(total % 60).padStart(2, "0")}s`;
 };
 
-export const reportForRun = (reports: RunReport[], runId: string | undefined) => reports.find((report) => (report.runId ?? report.id) === runId) ?? null;
+export const reportForRun = (reports: RunReport[], runId: string | undefined) =>
+  reports.find((report) => (report.runId ?? report.id) === runId) ?? null;
 
 export const reportTitle = (report: RunReport | null) => {
   if (!report) return "No completed report yet";
@@ -293,7 +357,9 @@ export const reportTitle = (report: RunReport | null) => {
 export const reportWarnings = (report: RunReport | null) => {
   if (!report) return 0;
   const errors = Array.isArray(report.errors) ? report.errors.length : 0;
-  const audit = Array.isArray((report as Record<string, unknown>).auditLog) ? ((report as Record<string, unknown>).auditLog as unknown[]).length : 0;
+  const audit = Array.isArray((report as Record<string, unknown>).auditLog)
+    ? ((report as Record<string, unknown>).auditLog as unknown[]).length
+    : 0;
   return errors + audit;
 };
 

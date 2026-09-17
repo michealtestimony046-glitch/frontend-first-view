@@ -3590,6 +3590,15 @@ export interface GenerateScenarioRequest {
 }
 export interface GenerateScenarioResponse {
   steps: ScenarioStep[];
+  discoveryMapMissing: boolean;
+  discoverySummary?: { routes: string[]; selectors: string[] };
+}
+export interface GenerateFromDiscoveryResponse {
+  scanId: string | null;
+  created: Array<{ id: string; name: string }>;
+  skipped: Array<{ id: string; name: string; reason: string }>;
+  warnings: string[];
+  discoveryMapMissing: boolean;
 }
 export const scenariosApi = {
   list: (projectId: string): Promise<ScenarioCatalogItem[]> =>
@@ -3610,6 +3619,16 @@ export const scenariosApi = {
     apiRequest(`/projects/${encodeURIComponent(projectId)}/scenarios/generate`, {
       method: "POST",
       body: JSON.stringify(payload),
+      requiresAuth: true,
+      timeoutMs: 120_000,
+    }),
+  generateFromDiscovery: (
+    projectId: string,
+    scanId: string,
+  ): Promise<GenerateFromDiscoveryResponse> =>
+    apiRequest(`/projects/${encodeURIComponent(projectId)}/scenarios/generate-from-discovery`, {
+      method: "POST",
+      body: JSON.stringify({ scanId }),
       requiresAuth: true,
       timeoutMs: 120_000,
     }),

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GripVertical, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import {
+  ApiRequestError,
   organizationsApi,
   projectsApi,
   scenariosApi,
@@ -268,6 +269,7 @@ function ScenarioBuilder({
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [discoveryMapMissing, setDiscoveryMapMissing] = useState(false);
   const payload = useMemo(
     () => ({ projectId, ...draft, ...(draft.description ? {} : { description: undefined }) }),
     [projectId, draft],
@@ -313,6 +315,7 @@ function ScenarioBuilder({
       const result = await scenariosApi.generate(projectId, { projectId, prompt: prompt.trim() });
       if (!isScenarioStepList(result.steps))
         throw new Error("The AI returned unsupported scenario steps. Nothing was changed.");
+      setDiscoveryMapMissing(result.discoveryMapMissing);
       setDraft((current) => ({ ...current, steps: result.steps }));
       setShowGenerator(false);
       setPrompt("");
@@ -333,7 +336,11 @@ function ScenarioBuilder({
     try {
       onCreated(await scenariosApi.create(projectId, payload));
     } catch (cause) {
-      setError(toMessage(cause, "Unable to save scenario. Your draft is still here."));
+      setError(
+        cause instanceof ApiRequestError && cause.status === 409
+          ? "A scenario with this name already exists in this project. Please choose a different name."
+          : toMessage(cause, "Unable to save scenario. Your draft is still here."),
+      );
     } finally {
       setSaving(false);
     }
@@ -372,6 +379,11 @@ function ScenarioBuilder({
             Generate with AI
           </button>
         </div>
+        {discoveryMapMissing && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Tip: Run Discovery on this project first for high-accuracy selector generation.
+          </p>
+        )}
         {showGenerator && (
           <div className="mt-3 rounded-md border border-border bg-surface-2/30 p-3">
             <label className="text-sm font-medium">
