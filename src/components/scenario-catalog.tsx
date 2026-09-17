@@ -25,7 +25,7 @@ const SCHEMA = {
     projectId: { type: "string", minLength: 1 },
     name: { type: "string", minLength: 1, maxLength: 160 },
     description: { type: "string", maxLength: 2000 },
-    steps: { type: "array", minItems: 1, maxItems: 100 },
+    steps: { type: "array", minItems: 1, maxItems: 20 },
   },
 };
 const labels: Record<ScenarioStep["type"], string> = {
@@ -69,7 +69,7 @@ function isScenarioStep(value: unknown): value is ScenarioStep {
 }
 function isScenarioStepList(value: unknown): value is ScenarioStep[] {
   return (
-    Array.isArray(value) && value.length >= 1 && value.length <= 100 && value.every(isScenarioStep)
+    Array.isArray(value) && value.length >= 1 && value.length <= 20 && value.every(isScenarioStep)
   );
 }
 
@@ -538,19 +538,31 @@ function ScenarioBuilder({
         </div>
         <div className="mt-6 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-display font-semibold">Steps</h3>
+            <div className="flex items-center gap-3">
+              <h3 className="font-display font-semibold">Steps</h3>
+              <span
+                className={`font-mono text-xs ${draft.steps.length >= 20 ? "text-amber-300" : "text-muted-foreground"}`}
+              >
+                {draft.steps.length} / 20 steps
+              </span>
+            </div>
             <button
               onClick={() => {
                 setVerification(null);
                 setDraft({ ...draft, steps: [...draft.steps, freshStep()] });
               }}
-              disabled={generating || saving}
+              disabled={generating || saving || draft.steps.length >= 20}
               className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
             >
               <Plus className="h-3.5 w-3.5" />
               Add step
             </button>
           </div>
+          {draft.steps.length >= 20 && (
+            <p className="text-xs text-amber-300">
+              Maximum 20 steps per scenario. Focus on the requested route or feature.
+            </p>
+          )}
           {draft.steps.map((step, index) => (
             <div key={index}>
               <StepEditor
