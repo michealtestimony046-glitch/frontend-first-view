@@ -54,7 +54,7 @@ jobs:
       - name: Start built SSR preview
         shell: bash
         run: |
-          compatibility_date="$(date -u -d 'yesterday' +%F)"
+          compatibility_date="2026-08-27"
           pnpm exec wrangler --cwd .output dev --local --compatibility-date "$compatibility_date" --ip 127.0.0.1 --port 4173 > frontend-preview.log 2>&1 &
           echo $! > frontend-preview.pid
           for attempt in {1..60}; do
