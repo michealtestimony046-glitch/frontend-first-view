@@ -12,6 +12,8 @@ import {
   XCircle,
 } from "lucide-react";
 import {
+  organizationsApi,
+  projectsApi,
   v2Api,
   formatRunStartError,
   type Project,
@@ -39,7 +41,7 @@ type Props = {
   autoStart?: boolean;
   initialTargetAuthorizationConfirmed?: boolean;
   onClose: () => void;
-  onStarted: (response: TriggerRunResponse & { planId?: string }) => void;
+  onStarted: (response: TriggerRunResponse & { planId?: string }, projectId?: string) => void;
 };
 
 const sleep = (milliseconds: number) =>
@@ -77,6 +79,8 @@ export function V2RunPreflight({
   const [missionGoal, setMissionGoal] = useState(
     initialMissionGoal?.trim() || "Test this website thoroughly.",
   );
+  const [projects, setProjects] = useState<Project[]>([project]);
+  const [selectedProjectId, setSelectedProjectId] = useState(project.id);
   const [accessMode] = useState<V2MissionAccessMode>("ANONYMOUS");
   const [environments, setEnvironments] = useState<V2Environment[]>([]);
   const [fixtures, setFixtures] = useState<V2TestDataFixture[]>([]);
@@ -99,9 +103,42 @@ export function V2RunPreflight({
   >(null);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedProject = projects.find((item) => item.id === selectedProjectId) ?? project;
+
   useEffect(() => {
     let cancelled = false;
-    Promise.all([v2Api.listEnvironments(project.id), v2Api.listTestDataFixtures(project.id)])
+    organizationsApi
+      .list()
+      .then(async (organizations) => {
+        const activeOrganizationId =
+          localStorage.getItem("matrix_qa_active_organization") ||
+          project.organizationId ||
+          organizations[0]?.id;
+        if (!activeOrganizationId) return;
+        const items = await projectsApi.list(activeOrganizationId, project.workspaceId);
+        if (cancelled) return;
+        setProjects(items.some((item) => item.id === project.id) ? items : [project, ...items]);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [project]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setEnvironments([]);
+    setFixtures([]);
+    setEnvironmentId("");
+    setFixtureId("");
+    setScan(null);
+    setPlan(null);
+    setCapacityStatus(null);
+    setQueuedResponse(null);
+    Promise.all([
+      v2Api.listEnvironments(selectedProject.id),
+      v2Api.listTestDataFixtures(selectedProject.id),
+    ])
       .then(([environmentItems, fixtureItems]) => {
         if (!cancelled) {
           setEnvironments(environmentItems);
@@ -117,7 +154,7 @@ export function V2RunPreflight({
     return () => {
       cancelled = true;
     };
-  }, [project.id]);
+  }, [selectedProject.id]);
 
   const blockedPolicies = useMemo(
     () =>
@@ -161,7 +198,7 @@ export function V2RunPreflight({
     }
     setPhase("scanning");
     try {
-      const createdScan = await v2Api.startScan(project.id, {
+      const createdScan = await v2Api.startScan(selectedProject.id, {
         environmentId,
         missionGoal: missionGoal.trim() || "Test this website thoroughly.",
         accessMode,
@@ -190,7 +227,7 @@ export function V2RunPreflight({
       if (autoStart && createdPlan.scenarios.length > 0 && !blocked) {
         await start(
           {
-            projectId: project.id,
+            projectId: selectedProject.id,
             environmentId,
             ...defaultMatrixSelection(createdPlan),
           },
@@ -254,10 +291,10 @@ export function V2RunPreflight({
         setCapacityStatus(providerCapacity);
         setQueuedResponse(response);
         setPhase("ready");
-        if (autoStart) onStarted(response);
+        if (autoStart) onStarted(response, selectedProject.id);
         return;
       }
-      onStarted(response);
+      onStarted(response, selectedProject.id);
     } catch (cause) {
       setPhase("ready");
       setError(
@@ -335,6 +372,26 @@ export function V2RunPreflight({
               Describe the goal in your own words. Matrix QA will decide the safe coverage plan from
               live observations.
             </span>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium">Project</span>
+            <select
+              value={selectedProjectId}
+              onChange={(event) => {
+                setSelectedProjectId(event.target.value);
+                setTargetAuthorizationConfirmed(false);
+                setPhase("idle");
+                setError(null);
+              }}
+              disabled={busy || projects.length === 0}
+              className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary disabled:opacity-60"
+            >
+              {projects.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium">Target Environment</span>
@@ -616,7 +673,7 @@ export function V2RunPreflight({
                 ) : null}
               </div>
               <RunConfigurationPanel
-                projectId={project.id}
+                projectId={selectedProject.id}
                 environmentId={environmentId}
                 scenarios={plan.scenarios}
                 viewports={selectedViewports}

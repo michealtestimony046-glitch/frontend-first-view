@@ -100,11 +100,14 @@ function RunsLayout() {
     );
   };
 
-  const handleRunCreated = (response: TriggerRunResponse & { planId?: string }) => {
+  const handleRunCreated = (
+    response: TriggerRunResponse & { planId?: string },
+    selectedProjectId?: string,
+  ) => {
     setShowRunDrawer(false);
-    if (projectId)
+    if (selectedProjectId || projectId)
       window.location.assign(
-        `/app/runs/${encodeURIComponent(response.id)}?projectId=${encodeURIComponent(projectId)}`,
+        `/app/runs/${encodeURIComponent(response.id)}?projectId=${encodeURIComponent(selectedProjectId || projectId || "")}`,
       );
   };
 

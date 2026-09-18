@@ -180,10 +180,13 @@ function AppDashboard() {
     URL.revokeObjectURL(href);
   };
 
-  const handleV2Started = (response: TriggerRunResponse & { planId?: string }) => {
+  const handleV2Started = (
+    response: TriggerRunResponse & { planId?: string },
+    selectedProjectId?: string,
+  ) => {
     if (!live.activeProject) return;
     setShowRunModal(false);
-    window.location.href = `/app/runs/${response.id}?projectId=${encodeURIComponent(live.activeProject.id)}`;
+    window.location.href = `/app/runs/${response.id}?projectId=${encodeURIComponent(selectedProjectId || live.activeProject.id)}`;
   };
 
   return (
@@ -985,5 +988,4 @@ function formatDuration(s: number) {
   const r = s % 60;
   return `${m}m ${r.toString().padStart(2, "0")}s`;
 }
-
 
