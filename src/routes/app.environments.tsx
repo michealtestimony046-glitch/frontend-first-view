@@ -8,6 +8,7 @@ import {
   GitCompareArrows,
   KeyRound,
   Loader2,
+  Pencil,
   Play,
   Plus,
   RefreshCw,
@@ -60,6 +61,7 @@ function EnvironmentsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
+  const [editingEnvironment, setEditingEnvironment] = useState<V2Environment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -197,6 +199,16 @@ function EnvironmentsPage() {
     setPanel(null);
     setNotice(`Environment “${item.name}” created. Run a health check before trusting it.`);
   };
+  const onEnvironmentSaved = (item: V2Environment) => {
+    setEnvironments((current) =>
+      current.some((environment) => environment.id === item.id)
+        ? current.map((environment) => (environment.id === item.id ? item : environment))
+        : [item, ...current],
+    );
+    setEditingEnvironment(null);
+    setPanel(null);
+    setNotice(`Environment “${item.name}” updated.`);
+  };
   const onFixtureCreated = (item: V2TestDataFixture) => {
     setFixtures((current) => [item, ...current]);
     setPanel(null);
@@ -305,7 +317,10 @@ function EnvironmentsPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setPanel("environment")}
+                  onClick={() => {
+                    setEditingEnvironment(null);
+                    setPanel("environment");
+                  }}
                   className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground"
                 >
                   <Plus className="h-3.5 w-3.5" /> Add
@@ -330,6 +345,10 @@ function EnvironmentsPage() {
                         )
                       }
                       onError={setError}
+                      onEdit={(item) => {
+                        setEditingEnvironment(item);
+                        setPanel("environment");
+                      }}
                       onArchived={(environmentId) =>
                         setEnvironments((current) =>
                           current.filter((item) => item.id !== environmentId),
@@ -433,8 +452,9 @@ function EnvironmentsPage() {
           organizationId={organizationId}
           workspaceId={workspaceId}
           projectId={projectId}
+          environment={editingEnvironment}
           onClose={() => setPanel(null)}
-          onCreated={onEnvironmentCreated}
+          onSaved={editingEnvironment ? onEnvironmentSaved : onEnvironmentCreated}
         />
       )}
       {panel === "fixture" && projectId && (
@@ -488,11 +508,13 @@ function EnvironmentRow({
   environment,
   onHealthChecked,
   onError,
+  onEdit,
   onArchived,
 }: {
   environment: V2Environment;
   onHealthChecked: (environment: V2Environment) => void;
   onError: (message: string) => void;
+  onEdit: (environment: V2Environment) => void;
   onArchived: (environmentId: string) => void;
 }) {
   const [checking, setChecking] = useState(false);
@@ -731,6 +753,15 @@ function EnvironmentRow({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onEdit(environment)}
+            disabled={Boolean(action)}
+            aria-label={`Edit ${environment.name}`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </button>
           <button
             type="button"
             onClick={() => void check()}
@@ -1205,19 +1236,22 @@ function EnvironmentDrawer({
   organizationId,
   workspaceId,
   projectId,
+  environment,
   onClose,
-  onCreated,
+  onSaved,
 }: {
   organizationId: string;
   workspaceId: string;
   projectId: string;
+  environment: V2Environment | null;
   onClose: () => void;
-  onCreated: (environment: V2Environment) => void;
+  onSaved: (environment: V2Environment) => void;
 }) {
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<V2Environment["kind"]>("STAGING");
-  const [baseUrl, setBaseUrl] = useState("");
-  const [description, setDescription] = useState("");
+  const editing = Boolean(environment);
+  const [name, setName] = useState(environment?.name ?? "");
+  const [kind, setKind] = useState<V2Environment["kind"]>(environment?.kind ?? "STAGING");
+  const [baseUrl, setBaseUrl] = useState(environment?.baseUrl ?? "");
+  const [description, setDescription] = useState(environment?.description ?? "");
   const [healthPaths, setHealthPaths] = useState("/");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1230,6 +1264,7 @@ function EnvironmentDrawer({
       const parsed = new URL(baseUrl.trim());
       if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password)
         throw new Error("Use an http(s) URL without embedded credentials.");
+      if (baseUrl.trim().endsWith("/")) throw new Error("Base URL must not end with a slash.");
       const healthChecks = healthPaths
         .split("\n")
         .map((path) => path.trim())
@@ -1237,27 +1272,39 @@ function EnvironmentDrawer({
         .map((path) => ({ name: path === "/" ? "base URL" : path, path, expectedStatus: 200 }));
       if (healthChecks.some((item) => !item.path.startsWith("/") || item.path.startsWith("//")))
         throw new Error("Health checks must be relative same-origin paths.");
-      onCreated(
-        await v2Api.createEnvironment({
-          organizationId,
-          workspaceId,
-          projectId,
-          name: name.trim(),
-          kind,
-          baseUrl: parsed.toString(),
-          description: description.trim() || undefined,
-          healthChecks,
-        }),
-      );
+      const saved = editing
+        ? await v2Api.updateEnvironment(environment!.id, {
+            name: name.trim(),
+            kind,
+            baseUrl: baseUrl.trim(),
+            description: description.trim() || undefined,
+            healthChecks,
+          })
+        : await v2Api.createEnvironment({
+            organizationId,
+            workspaceId,
+            projectId,
+            name: name.trim(),
+            kind,
+            baseUrl: baseUrl.trim(),
+            description: description.trim() || undefined,
+            healthChecks,
+          });
+      onSaved(saved);
     } catch (cause) {
-      setError(toMessage(cause, "Unable to create environment."));
+      setError(
+        toMessage(
+          cause,
+          editing ? "Unable to update environment." : "Unable to create environment.",
+        ),
+      );
     } finally {
       setBusy(false);
     }
   };
   return (
     <Drawer
-      title="Add environment"
+      title={editing ? "Edit environment" : "Add environment"}
       subtitle="Save a target context without embedding credentials."
       onClose={onClose}
     >
@@ -1322,7 +1369,11 @@ function EnvironmentDrawer({
           Never paste tokens, passwords, cookies, or API keys into any field. Use the managed secret
           system for credentials.
         </div>
-        <DrawerFooter busy={busy} disabled={!name.trim() || !baseUrl.trim()} />
+        <DrawerFooter
+          busy={busy}
+          disabled={!name.trim() || !baseUrl.trim()}
+          label={editing ? "Update control-plane record" : "Save control-plane record"}
+        />
       </form>
     </Drawer>
   );
@@ -1523,7 +1574,15 @@ function Drawer({
     </div>
   );
 }
-function DrawerFooter({ busy, disabled }: { busy: boolean; disabled: boolean }) {
+function DrawerFooter({
+  busy,
+  disabled,
+  label = "Save control-plane record",
+}: {
+  busy: boolean;
+  disabled: boolean;
+  label?: string;
+}) {
   return (
     <div className="border-t border-border pt-4">
       <button
@@ -1531,7 +1590,7 @@ function DrawerFooter({ busy, disabled }: { busy: boolean; disabled: boolean }) 
         disabled={busy || disabled}
         className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
       >
-        {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save control-plane record
+        {busy && <Loader2 className="h-4 w-4 animate-spin" />} {label}
       </button>
     </div>
   );

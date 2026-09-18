@@ -35,7 +35,6 @@ type Phase = "idle" | "scanning" | "planning" | "ready" | "starting";
 
 type Props = {
   project: Project;
-  initialTargetUrl?: string;
   initialMissionGoal?: string;
   autoStart?: boolean;
   initialTargetAuthorizationConfirmed?: boolean;
@@ -45,12 +44,6 @@ type Props = {
 
 const sleep = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-
-function normalizeTargetUrl(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-}
 
 function discoveryProgressLabel(phase: string | undefined) {
   switch (phase) {
@@ -75,16 +68,12 @@ function discoveryProgressLabel(phase: string | undefined) {
 
 export function V2RunPreflight({
   project,
-  initialTargetUrl,
   initialMissionGoal,
   autoStart = false,
   initialTargetAuthorizationConfirmed = false,
   onClose,
   onStarted,
 }: Props) {
-  const [targetUrl, setTargetUrl] = useState(() =>
-    normalizeTargetUrl(initialTargetUrl || project.defaultTargetUrl || project.targetUrl || ""),
-  );
   const [missionGoal, setMissionGoal] = useState(
     initialMissionGoal?.trim() || "Test this website thoroughly.",
   );
@@ -116,6 +105,7 @@ export function V2RunPreflight({
       .then(([environmentItems, fixtureItems]) => {
         if (!cancelled) {
           setEnvironments(environmentItems);
+          setEnvironmentId((current) => current || environmentItems[0]?.id || "");
           setFixtures(
             fixtureItems.filter(
               (fixture) => fixture.status === "ACTIVE" || fixture.status === "DRAFT",
@@ -152,9 +142,10 @@ export function V2RunPreflight({
 
   const prepare = async (event?: React.FormEvent) => {
     event?.preventDefault();
-    const normalizedTargetUrl = normalizeTargetUrl(targetUrl);
-    if (!normalizedTargetUrl && !environmentId) {
-      setError("Enter a target URL or choose an environment before starting fresh discovery.");
+    if (!environmentId) {
+      setError(
+        "You must configure an Environment (e.g., Staging) in the project settings before executing a run.",
+      );
       return;
     }
     setError(null);
@@ -171,7 +162,7 @@ export function V2RunPreflight({
     setPhase("scanning");
     try {
       const createdScan = await v2Api.startScan(project.id, {
-        ...(environmentId ? { environmentId } : { targetUrl: normalizedTargetUrl }),
+        environmentId,
         missionGoal: missionGoal.trim() || "Test this website thoroughly.",
         accessMode,
       });
@@ -243,17 +234,12 @@ export function V2RunPreflight({
       payload.roleIds.length === 0
     )
       return;
-    const selectedEnvironment = environments.find(
-      (environment) => environment.id === environmentId,
-    );
-    const runTargetUrl = normalizeTargetUrl(selectedEnvironment?.baseUrl || targetUrl);
     setError(null);
     setPhase("starting");
     try {
       const approved =
         candidate.status === "APPROVED" ? candidate : await v2Api.approvePlan(candidate.id);
       const response = await v2Api.runPlan(approved.id, {
-        targetUrl: runTargetUrl || undefined,
         accessMode,
         enableVision,
         enableRecovery,
@@ -287,6 +273,8 @@ export function V2RunPreflight({
     if (!autoStart || autoStarted.current) return;
     autoStarted.current = true;
     void prepare();
+    // This effect intentionally runs once per modal instance; the ref prevents duplicate starts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart]);
 
   const busy = phase === "scanning" || phase === "planning" || phase === "starting";
@@ -349,46 +337,30 @@ export function V2RunPreflight({
             </span>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-medium">Target URL</span>
-            <input
-              value={targetUrl}
+            <span className="mb-1.5 block text-xs font-medium">Target Environment</span>
+            <select
+              value={environmentId}
               onChange={(event) => {
-                setTargetUrl(event.target.value);
+                setEnvironmentId(event.target.value);
                 setTargetAuthorizationConfirmed(false);
+                setScan(null);
               }}
-              disabled={busy || Boolean(environmentId)}
-              placeholder="https://your-app.com"
-              className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 font-mono text-sm outline-none focus:border-primary disabled:opacity-60"
-            />
-            {targetUrl.trim() && !/^https?:\/\//i.test(targetUrl.trim()) && (
-              <span className="mt-1 block text-[11px] text-muted-foreground">
-                A protocol is missing; Matrix QA will use <code>https://</code> for this host.
-              </span>
-            )}
+              disabled={busy || environments.length === 0}
+              className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary disabled:opacity-60"
+            >
+              <option value="">Select an environment</option>
+              {environments.map((environment) => (
+                <option key={environment.id} value={environment.id}>
+                  {environment.name} · {environment.kind}
+                </option>
+              ))}
+            </select>
           </label>
-          {environments.length > 0 && (
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium">
-                Environment <span className="font-normal text-muted-foreground">(optional)</span>
-              </span>
-              <select
-                value={environmentId}
-                onChange={(event) => {
-                  setEnvironmentId(event.target.value);
-                  setTargetAuthorizationConfirmed(false);
-                  setScan(null);
-                }}
-                disabled={busy}
-                className="w-full rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm outline-none focus:border-primary"
-              >
-                <option value="">Use the project target</option>
-                {environments.map((environment) => (
-                  <option key={environment.id} value={environment.id}>
-                    {environment.name} · {environment.kind}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {environments.length === 0 && (
+            <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
+              You must configure an Environment (e.g., Staging) in the project settings before
+              executing a run.
+            </div>
           )}
           {fixtures.length > 0 && (
             <label className="block">
@@ -688,7 +660,10 @@ export function V2RunPreflight({
                 type="submit"
                 onClick={undefined}
                 disabled={
-                  busy || (!targetUrl.trim() && !environmentId) || !targetAuthorizationConfirmed
+                  busy ||
+                  environments.length === 0 ||
+                  !environmentId ||
+                  !targetAuthorizationConfirmed
                 }
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40"
               >

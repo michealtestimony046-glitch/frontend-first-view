@@ -73,7 +73,6 @@ const trendSeries: Array<{ key: DashboardStatusKey; label: string; color: string
 
 function AppDashboard() {
   const live = useLivePortfolio();
-  const [runTargetUrl, setRunTargetUrl] = useState("");
   const [runMissionGoal, setRunMissionGoal] = useState("");
   const [autoStartFirstRun, setAutoStartFirstRun] = useState(false);
   const [showRunModal, setShowRunModal] = useState(false);
@@ -135,7 +134,6 @@ function AppDashboard() {
       if (!raw) return;
       const pending = JSON.parse(raw) as { projectId?: string; targetUrl?: string; missionGoal?: string; autoStart?: boolean; targetAuthorizationConfirmed?: boolean };
       if (pending.projectId !== live.activeProject.id) return;
-      setRunTargetUrl(pending.targetUrl || live.activeProject.defaultTargetUrl || live.activeProject.targetUrl || "");
       setRunMissionGoal(pending.missionGoal || "Test this website thoroughly.");
       setAutoStartFirstRun(Boolean(pending.autoStart && pending.targetAuthorizationConfirmed));
       setShowRunModal(true);
@@ -589,7 +587,6 @@ function AppDashboard() {
               <button
                 type="button"
                 onClick={() => {
-                  setRunTargetUrl(latestRun?.targetUrl ?? live.activeProject?.defaultTargetUrl ?? live.activeProject?.targetUrl ?? "");
                   setRunMissionGoal("Test this website thoroughly.");
                   setAutoStartFirstRun(false);
                   setShowRunModal(true);
@@ -605,7 +602,7 @@ function AppDashboard() {
       </div>
 
       {/* New Run modal */}
-      {showRunModal && live.activeProject && <V2RunPreflight project={live.activeProject} initialTargetUrl={runTargetUrl} initialMissionGoal={runMissionGoal} autoStart={autoStartFirstRun} initialTargetAuthorizationConfirmed={autoStartFirstRun} onClose={() => { setShowRunModal(false); setAutoStartFirstRun(false); }} onStarted={handleV2Started} />}
+      {showRunModal && live.activeProject && <V2RunPreflight project={live.activeProject} initialMissionGoal={runMissionGoal} autoStart={autoStartFirstRun} initialTargetAuthorizationConfirmed={autoStartFirstRun} onClose={() => { setShowRunModal(false); setAutoStartFirstRun(false); }} onStarted={handleV2Started} />}
     </div>
   );
 }
@@ -988,6 +985,5 @@ function formatDuration(s: number) {
   const r = s % 60;
   return `${m}m ${r.toString().padStart(2, "0")}s`;
 }
-
 
 
