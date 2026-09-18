@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.10.0...v0.11.0) (2026-09-18)
+
+
+### Features
+
+* enforce secret vault input rules ([f862404](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/f862404b2a280c1c04d8be430ceab26f6b0fe6f4))
+* rename environment page to secrets and environments ([ef5fb34](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/ef5fb34b0a5380089343d31d9b499e58955a161c))
+
 ## [0.10.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.9.1...v0.10.0) (2026-09-17)
 
 
