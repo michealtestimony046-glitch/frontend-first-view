@@ -363,7 +363,7 @@ function ScenarioBuilder({
   const [secretsError, setSecretsError] = useState<string | null>(null);
   const [variablesOpen, setVariablesOpen] = useState<number | null>(null);
   const [verification, setVerification] = useState<{
-    status: "passed" | "failed";
+    status: "queued" | "passed" | "failed";
     results: Array<{ index: number; status: "passed" | "failed"; error?: string }>;
     error: string | null;
   } | null>(null);
@@ -496,9 +496,21 @@ function ScenarioBuilder({
         draft.steps,
         activeEnvironmentId || undefined,
       );
-      setVerification({ status: result.status, results: result.results, error: result.error });
-      if (result.status === "failed")
-        setError(result.error || "Dry Run failed. Edit the step and verify again before saving.");
+      let completed = result;
+      for (let attempt = 0; attempt < 60 && completed.status === "queued"; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+        if (!result.jobId) break;
+        completed = await scenariosApi.getVerification(projectId, result.jobId);
+      }
+      setVerification({
+        status: completed.status,
+        results: completed.results,
+        error: completed.error,
+      });
+      if (completed.status !== "passed")
+        setError(
+          completed.error || "Dry Run failed. Edit the step and verify again before saving.",
+        );
     } catch (cause) {
       setVerification({
         status: "failed",

@@ -3645,12 +3645,13 @@ export interface GenerateScenarioResponse {
   discoverySummary?: { routes: string[]; selectors: string[] };
 }
 export interface VerifyScenarioResponse {
-  status: "passed" | "failed";
+  status: "queued" | "passed" | "failed";
   results: Array<{ index: number; status: "passed" | "failed"; error?: string }>;
   failedStepIndex: number | null;
   error: string | null;
   suggestedStep?: ScenarioStep;
   queued: boolean;
+  jobId?: string;
 }
 export interface GenerateFromDiscoveryResponse {
   scanId: string | null;
@@ -3702,6 +3703,14 @@ export const scenariosApi = {
       requiresAuth: true,
       timeoutMs: 120_000,
     }),
+  getVerification: (projectId: string, jobId: string): Promise<VerifyScenarioResponse> =>
+    apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/scenarios/verify/${encodeURIComponent(jobId)}`,
+      {
+        requiresAuth: true,
+        cache: "no-store",
+      },
+    ),
   update: (
     projectId: string,
     scenarioId: string,
