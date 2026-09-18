@@ -42,7 +42,7 @@ type NavItem = { label: string; to: string; icon: typeof LayoutDashboard; exact?
 const nav: NavItem[] = [
   { label: "Overview", to: "/app", icon: LayoutDashboard, exact: true },
   { label: "Projects", to: "/app/projects", icon: FolderKanban },
-  { label: "Environments & data", to: "/app/environments", icon: Database },
+  { label: "Secrets & environments", to: "/app/environments", icon: Database },
   { label: "Discovery", to: "/app/discovery", icon: Search },
   { label: "Worker health", to: "/app/workforce", icon: Users },
   { label: "Test Runs", to: "/app/runs", icon: ListChecks },

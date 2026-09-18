@@ -569,17 +569,25 @@ function EnvironmentRow({
     setSecretFormOpen(true);
   };
 
+  const normalizeSecretKeyInput = (value: string) => {
+    const compact = value
+      .toUpperCase()
+      .replace(/\s/g, "")
+      .replace(/[^A-Z0-9_]/g, "");
+    return compact.startsWith("SECRET_") ? compact : `SECRET_${compact.replace(/^SECRET_?/, "")}`;
+  };
+
   const saveSecret = async (event: React.FormEvent) => {
     event.preventDefault();
-    const normalizedKey = secretKey.trim().toUpperCase();
-    if (!/^SECRET_[A-Z0-9_]+$/.test(normalizedKey)) {
+    const normalizedKey = normalizeSecretKeyInput(secretKey);
+    if (!/^SECRET_[A-Z0-9_]{1,120}$/.test(normalizedKey)) {
       setSecretError(
         "Key must start with SECRET_ and contain only uppercase letters, numbers, and underscores.",
       );
       return;
     }
-    if (!secretValue) {
-      setSecretError("Secret value is required.");
+    if (!secretValue || /\s/.test(secretValue)) {
+      setSecretError("Secret value is required and cannot contain spaces.");
       return;
     }
     setAction("secret");
@@ -594,6 +602,8 @@ function EnvironmentRow({
         });
       setSecretFormOpen(false);
       setSecretValue("");
+      setSecretKey("");
+      setRotatingKey(null);
       await loadSecrets();
     } catch (cause) {
       setSecretError(toMessage(cause, "Unable to save secret."));
@@ -918,10 +928,6 @@ function EnvironmentRow({
                       <KeyRound className="h-4 w-4 text-primary" />
                       <h3 className="text-sm font-semibold">Secret Vault</h3>
                     </div>
-                    <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
-                      Write-only credentials for this environment. Values are never returned or
-                      displayed.
-                    </p>
                   </div>
                   <button
                     type="button"
@@ -942,28 +948,42 @@ function EnvironmentRow({
                 {secretFormOpen && (
                   <form
                     onSubmit={(event) => void saveSecret(event)}
-                    className="mt-3 grid gap-2 rounded-md border border-border bg-surface p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+                    className="mt-3 grid gap-3 rounded-md border border-border bg-surface p-3"
                   >
-                    <Field label="Key name">
+                    <Field label="Key">
                       <input
                         value={secretKey}
-                        onChange={(event) => setSecretKey(event.target.value.toUpperCase())}
+                        onChange={(event) =>
+                          setSecretKey(normalizeSecretKeyInput(event.target.value))
+                        }
                         disabled={Boolean(rotatingKey) || action === "secret"}
                         placeholder="SECRET_ADMIN_TOKEN"
+                        pattern="SECRET_[A-Z0-9_]{1,120}"
+                        minLength={8}
+                        maxLength={128}
+                        required
                         autoComplete="off"
                         spellCheck={false}
+                        aria-invalid={Boolean(secretError)}
+                        className="block w-full rounded-md border border-border bg-background px-3 py-2.5 font-mono text-sm uppercase outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
                       />
                     </Field>
-                    <Field label={rotatingKey ? `New value for ${rotatingKey}` : "Secret value"}>
+                    <Field label="Value">
                       <input
                         type="password"
                         value={secretValue}
-                        onChange={(event) => setSecretValue(event.target.value)}
+                        onChange={(event) => setSecretValue(event.target.value.replace(/\s/g, ""))}
                         disabled={action === "secret"}
+                        pattern="\S+"
+                        minLength={1}
+                        maxLength={10000}
+                        required
                         autoComplete="new-password"
+                        aria-invalid={Boolean(secretError)}
+                        className="block w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
                       />
                     </Field>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="submit"
                         disabled={action === "secret"}
