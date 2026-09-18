@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.11.0...v0.12.0) (2026-09-18)
+
+
+### Features
+
+* configure environment WAF headers ([421716f](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/421716f8da07f6976ec543a3121be18a2da255a9))
+* lock runs to configured environments ([c1e7c6d](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/c1e7c6db4b938f1903a5e5fb12e57530d9de314b))
+* support multi-project run selection ([5add630](https://github.com/michealtestimony046-glitch/frontend-first-view/commit/5add630c6c1edf00982ad5dfe5694f02f60a2152))
+
 ## [0.11.0](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.10.0...v0.11.0) (2026-09-18)
 
 
