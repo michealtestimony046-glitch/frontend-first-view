@@ -29,6 +29,7 @@ import {
   type V2EnvironmentDependency,
   type V2EnvironmentSnapshot,
   type EnvironmentSecretMetadata,
+  type EnvironmentHttpHeaderWrite,
   type V2FixtureStrategy,
   type V2TestDataFixture,
   type Workspace,
@@ -1253,6 +1254,9 @@ function EnvironmentDrawer({
   const [baseUrl, setBaseUrl] = useState(environment?.baseUrl ?? "");
   const [description, setDescription] = useState(environment?.description ?? "");
   const [healthPaths, setHealthPaths] = useState("/");
+  const [httpHeaders, setHttpHeaders] = useState<EnvironmentHttpHeaderWrite[]>(
+    environment?.httpHeaders?.map((header) => ({ key: header.key, value: "" })) ?? [],
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submit = async (event: React.FormEvent) => {
@@ -1272,6 +1276,14 @@ function EnvironmentDrawer({
         .map((path) => ({ name: path === "/" ? "base URL" : path, path, expectedStatus: 200 }));
       if (healthChecks.some((item) => !item.path.startsWith("/") || item.path.startsWith("//")))
         throw new Error("Health checks must be relative same-origin paths.");
+      const normalizedHeaders = httpHeaders
+        .map((header) => ({ key: header.key.trim(), value: header.value }))
+        .filter((header) => header.key);
+      if (
+        new Set(normalizedHeaders.map((header) => header.key.toLowerCase())).size !==
+        normalizedHeaders.length
+      )
+        throw new Error("Custom HTTP header names must be unique.");
       const saved = editing
         ? await v2Api.updateEnvironment(environment!.id, {
             name: name.trim(),
@@ -1279,6 +1291,7 @@ function EnvironmentDrawer({
             baseUrl: baseUrl.trim(),
             description: description.trim() || undefined,
             healthChecks,
+            httpHeaders: normalizedHeaders,
           })
         : await v2Api.createEnvironment({
             organizationId,
@@ -1289,6 +1302,7 @@ function EnvironmentDrawer({
             baseUrl: baseUrl.trim(),
             description: description.trim() || undefined,
             healthChecks,
+            httpHeaders: normalizedHeaders,
           });
       onSaved(saved);
     } catch (cause) {
@@ -1363,6 +1377,70 @@ function EnvironmentDrawer({
           />
           <span className="mt-1 block text-[11px] text-muted-foreground">
             One relative same-origin GET path per line. Matrix QA never follows external redirects.
+          </span>
+        </Field>
+        <Field label="Custom HTTP Headers">
+          <div className="space-y-2">
+            {httpHeaders.map((header, index) => (
+              <div
+                key={`${header.key}-${index}`}
+                className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+              >
+                <input
+                  value={header.key}
+                  onChange={(event) =>
+                    setHttpHeaders((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, key: event.target.value } : item,
+                      ),
+                    )
+                  }
+                  placeholder="X-WAF-Token"
+                  disabled={busy}
+                />
+                <input
+                  type="password"
+                  value={header.value}
+                  onChange={(event) =>
+                    setHttpHeaders((current) =>
+                      current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, value: event.target.value } : item,
+                      ),
+                    )
+                  }
+                  placeholder={
+                    environment?.httpHeaders?.some((item) => item.key === header.key)
+                      ? "Leave blank to keep existing value"
+                      : "Header value"
+                  }
+                  disabled={busy}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setHttpHeaders((current) =>
+                      current.filter((_, itemIndex) => itemIndex !== index),
+                    )
+                  }
+                  disabled={busy}
+                  className="rounded-md border border-border px-3 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setHttpHeaders((current) => [...current, { key: "", value: "" }])}
+              disabled={busy}
+              className="rounded-md border border-border px-3 py-2 text-xs font-semibold hover:border-primary"
+            >
+              Add header
+            </button>
+          </div>
+          <span className="mt-1 block text-[11px] text-muted-foreground">
+            Values are write-only and masked while entering them.
           </span>
         </Field>
         <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-muted-foreground">

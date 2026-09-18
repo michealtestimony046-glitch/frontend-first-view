@@ -667,6 +667,7 @@ export interface V2Environment {
   baseUrl: string;
   description?: string | null;
   allowedHostnames?: unknown;
+  httpHeaders?: Array<{ key: string; hasValue: boolean; valueMasked: string }>;
   healthChecks?: unknown;
   expectedConfig?: unknown;
   healthStatus?: V2EnvironmentHealthStatus;
@@ -683,6 +684,10 @@ export interface EnvironmentSecretMetadata {
   lastUsedAt?: string | null;
 }
 export interface EnvironmentSecretWrite {
+  key: string;
+  value: string;
+}
+export interface EnvironmentHttpHeaderWrite {
   key: string;
   value: string;
 }
@@ -3282,6 +3287,7 @@ export const v2Api = {
     healthChecks?: unknown[];
     expectedConfig?: unknown;
     allowedHostnames?: unknown;
+    httpHeaders?: EnvironmentHttpHeaderWrite[];
   }): Promise<V2Environment> =>
     apiRequest("/environments", { method: "POST", body: JSON.stringify(data), requiresAuth: true }),
   updateEnvironment: (
@@ -3294,6 +3300,7 @@ export const v2Api = {
       healthChecks?: unknown[];
       expectedConfig?: unknown;
       allowedHostnames?: unknown;
+      httpHeaders?: EnvironmentHttpHeaderWrite[];
     },
   ): Promise<V2Environment> =>
     apiRequest(`/environments/${encodeURIComponent(environmentId)}`, {
@@ -3739,6 +3746,7 @@ export type RunStatus =
   | "partially_tested"
   | "blocked"
   | "failed"
+  | "failed_preflight"
   | "running"
   | "queued";
 

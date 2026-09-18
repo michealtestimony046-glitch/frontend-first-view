@@ -85,7 +85,7 @@ function AppDashboard() {
   const latestReport = reportForRun(reports, latestRun?.id);
   const total = runs.length;
   const passed = runs.filter((run) => run.status === "COMPLETED").length;
-  const failed = runs.filter((run) => run.status === "FAILED").length;
+  const failed = runs.filter((run) => run.status === "FAILED" || run.status === "FAILED_PREFLIGHT").length;
   const warnings = runs.reduce((sum, run) => {
     const outcomeWarning = ["PASSED_WITH_FINDINGS", "PARTIALLY_TESTED", "BLOCKED"].includes(run.status) ? 1 : 0;
     return sum + outcomeWarning + reportWarnings(reportForRun(reports, run.id));
@@ -631,7 +631,7 @@ function buildStatusTotals(runs: Array<{ status: string }>): DashboardStatusTota
     if (run.status === "COMPLETED") totals.passed += 1;
     else if (run.status === "PASSED_WITH_FINDINGS") totals.findings += 1;
     else if (run.status === "PARTIALLY_TESTED") totals.partiallyTested += 1;
-    else if (run.status === "FAILED") totals.failed += 1;
+    else if (run.status === "FAILED" || run.status === "FAILED_PREFLIGHT") totals.failed += 1;
     else if (run.status === "BLOCKED") totals.blocked += 1;
     else if (run.status === "RUNNING" || run.status === "EXECUTING") totals.running += 1;
     else totals.queued += 1;
@@ -657,7 +657,7 @@ function buildOverallTrend(runs: Array<{ status: string; startedAt?: string | nu
       else if (run.status === "PARTIALLY_TESTED") counts.partiallyTested += 1;
       else if (run.status === "RUNNING") counts.running += 1;
       else if (run.status === "BLOCKED") counts.blocked += 1;
-      else if (run.status === "FAILED") counts.failed += 1;
+      else if (run.status === "FAILED" || run.status === "FAILED_PREFLIGHT") counts.failed += 1;
       else counts.queued += 1;
     });
     return {
@@ -962,6 +962,11 @@ export function StatusPill({ status }: { status: RunStatus }) {
       icon: XCircle,
       label: "Failed",
     },
+    failed_preflight: {
+      cls: "bg-destructive/15 text-destructive border-destructive/30",
+      icon: XCircle,
+      label: "Failed preflight",
+    },
     running: {
       cls: "bg-primary/15 text-primary border-primary/40",
       icon: Activity,
@@ -988,4 +993,3 @@ function formatDuration(s: number) {
   const r = s % 60;
   return `${m}m ${r.toString().padStart(2, "0")}s`;
 }
-
