@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.13.0](https://github.com/T-R-labs-org/frontend-first-view/compare/v0.12.1...v0.13.0) (2026-10-10)
+
+
+### Features
+
+* add repair package export and frontend setup fixes ([fdc4075](https://github.com/T-R-labs-org/frontend-first-view/commit/fdc407552f67d07fc161153e0d4fdf19d32f8ee0))
+
+
+### Bug Fixes
+
+* add selector type guardrails to scenario builder ([8e6a981](https://github.com/T-R-labs-org/frontend-first-view/commit/8e6a981afdca802f2b640bfcffac8f8942c6f706))
+* align router versions for server rendering ([7376309](https://github.com/T-R-labs-org/frontend-first-view/commit/7376309d289e3185a6b7c81129589fe3b01b288b))
+* isolate selector editor type and value state ([58288c0](https://github.com/T-R-labs-org/frontend-first-view/commit/58288c0b3bbde7ea9102318f42597eb672f1390b))
+* separate selector type and target value fields ([1270bb4](https://github.com/T-R-labs-org/frontend-first-view/commit/1270bb4a42a6c3bda3cfcf558a0973e6e8110daa))
+* upgrade tanstack react start past xss vulnerability ([9b46bed](https://github.com/T-R-labs-org/frontend-first-view/commit/9b46bedd4b01df9c2ff430f008a0b8ec3f68605a))
+
 ## [0.12.1](https://github.com/michealtestimony046-glitch/frontend-first-view/compare/v0.12.0...v0.12.1) (2026-09-18)
 
 
